@@ -1,6 +1,6 @@
 # FOSSLight Util
 
-<img src="https://img.shields.io/badge/license-Apache--2.0-orange.svg" alt="FOSSLight Util is released under the Apache-2.0." /> <img src="https://img.shields.io/badge/pypi-v1.0-brightgreen.svg" alt="Current python package version." /> <img src="https://img.shields.io/badge/python-3.6+-blue.svg" />
+<img src="https://img.shields.io/pypi/l/fosslight_util" alt="FOSSLight Util is released under the Apache-2.0." /> <img src="https://img.shields.io/pypi/v/fosslight_util" alt="Current python package version." /> <img src="https://img.shields.io/pypi/pyversions/fosslight_util" />
 
 It is a package that supports common utils used by FOSSLight Scanner.
 
