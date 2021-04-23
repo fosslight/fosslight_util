@@ -19,7 +19,7 @@ if __name__ == "__main__":
         description='FOSSLight Util',
         long_description=readme,
         long_description_content_type='text/markdown',
-        license='LGE-Proprietary',
+        license='Apache-2.0',
         author='LG Electronics',
         url='https://github.com/fosslight/fosslight_util',
         download_url='https://github.com/fosslight/fosslight_util',
