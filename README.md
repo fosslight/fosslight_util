@@ -22,7 +22,7 @@ It is a package that supports common utils used by FOSSLight Scanner.
 
 ## 📋 Prerequisite
 
-FOSSLight Reporter needs a Python 3.6+.
+FOSSLight Util needs a Python 3.6+.
 
 ## 🎉 How to install
 
