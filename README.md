@@ -1,6 +1,6 @@
 # FOSSLight Util
 
-<img src="https://img.shields.io/badge/license-Apache--2.0-orange.svg" alt="FOSSLight Util is released under the Apache-2.0." /> <img src="https://img.shields.io/badge/pypi-v1.0-brightgreen.svg" alt="Current python package version." /> <img src="https://img.shields.io/badge/python-3.6+-blue.svg" />
+<img src="https://img.shields.io/pypi/l/fosslight_util" alt="FOSSLight Util is released under the Apache-2.0." /> <img src="https://img.shields.io/pypi/v/fosslight_util" alt="Current python package version." /> <img src="https://img.shields.io/pypi/pyversions/fosslight_util" />
 
 It is a package that supports common utils used by FOSSLight Scanner.
 
@@ -8,6 +8,7 @@ It is a package that supports common utils used by FOSSLight Scanner.
 1. It simplifies the logger setup.
 2. It easily outputs csv file and excel file in OSS Report format.
 3. It provides a simple function to create a text file.
+4. It defines common constant variables.
 
 [or]: http://collab.lge.com/main/x/xDHlFg
 
@@ -73,6 +74,16 @@ def test():
     success, error_msg = write_txt_file("test_result/txt/test.txt",
                                        "Testing - Writing text in a file.")
 ```
+
+### 4. Load common constant (tests/_print_log_with_another_logger.py)
+```
+import fosslight_util.constant as constant
+
+
+logger = logging.getLogger(constant.LOGGER_NAME)
+logger.warning("Get a logger after init_log is called once.")
+```
+
 ## 👏 How to report issue
 
 Please report any ideas or bugs to improve by creating an issue in [fosslight_util repository][cl]. Then there will be quick bug fixes and upgrades. Ideas to improve are always welcome.
