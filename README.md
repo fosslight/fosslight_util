@@ -6,7 +6,7 @@ It is a package that supports common utils used by FOSSLight Scanner.
 
 ## Features 
 1. It simplifies the logger setup.
-2. It easily outputs csv file and excel file in [OSS Report][or] format.
+2. It easily outputs csv file and excel file in OSS Report format.
 3. It provides a simple function to create a text file.
 
 [or]: http://collab.lge.com/main/x/xDHlFg
