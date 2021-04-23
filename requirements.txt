@@ -1,0 +1,4 @@
+XlsxWriter
+pandas
+xlrd
+openpyxl
