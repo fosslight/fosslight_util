@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.2 (23/04/2021)
+## Changes
+## 🐛 Hotfixes
+
+- Add a file for constant @soimkim (#3)
+
+---
+
 ## v1.0.1 (23/04/2021)
 ## Changes
 ## 🔧 Maintenance
