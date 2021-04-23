@@ -1,15 +1,12 @@
-<p align="center">
-  <strong>FOSSLight Util</strong><br>
-  Combine all the logs & Print result as csv and excel
-</p>
+# FOSSLight Util
 
-<p align="center">
-    <img src="https://img.shields.io/badge/license-LGE-orange.svg" alt="FOSSLight Scanner is released under the LGE Proprietary License." />
-    <img src="https://img.shields.io/badge/pypi-v0.1-brightgreen.svg" alt="Current python package version." />
-    <img src="https://img.shields.io/badge/python-3.6+-blue.svg" />
-</p>
+<img src="https://img.shields.io/badge/license-Apache--2.0-orange.svg" alt="FOSSLight Util is released under the Apache-2.0." />
+<img src="https://img.shields.io/badge/pypi-v1.0-brightgreen.svg" alt="Current python package version." />
+<img src="https://img.shields.io/badge/python-3.6+-blue.svg" />
 
-**FOSSLight Util** 
+It is a package that collects common utils used by FOSSLight Scanner.
+
+## Features 
 1. It simplifies the logger setup.
 2. It easily outputs csv file and excel file in [OSS Report][or] format.
 3. It provides a simple function to create a text file.
@@ -34,7 +31,7 @@ FOSSLight Reporter needs a Python 3.6+.
 It can be installed using pip3. 
 
 ```
-$ pip3 install "http://mod.lge.com/code/rest/archive/latest/projects/OSC/repos/fosslight_reporter/archive?format=zip" 
+$ pip3 install fosslight_util
 ```
 
 ## 🚀 How to use
@@ -44,7 +41,7 @@ Three modules can be called. Please refer to each file for detailed calling meth
    
 ### 1. Setup logger (tests/test_log.py)
 ```
-from fosslight_reporter._set_log import init_log
+from fosslight_util._set_log import init_log
 
 
 def test():
@@ -54,7 +51,7 @@ def test():
   
 ### 2. Write csv and excel files (tests/test_excel.py)
 ```
-from fosslight_reporter._write_excel import write_excel_and_csv
+from fosslight_util._write_excel import write_excel_and_csv
 
 
 def test():
@@ -71,7 +68,7 @@ def test():
   
 ### 3. Write a text file (tests/test_text.py)
 ```
-from fosslight_reporter.write_txt import write_txt_file
+from fosslight_util.write_txt import write_txt_file
 
 
 def test():
@@ -80,12 +77,12 @@ def test():
 ```
 ## 👏 How to report issue
 
-Please report any ideas or bugs to improve by creating an issue in [OSC CLM][cl]. Then there will be quick bug fixes and upgrades. Ideas to improve are always welcome.
+Please report any ideas or bugs to improve by creating an issue in [fosslight_util repository][cl]. Then there will be quick bug fixes and upgrades. Ideas to improve are always welcome.
 
-[cl]: http://clm.lge.com/issue/browse/OSC
+[cl]: https://github.com/fosslight/fosslight_util/issues
 
 ## 📄 License
 
-FOSSLight Source is LGE licensed, as found in the [LICENSE][l] file.
+FOSSLight Util is released under [Apache-2.0][l].
 
-[l]: http://mod.lge.com/code/projects/OSC/repos/fosslight_reporter/browse/LICENSE
+[l]: https://github.com/fosslight/fosslight_util/blob/main/LICENSE
