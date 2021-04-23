@@ -6,11 +6,12 @@
 import logging
 import os
 from pathlib import Path
+from . import constant as constant
 
 
 def init_log(log_file, create_file=True):
 
-    logger = logging.getLogger('fosslight')
+    logger = logging.getLogger(constant.LOGGER_NAME)
     if not logger.hasHandlers():
         log_level = logging.WARNING
         formatter = logging.Formatter('%(message)s')
