@@ -9,6 +9,7 @@ It is a package that supports common utils used by FOSSLight Scanner.
 2. It easily outputs csv file and excel file in OSS Report format.
 3. It provides a simple function to create a text file.
 4. It defines common constant variables.
+5. It provides a thread that prints the spinner.
 
 [or]: http://collab.lge.com/main/x/xDHlFg
 
@@ -82,6 +83,16 @@ import fosslight_util.constant as constant
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 logger.warning("Get a logger after init_log is called once.")
+```
+
+### 5. Call a spinner (tests/test_timer.py)
+```
+from fosslight_util.timer_thread import TimerThread
+
+
+timer = TimerThread()
+timer.setDaemon(True)
+timer.start()
 ```
 
 ## 👏 How to report issue
