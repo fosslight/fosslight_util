@@ -2,3 +2,5 @@ XlsxWriter
 pandas
 xlrd
 openpyxl
+progress
+PyYAML
