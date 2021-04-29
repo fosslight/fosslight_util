@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.3 (29/04/2021)
+## Changes
+- Add a class for printing spinner @soimkim (#4)
+
+---
+
 ## v1.0.2 (23/04/2021)
 ## Changes
 ## 🐛 Hotfixes
