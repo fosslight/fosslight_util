@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.4 (02/05/2021)
+## Changes
+- Do not print empty sheets @soimkim (#5)
+
+---
+
 ## v1.0.3 (29/04/2021)
 ## Changes
 - Add a class for printing spinner @soimkim (#4)
