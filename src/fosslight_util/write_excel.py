@@ -12,6 +12,7 @@ import platform
 import time
 import pandas as pd
 from pathlib import Path
+import fosslight_util.constant as constant
 
 _HEADER = {'SRC': ['ID', 'Source Name or Path', 'OSS Name',
                    'OSS Version', 'License',  'Download Location',
@@ -21,6 +22,9 @@ _HEADER = {'SRC': ['ID', 'Source Name or Path', 'OSS Name',
                    'License', 'Download Location', 'Homepage',
                    'Copyright Text', 'Exclude', 'Comment']}
 _OUTPUT_FILE_PREFIX = "OSS-Report_"
+_EMPTY_ITEM_MSG = "* There is no item"\
+                    " to print in OSS-Report.\n"
+logger = logging.getLogger(constant.LOGGER_NAME)
 
 
 def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False):
@@ -30,20 +34,51 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False)
     success_csv = True
     error_msg_csv = ""
 
-    output_dir = os.path.dirname(filename_without_extension)
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    is_not_null, sheet_list = remove_empty_sheet(sheet_list)
 
-    success, error_msg = write_result_to_excel(filename_without_extension +
+    if is_not_null:
+        output_dir = os.path.dirname(filename_without_extension)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+        success, error_msg = write_result_to_excel(filename_without_extension +
                                                ".xlsx", sheet_list)
-    if ignore_os or platform.system() != "Windows":
-        success_csv, error_msg_csv = write_result_to_csv(filename_without_extension +
+        if ignore_os or platform.system() != "Windows":
+            success_csv, error_msg_csv = write_result_to_csv(filename_without_extension +
                                                          ".csv", sheet_list)
-    if not success:
-        error_msg = "[Error] Writing excel:" + error_msg
-    if not success_csv:
-        error_msg += "\n[Error] Writing csv:" + error_msg_csv
+        if not success:
+            error_msg = "[Error] Writing excel:" + error_msg
+        if not success_csv:
+            error_msg += "\n[Error] Writing csv:" + error_msg_csv
+    else:
+        success = False
+        error_msg = _EMPTY_ITEM_MSG
 
     return (success and success_csv), error_msg
+
+
+def remove_empty_sheet(sheet_items):
+    skip_sheet_name = []
+    cnt_sheet_to_print = 0
+    final_sheet_to_print = {}
+    success = False
+
+    try:
+        if sheet_items:
+            for sheet_name, sheet_content in sheet_items.items():
+                logger.debug("ITEM COUNT:"+str(len(sheet_content)))
+                if len(sheet_content) > 0:
+                    final_sheet_to_print[sheet_name] = sheet_content
+                    cnt_sheet_to_print += 1
+                else:
+                    skip_sheet_name.append(sheet_name)
+            if cnt_sheet_to_print != 0:
+                success = True
+                if len(skip_sheet_name) > 0:
+                    logger.warn("* Empty sheet(not printed):"+ str(skip_sheet_name))
+    except Exception as ex:
+        logger.warn("* Warning:"+str(ex))
+
+    return success, final_sheet_to_print
 
 
 def write_result_to_csv(output_file, sheet_list):
