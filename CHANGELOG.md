@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.7 (13/05/2021)
+## Changes
+- Add exit option for Print Help Msg @bjk7119 (#9)
+
+---
+
 ## v1.0.6 (13/05/2021)
 ## Changes
 - Add Common Help Message @bjk7119 (#7)
