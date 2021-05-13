@@ -1,7 +1,7 @@
 # 1. Update changelog
 # 2. Upload a Python Package using Twine
 
-name: Release fosslight_source
+name: Release fosslight_util
 
 on:
   release:
