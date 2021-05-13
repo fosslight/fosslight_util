@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.6 (13/05/2021)
+## Changes
+- Add Common Help Message @bjk7119 (#7)
+
+---
+
 ## v1.0.5 (13/05/2021)
 ## Changes
 ## 🔧 Maintenance
