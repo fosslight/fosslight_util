@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.5 (13/05/2021)
+## Changes
+## 🔧 Maintenance
+
+- Add options to change stream and file log level @dd-jy (#6)
+
+---
+
 ## v1.0.4 (02/05/2021)
 ## Changes
 - Do not print empty sheets @soimkim (#5)
