@@ -12,7 +12,7 @@ import platform
 from . import constant as constant
 
 
-def init_log(log_file, create_file=True, stream_log_level=logging.WARN, file_log_level=logging.INFO):
+def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log_level=logging.DEBUG):
 
     logger = logging.getLogger(constant.LOGGER_NAME)
     
