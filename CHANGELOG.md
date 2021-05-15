@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.8 (15/05/2021)
+## Changes
+- Change default log level @soimkim (#10)
+
+---
+
 ## v1.0.7 (13/05/2021)
 ## Changes
 - Add exit option for Print Help Msg @bjk7119 (#9)
