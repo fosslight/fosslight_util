@@ -7,9 +7,7 @@ import csv
 import time
 import logging
 import os
-import json
 import platform
-import time
 import pandas as pd
 from pathlib import Path
 import fosslight_util.constant as constant
@@ -40,11 +38,10 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False)
         output_dir = os.path.dirname(filename_without_extension)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-        success, error_msg = write_result_to_excel(filename_without_extension +
-                                               ".xlsx", sheet_list)
+        success, error_msg = write_result_to_excel(filename_without_extension + ".xlsx", sheet_list)
+
         if ignore_os or platform.system() != "Windows":
-            success_csv, error_msg_csv = write_result_to_csv(filename_without_extension +
-                                                         ".csv", sheet_list)
+            success_csv, error_msg_csv = write_result_to_csv(filename_without_extension + ".csv", sheet_list)
         if not success:
             error_msg = "[Error] Writing excel:" + error_msg
         if not success_csv:
@@ -65,7 +62,7 @@ def remove_empty_sheet(sheet_items):
     try:
         if sheet_items:
             for sheet_name, sheet_content in sheet_items.items():
-                logger.debug("ITEM COUNT:"+str(len(sheet_content)))
+                logger.debug("ITEM COUNT:" + str(len(sheet_content)))
                 if len(sheet_content) > 0:
                     final_sheet_to_print[sheet_name] = sheet_content
                     cnt_sheet_to_print += 1
@@ -74,7 +71,7 @@ def remove_empty_sheet(sheet_items):
             if cnt_sheet_to_print != 0:
                 success = True
                 if len(skip_sheet_name) > 0:
-                    logger.warn("* Empty sheet(not printed):"+ str(skip_sheet_name))
+                    logger.warn("* Empty sheet(not printed):" + str(skip_sheet_name))
     except Exception as ex:
         logger.warn("* Warning:"+str(ex))
 
@@ -157,7 +154,7 @@ def merge_excels(find_excel_dir, final_out):
 
         if len([name for name in files if name.endswith(_find_extension)]) > 0:
             writer = pd.ExcelWriter(final_out)
-            df = pd.DataFrame()
+
             for file in files:
                 if file.endswith(_find_extension):
                     f_short_name = os.path.splitext(
