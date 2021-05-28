@@ -6,6 +6,7 @@ import threading
 import time
 from progress.spinner import Spinner
 
+
 class TimerThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self, name=' Thread')

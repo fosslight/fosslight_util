@@ -15,7 +15,7 @@ from . import constant as constant
 def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log_level=logging.DEBUG):
 
     logger = logging.getLogger(constant.LOGGER_NAME)
-    
+
     if not logger.hasHandlers():
         logger.setLevel(logging.DEBUG)
         log_dir = os.path.dirname(log_file)
@@ -42,7 +42,7 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log
     return logger
 
 
-def init_log_item(main_package_name="", path_to_analyze= ""):
+def init_log_item(main_package_name="", path_to_analyze=""):
 
     _PYTHON_VERSION = sys.version_info[0]
     _result_log = {
@@ -52,8 +52,8 @@ def init_log_item(main_package_name="", path_to_analyze= ""):
     }
     if main_package_name != "":
         pkg_version = pkg_resources.get_distribution(main_package_name).version
-        _result_log["Tool Info"] = main_package_name +" v."+pkg_version
+        _result_log["Tool Info"] = main_package_name + " v." + pkg_version
     if path_to_analyze != "":
-       _result_log["Path to analyze"] = path_to_analyze
+        _result_log["Path to analyze"] = path_to_analyze
 
     return _result_log

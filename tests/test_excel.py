@@ -9,7 +9,7 @@ from fosslight_util.set_log import init_log
 def main():
     logger = init_log("test_result/excel/log_write_excel.txt")
     logger.warning("TESTING - Writing an excel")
-    
+
     sheet_contents = {}
     src_sheet_items = [['run_scancode.py', 'fosslight_source',
                         '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_source',
