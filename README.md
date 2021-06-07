@@ -1,6 +1,10 @@
-# FOSSLight Util
+<!--
+Copyright (c) 2021 LG Electronics
+SPDX-License-Identifier: Apache-2.0
+ -->
+ # FOSSLight Util
 
-<img src="https://img.shields.io/pypi/l/fosslight_util" alt="FOSSLight Util is released under the Apache-2.0." /> <img src="https://img.shields.io/pypi/v/fosslight_util" alt="Current python package version." /> <img src="https://img.shields.io/pypi/pyversions/fosslight_util" />
+<img src="https://img.shields.io/pypi/l/fosslight_util" alt="FOSSLight Util is released under the Apache-2.0." /> <img src="https://img.shields.io/pypi/v/fosslight_util" alt="Current python package version." /> <img src="https://img.shields.io/pypi/pyversions/fosslight_util" /> [![REUSE status](https://api.reuse.software/badge/github.com/fosslight/fosslight_util)](https://api.reuse.software/info/github.com/fosslight/fosslight_util)
 
 It is a package that supports common utils used by FOSSLight Scanner.
 
