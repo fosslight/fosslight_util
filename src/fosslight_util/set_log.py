@@ -75,7 +75,7 @@ def init_check_latest_version(pkg_version="", main_package_name=""):
         latest_version = lastversion.has_update(repo=main_package_name, at='pip', current_version=pkg_version)
         if latest_version:
             logger.info('### Version Info ###')
-            logger.warn('Newer version is available:{}'.format(str(latest_version)))
+            logger.warn('Newer version is available : v.{}'.format(str(latest_version)))
             logger.warn('You can update it with command (\'pip install ' + main_package_name + ' --upgrade\')')
     except TypeError:
         logger.warn('Cannot check the lastest version on PIP')
