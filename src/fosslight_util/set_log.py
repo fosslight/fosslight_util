@@ -72,14 +72,14 @@ def init_check_latest_version(pkg_version="", main_package_name=""):
     logger = logging.getLogger(constant.LOGGER_NAME)
 
     try:
-        latest_version = lastversion.has_update(repo=main_package_name, at='pip', current_version=pkg_version)
-        if latest_version:
+        has_update = lastversion.has_update(repo=main_package_name, at='pip', current_version=pkg_version)
+        if has_update:
             logger.info('### Version Info ###')
-            logger.warn('Newer version is available : v.{}'.format(str(latest_version)))
-            logger.warn('You can update it with command (\'pip install ' + main_package_name + ' --upgrade\')')
+            logger.warning('Newer version is available : v.{}'.format(str(has_update)))
+            logger.warning('You can update it with command (\'pip install ' + main_package_name + ' --upgrade\')')
     except TypeError:
-        logger.warn('Cannot check the lastest version on PIP')
-        logger.warn('You could use already installed version\n')
+        logger.warning('Cannot check the lastest version on PIP')
+        logger.warning('You could use already installed version\n')
 
 
 def init_log_item(main_package_name="", path_to_analyze=""):
