@@ -3,8 +3,7 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import yaml
-from fosslight_util.set_log import init_log
-from fosslight_util.set_log import init_log_item
+from fosslight_util.set_log import init_log, init_log_item
 from _print_log import print_log
 from _print_log_with_another_logger import print_log_another_logger
 

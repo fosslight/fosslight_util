@@ -10,6 +10,32 @@ import pkg_resources
 import sys
 import platform
 from . import constant as constant
+from lastversion import lastversion
+
+
+class CustomFormatter(logging.Formatter):
+    """Logging Formatter to add colors and count warning / errors"""
+
+    grey = "\033[37m"
+    yellow = "\033[33m"
+    orange = "\033[31m"
+    red = "\033[91m"
+    bold_red = "\033[91m"
+    reset = "\033[0m"
+    format = "%(message)s"
+
+    FORMATS = {
+        logging.DEBUG: grey + format + reset,
+        logging.INFO: grey + format + reset,
+        logging.WARNING: yellow + format + reset,
+        logging.ERROR: red + format + reset,
+        logging.CRITICAL: bold_red + format + reset
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
 
 
 def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log_level=logging.DEBUG):
@@ -32,14 +58,28 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log
 
         console_handler = logging.StreamHandler()
         console_handler.setLevel(stream_log_level)
-        console_formatter = logging.Formatter('%(message)s')
-        console_handler.setFormatter(console_formatter)
+        console_handler.setFormatter(CustomFormatter())
         console_handler.propagate = False
         logger.addHandler(console_handler)
 
         logger.propagate = False
 
     return logger
+
+
+def init_check_latest_version(pkg_version="", main_package_name=""):
+
+    logger = logging.getLogger(constant.LOGGER_NAME)
+
+    try:
+        has_update = lastversion.has_update(repo=main_package_name, at='pip', current_version=pkg_version)
+        if has_update:
+            logger.info('### Version Info ###')
+            logger.warning('Newer version is available : v.{}'.format(str(has_update)))
+            logger.warning('You can update it with command (\'pip install ' + main_package_name + ' --upgrade\')')
+    except TypeError:
+        logger.warning('Cannot check the lastest version on PIP')
+        logger.warning('You could use already installed version\n')
 
 
 def init_log_item(main_package_name="", path_to_analyze=""):
@@ -52,6 +92,7 @@ def init_log_item(main_package_name="", path_to_analyze=""):
     }
     if main_package_name != "":
         pkg_version = pkg_resources.get_distribution(main_package_name).version
+        init_check_latest_version(pkg_version, main_package_name)
         _result_log["Tool Info"] = main_package_name + " v." + pkg_version
     if path_to_analyze != "":
         _result_log["Path to analyze"] = path_to_analyze
