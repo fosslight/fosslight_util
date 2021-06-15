@@ -40,7 +40,7 @@ def main():
     sheet_contents['SRC_NULL'] = []
     sheet_contents['NULL_SHEET'] = []
     success, msg = write_excel_and_csv(
-        'test_result/excel/OSS-Report', sheet_contents)
+        'test_result/excel/FOSSLight-Report', sheet_contents)
     logger.warning("Result:" + str(success) + ", error_msg:" + msg)
 
 
