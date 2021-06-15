@@ -19,9 +19,9 @@ _HEADER = {'SRC': ['ID', 'Source Name or Path', 'OSS Name',
            'BIN': ['ID', 'Binary Name', 'OSS Name', 'OSS Version',
                    'License', 'Download Location', 'Homepage',
                    'Copyright Text', 'Exclude', 'Comment']}
-_OUTPUT_FILE_PREFIX = "OSS-Report_"
+_OUTPUT_FILE_PREFIX = "FOSSLight-Report_"
 _EMPTY_ITEM_MSG = "* There is no item"\
-                    " to print in OSS-Report.\n"
+                    " to print in FOSSLight-Report.\n"
 logger = logging.getLogger(constant.LOGGER_NAME)
 
 

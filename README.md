@@ -10,7 +10,7 @@ It is a package that supports common utils used by FOSSLight Scanner.
 
 ## Features 
 1. It simplifies the logger setup.
-2. It easily outputs csv file and excel file in OSS Report format.
+2. It easily outputs csv file and excel file in FOSSLight Report format.
 3. It provides a simple function to create a text file.
 4. It defines common constant variables.
 5. It provides a thread that prints the spinner.
@@ -73,7 +73,7 @@ def test():
                         '0.4.3', 'Apache-2.0', 'https://github.com/jpeddicord/askalono', '', 'Copyright (c) 2018 Amazon.com, Inc. or its affiliates.', '', '']]}
 
     success, msg = write_excel_and_csv(
-        'test_result/excel/OSS-Report', sheet_contents)
+        'test_result/excel/FOSSLight-Report', sheet_contents)
 ```
   
 ### 3. Write a text file (tests/test_text.py)
