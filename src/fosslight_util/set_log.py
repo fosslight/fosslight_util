@@ -16,7 +16,6 @@ import coloredlogs
 
 def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log_level=logging.DEBUG):
 
-    coloredlogs.install(fmt='%(message)s')
     logger = logging.getLogger(constant.LOGGER_NAME)
 
     if not logger.hasHandlers():
@@ -24,21 +23,16 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log
         log_dir = os.path.dirname(log_file)
         Path(log_dir).mkdir(parents=True, exist_ok=True)
 
-        if create_file:
+        coloredlogs.DEFAULT_LOG_FORMAT = '%(message)s'
+        coloredlogs.install(logger=logger)
 
+        if create_file:
             file_handlder = logging.FileHandler(log_file)
             file_handlder.setLevel(file_log_level)
             file_formatter = logging.Formatter('[%(levelname)7s] %(message)s')
             file_handlder.setFormatter(file_formatter)
             file_handlder.propagate = False
             logger.addHandler(file_handlder)
-
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(stream_log_level)
-        console_formatter = logging.Formatter('%(message)s')
-        console_handler.setFormatter(console_formatter)
-        console_handler.propagate = False
-        logger.addHandler(console_handler)
 
         logger.propagate = False
 
