@@ -24,7 +24,7 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log
         Path(log_dir).mkdir(parents=True, exist_ok=True)
 
         coloredlogs.DEFAULT_LOG_FORMAT = '%(message)s'
-        coloredlogs.install(logger=logger)
+        coloredlogs.install(level='INFO', logger=logger)
 
         if create_file:
             file_handlder = logging.FileHandler(log_file)
