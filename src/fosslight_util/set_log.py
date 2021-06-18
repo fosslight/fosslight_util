@@ -14,7 +14,7 @@ from lastversion import lastversion
 import coloredlogs
 
 
-def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log_level=logging.DEBUG):
+def init_log(log_file, create_file=True, stream_log_level=logging.WA, file_log_level=logging.DEBUG):
 
     logger = logging.getLogger(constant.LOGGER_NAME)
 
@@ -24,7 +24,8 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log
         Path(log_dir).mkdir(parents=True, exist_ok=True)
 
         coloredlogs.DEFAULT_LOG_FORMAT = '%(message)s'
-        coloredlogs.install(level='INFO', logger=logger)
+        coloredlogs.DEFAULT_LOG_LEVEL = stream_log_level
+        coloredlogs.install(logger=logger)
 
         if create_file:
             file_handlder = logging.FileHandler(log_file)
