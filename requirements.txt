@@ -5,3 +5,4 @@ openpyxl
 progress
 PyYAML
 lastversion
+coloredlogs
