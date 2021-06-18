@@ -14,7 +14,7 @@ def main():
     logger.debug('Error! This message is a level that should not be displayed on the console.')
     logger.info('Error! This message is a level that should not be displayed on the console.')
     logger.warning('This message is a level that should be displayed on the console.')
-    
+
     result_log = init_log_item("fosslight_util")
     _str_final_result_log = yaml.safe_dump(result_log, allow_unicode=True)
     logger.warning(_str_final_result_log)
