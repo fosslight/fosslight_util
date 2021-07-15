@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.10 (15/07/2021)
+## Changes
+## 🔧 Maintenance
+
+- Bump up to v1.0.10 @bjk7119 (#19)
+- Remove '.' for version logging @bjk7119 (#18)
+
+---
+
 ## v1.0.9 (24/06/2021)
 ## Changes
 - Apply Flake8 to check PEP8 @bjk7119 (#11)
