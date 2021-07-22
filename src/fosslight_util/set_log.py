@@ -27,6 +27,8 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log
         coloredlogs.DEFAULT_LOG_LEVEL = stream_log_level
         coloredlogs.install(logger=logger)
 
+        logger.warning('Test Logging')')
+
         if create_file:
             file_handlder = logging.FileHandler(log_file)
             file_handlder.setLevel(file_log_level)
