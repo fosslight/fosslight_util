@@ -32,10 +32,9 @@ jobs:
   bumpup-version:
     runs-on: ubuntu-latest
     steps:
-    - name: Get lateset release
-      id: get_release
-      uses: agners/get-draft-release@v1.2.2
-    - name: Bump up version
+    - uses: agners/get-draft-release@v1.2.2
+      name: Bump up version
+      id: get_release      
       with:
         tag_name: ${{ steps.get_release.outputs.tag_name }}
       run: bumpversion --curent-version $tag_name patch setup.py
