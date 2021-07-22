@@ -29,6 +29,17 @@ jobs:
         github_token: ${{ secrets.TOKEN }}
         branch: main
 
+  bumpup-version:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Get lateset release
+      id: get_release
+      uses: agners/get-draft-release@v1.2.2
+      with:
+        tag_name: ${{ steps.get_release.outputs.tag_name }}
+    - name: Bump up version
+      run: bumpversion --curent-version $tag_name patch setup.py
+      
   deploy:
     runs-on: ubuntu-18.04
     needs: update-changelog
