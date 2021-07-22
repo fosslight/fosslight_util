@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: agners/get-draft-release@v1.2.2
-      name: Bump up version
+    - name: Bump up version
       id: get_release      
       with:
         tag_name: ${{ steps.get_release.outputs.tag_name }}
