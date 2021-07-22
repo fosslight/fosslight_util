@@ -34,10 +34,8 @@ jobs:
     steps:
     - uses: agners/get-draft-release@v1.2.2
     - name: Bump up version
-      id: get_release      
-      with:
-        tag_name: ${{ steps.get_release.outputs.tag_name }}
-      run: bumpversion --curent-version $tag_name patch setup.py
+      id: get_release
+      run: bumpversion --curent-version ${{ steps.get_release.outputs.tag_name }} patch setup.py
       
   deploy:
     runs-on: ubuntu-18.04
