@@ -38,7 +38,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
     - name: Bump up version
-      run: bumpversion --curent-version ${{ steps.get_release.outputs.tag_name }} patch setup.py
+      run: |
+        pip install --upgrade bumpversion
+        bumpversion --curent-version ${{ steps.get_release.outputs.tag_name }} patch setup.py
       
   deploy:
     runs-on: ubuntu-18.04
