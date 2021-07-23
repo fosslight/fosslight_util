@@ -35,8 +35,6 @@ jobs:
     - name: Get Release
       uses: agners/get-draft-release@v1.2.2
       id: get_release
-      with:
-        github_token: ${{ secrets.TOKEN }}
     - name: Bump up version
       run: bumpversion --curent-version ${{ steps.get_release.outputs.tag_name }} patch setup.py
       
