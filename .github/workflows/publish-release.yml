@@ -40,9 +40,14 @@ jobs:
       with:
         tag_name: ${{ github.ref }}
     - name: Bump up version
+      env:
+        NEW_VERSION: ${{ steps.get_release.outputs.tag_name }}
       run: |
         pip install --upgrade bumpversion
-        bumpversion --curent-version ${{ steps.get_release.outputs.tag_name }} patch setup.py
+        LASTEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+        latest_version=$(echo ${LASTEST_TAG//v/""}
+        new_version=$(echo ${NEW_VERSION//v/""})
+        bumpversion --curent-version $new_version patch setup.py
       
   deploy:
     runs-on: ubuntu-18.04
