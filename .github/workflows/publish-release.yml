@@ -12,6 +12,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Get Release
+      uses: agners/get-draft-release@v1.2.2
+      id: get_release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      with:
+        tag_name: ${{ github.ref }}
+    - name: Bump up version
+      env:
+        NEW_TAG: ${{ steps.get_release.outputs.tag_name }}
+      run: |
+        pip install --upgrade bumpversion
+        LAST_TAGS=$(git for-each-ref refs/tags/ --count=2 --sort=-v:refname --format="%(refname:short)")
+        LAST_ONE=$(echo $LAST_TAGS | cut -d' ' -f 2)
+        last_version=$(echo ${LAST_ONE//v/""})
+        echo ${last_version}
+        new_version=$(echo ${NEW_TAG//v/""})
+        echo ${new_version}
+        bumpversion --current-version $last_version --new-version $new_version setup.py
+        git config --local user.name "github-actions[bot]"
+        git add setup.py
+        git commit -m "Update Version in setup.py"
     - name: update changelog with gren
       env:
         GREN_GITHUB_TOKEN: ${{ secrets.TOKEN }}
@@ -28,7 +52,7 @@ jobs:
       with:
         github_token: ${{ secrets.TOKEN }}
         branch: main
-
+        
   deploy:
     runs-on: ubuntu-18.04
     needs: update-changelog
