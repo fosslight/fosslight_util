@@ -6,4 +6,3 @@ progress
 PyYAML
 lastversion
 coloredlogs
-bumpversion
