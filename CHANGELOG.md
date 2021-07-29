@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.0.11 (29/07/2021)
+## Changes
+## 🐛 Hotfixes
+
+- Bug fix to checkout new version @bjk7119 (#22)
+
+## 🔧 Maintenance
+
+- Update version in setup.py when released @bjk7119 (#21)
+
+---
+
 ## v1.0.10 (15/07/2021)
 ## Changes
 ## 🔧 Maintenance
