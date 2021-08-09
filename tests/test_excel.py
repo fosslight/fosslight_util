@@ -7,7 +7,7 @@ from fosslight_util.set_log import init_log
 
 
 def main():
-    logger = init_log("test_result/excel/log_write_excel.txt")
+    logger, _result_log = init_log("test_result/excel/log_write_excel.txt")
     logger.warning("TESTING - Writing an excel")
 
     sheet_contents = {}
