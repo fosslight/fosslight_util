@@ -9,7 +9,7 @@ from fosslight_util.write_txt import write_txt_file
 
 def main():
     output_dir = "test_result/txt"
-    logger = init_log(os.path.join(output_dir, "log.txt"))
+    logger, _result_log = init_log(os.path.join(output_dir, "log.txt"))
     logger.warning("TESTING - writing text file")
     success, error_msg = write_txt_file(
         os.path.join(output_dir, "test.txt"), "Testing - Writing text in a file.")

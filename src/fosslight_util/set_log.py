@@ -14,7 +14,23 @@ from lastversion import lastversion
 import coloredlogs
 
 
-def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log_level=logging.DEBUG):
+def init_check_latest_version(pkg_version="", main_package_name=""):
+
+    logger = logging.getLogger(constant.LOGGER_NAME)
+
+    try:
+        has_update = lastversion.has_update(repo=main_package_name, at='pip', current_version=pkg_version)
+        if has_update:
+            logger.info('### Version Info ###')
+            logger.warning('Newer version is available : v{}'.format(str(has_update)))
+            logger.warning('You can update it with command (\'pip install ' + main_package_name + ' --upgrade\')')
+    except TypeError:
+        logger.warning('Cannot check the lastest version on PIP')
+        logger.warning('You could use already installed version\n')
+
+
+def init_log(log_file, create_file=True, stream_log_level=logging.INFO,
+             file_log_level=logging.DEBUG, main_package_name="", path_to_analyze=""):
 
     logger = logging.getLogger(constant.LOGGER_NAME)
 
@@ -37,26 +53,6 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO, file_log
 
         logger.propagate = False
 
-    return logger
-
-
-def init_check_latest_version(pkg_version="", main_package_name=""):
-
-    logger = logging.getLogger(constant.LOGGER_NAME)
-
-    try:
-        has_update = lastversion.has_update(repo=main_package_name, at='pip', current_version=pkg_version)
-        if has_update:
-            logger.info('### Version Info ###')
-            logger.warning('Newer version is available : v{}'.format(str(has_update)))
-            logger.warning('You can update it with command (\'pip install ' + main_package_name + ' --upgrade\')')
-    except TypeError:
-        logger.warning('Cannot check the lastest version on PIP')
-        logger.warning('You could use already installed version\n')
-
-
-def init_log_item(main_package_name="", path_to_analyze=""):
-
     _PYTHON_VERSION = sys.version_info[0]
     _result_log = {
         "Tool Info": main_package_name,
@@ -70,4 +66,4 @@ def init_log_item(main_package_name="", path_to_analyze=""):
     if path_to_analyze != "":
         _result_log["Path to analyze"] = path_to_analyze
 
-    return _result_log
+    return logger, _result_log

@@ -11,7 +11,7 @@ logger = ""
 def print_log():
     global logger
 
-    logger = init_log("test_result/log_file2.txt")
+    logger, _result_log = init_log("test_result/log_file2.txt")
     logger.warning("TESTING LOG - from 2nd Module")
 
     print_log_in_function()
