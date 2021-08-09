@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.12 (09/08/2021)
+## Changes
+## 🔧 Maintenance
+
+- Add a header row for BIN_Android sheet @soimkim (#24)
+
+---
+
 ## v1.0.11 (29/07/2021)
 ## Changes
 ## 🐛 Hotfixes
