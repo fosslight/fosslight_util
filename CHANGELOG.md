@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.13 (12/08/2021)
+## Changes
+- Separate the csv file by sheet @soimkim (#25)
+
+## 🔧 Maintenance
+
+- Merge init_log & init_log_item fct @bjk7119 (#23)
+
+---
+
 ## v1.0.12 (09/08/2021)
 ## Changes
 ## 🔧 Maintenance
