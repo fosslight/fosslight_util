@@ -41,7 +41,7 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False)
         success, error_msg = write_result_to_excel(filename_without_extension + ".xlsx", sheet_list)
 
         if ignore_os or platform.system() != "Windows":
-            success_csv, error_msg_csv = write_result_to_csv(filename_without_extension + ".csv", sheet_list)
+            success_csv, error_msg_csv = write_result_to_csv(filename_without_extension, sheet_list)
         if not success:
             error_msg = "[Error] Writing excel:" + error_msg
         if not success_csv:
@@ -81,19 +81,16 @@ def remove_empty_sheet(sheet_items):
 def write_result_to_csv(output_file, sheet_list):
     success = True
     error_msg = ""
-    _header_added = False
+    file_extension = ".csv"
     try:
-        row_num = 1
-        with open(output_file, 'w', newline='') as file:
-            writer = csv.writer(file, delimiter='\t')
-
-            for sheet_name, sheet_contents in sheet_list.items():
-                if not _header_added:  # Write a header row only once
-                    for header_key in _HEADER.keys():
-                        if header_key in sheet_name:
-                            writer.writerow(_HEADER[header_key])
-                            _header_added = True
-                            break
+        for sheet_name, sheet_contents in sheet_list.items():
+            row_num = 1
+            with open(output_file + "_" + sheet_name + file_extension, 'w', newline='') as file:
+                writer = csv.writer(file, delimiter='\t')
+                for header_key in _HEADER.keys():
+                    if header_key in sheet_name:
+                        writer.writerow(_HEADER[header_key])
+                        break
                 for row_item in sheet_contents:
                     row_item.insert(0, row_num)
                     writer.writerow(row_item)
