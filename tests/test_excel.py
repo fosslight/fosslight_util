@@ -28,17 +28,29 @@ def main():
 
     bin_sheet_items = [['dependency_unified.py', 'fosslight_dependency',
                         '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_dependency',
-                        'https://github.com/LGE-OSS/fosslight_dependency', 'Copyright (c) 2020 LG Electronics, Inc.',  '',
+                        'https://github.com/LGE-OSS/fosslight_dependency', 'Copyright (c) 2020 LG Electronics, Inc.',
                         '', 'Awesome Open Source'],
                        ['askalono.exe', 'askalono',
                         '0.4.3', 'Apache-2.0',  'https://github.com/jpeddicord/askalono',
                         '', 'Copyright (c) 2018 Amazon.com, Inc. or its affiliates.',
                         '', '']]
+    sheet_items = [['ID', 'Binary Name', 'OSS Name', 'OSS Version',
+                    'License', 'Download Location', 'Homepage',
+                    'Copyright Text', 'Exclude', 'Comment'],
+                   ['dependency_unified.py', 'fosslight_dependency',
+                    '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_dependency',
+                    'https://github.com/LGE-OSS/fosslight_dependency', 'Copyright (c) 2020 LG Electronics, Inc.',
+                    'Exclude', 'Awesome Open Source'],
+                   ['askalono.exe', 'askalono',
+                    '0.4.3', 'Apache-2.0',  'https://github.com/jpeddicord/askalono',
+                    '', 'Copyright (c) 2018 Amazon.com, Inc. or its affiliates.',
+                    '', '']]
 
     sheet_contents['SRC'] = src_sheet_items
     sheet_contents['BIN_TEST'] = bin_sheet_items
     sheet_contents['SRC_NULL'] = []
     sheet_contents['NULL_SHEET'] = []
+    sheet_contents['CUSTOM_HEADER_SHEET'] = sheet_items
     success, msg = write_excel_and_csv(
         'test_result/excel/FOSSLight-Report', sheet_contents)
     logger.warning("Result:" + str(success) + ", error_msg:" + msg)
