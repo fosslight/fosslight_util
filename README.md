@@ -56,10 +56,10 @@ from fosslight_util.set_log import init_log
 # 6th param : path to analyze
 #
 # 1st return value : a logger
-# 2nd return value : log dictionary to print
+# 2nd return value : log items to print
 
 def test():
-    logger = init_log("test_result/log_file1.txt", True, 30, 20)
+    logger, log_item = init_log("test_result/log_file1.txt", True, 30, 20)
     logger.warning("TESTING - Print log")
 ```
 
