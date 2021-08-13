@@ -52,9 +52,14 @@ from fosslight_util.set_log import init_log
 # 3rd param : stream log level
 # 4th param : file log level
 #            =>log level(CRITICAL:50, ERROR:40, WARNING:30, INFO:20, DEBUG:10, NOTSET:0)
+# 5th param : package name of fosslight scanners (fosslight_source / fosslight_dependency / fosslight_reuse)
+# 6th param : path to analyze
+#
+# 1st return value : a logger
+# 2nd return value : log items to print
 
 def test():
-    logger = init_log("test_result/log_file1.txt", True, 30, 20)
+    logger, log_item = init_log("test_result/log_file1.txt", True, 30, 20)
     logger.warning("TESTING - Print log")
 ```
 
