@@ -12,17 +12,17 @@ import pandas as pd
 from pathlib import Path
 import fosslight_util.constant as constant
 
-_HEADER = {'SRC': ['ID', 'Source Name or Path', 'OSS Name',
+_HEADER = {'BIN (': ['ID', 'Binary Name', 'Source Code Path',
+                     'NOTICE.html', 'OSS Name', 'OSS Version',
+                     'License', 'Download Location', 'Homepage',
+                     'Copyright Text', 'Exclude', 'Comment'],
+           'SRC': ['ID', 'Source Name or Path', 'OSS Name',
                    'OSS Version', 'License',  'Download Location',
                    'Homepage', 'Copyright Text', 'Exclude',
                    'Comment'],
            'BIN': ['ID', 'Binary Name', 'OSS Name', 'OSS Version',
                    'License', 'Download Location', 'Homepage',
-                   'Copyright Text', 'Exclude', 'Comment'],
-           'BIN (Android)': ['ID', 'Binary Name', 'Source Code Path',
-                             'NOTICE.html', 'OSS Name', 'OSS Version',
-                             'License', 'Download Location', 'Homepage',
-                             'Copyright Text', 'Exclude', 'Comment']}
+                   'Copyright Text', 'Exclude', 'Comment']}
 _OUTPUT_FILE_PREFIX = "FOSSLight-Report_"
 _EMPTY_ITEM_MSG = "* There is no item"\
                     " to print in FOSSLight-Report.\n"
