@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.0 (16/08/2021)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the bug where BIN (Android) cannot be printed @soimkim (#28)
+
+## 🔧 Maintenance
+
+- Modify user guide to setup logger @bjk7119 (#26)
+
+---
+
 ## v1.0.13 (12/08/2021)
 ## Changes
 - Separate the csv file by sheet @soimkim (#25)
