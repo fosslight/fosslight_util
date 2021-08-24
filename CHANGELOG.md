@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.0 (24/08/2021)
+## Changes
+## 🐛 Hotfixes
+
+- Add exception for checking version @soimkim (#29)
+
+---
+
 ## v1.1.0 (16/08/2021)
 ## Changes
 ## 🐛 Hotfixes
