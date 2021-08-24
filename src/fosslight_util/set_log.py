@@ -27,6 +27,8 @@ def init_check_latest_version(pkg_version="", main_package_name=""):
     except TypeError:
         logger.warning('Cannot check the lastest version on PIP')
         logger.warning('You could use already installed version\n')
+    except Exception as error:
+        logger.debug('Cannot check the latest version:' + str(error))
 
 
 def init_log(log_file, create_file=True, stream_log_level=logging.INFO,
@@ -60,9 +62,14 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO,
         "OS": platform.system()+" "+platform.release(),
     }
     if main_package_name != "":
-        pkg_version = pkg_resources.get_distribution(main_package_name).version
-        init_check_latest_version(pkg_version, main_package_name)
-        _result_log["Tool Info"] = main_package_name + " v" + pkg_version
+        pkg_info = main_package_name
+        try:
+            pkg_version = pkg_resources.get_distribution(main_package_name).version
+            init_check_latest_version(pkg_version, main_package_name)
+            pkg_info = main_package_name + " v" + pkg_version
+        except Exception as error:
+            logger.debug('Cannot check the version:' + str(error))
+        _result_log["Tool Info"] = pkg_info
     if path_to_analyze != "":
         _result_log["Path to analyze"] = path_to_analyze
 
