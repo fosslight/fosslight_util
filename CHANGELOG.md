@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.0 (15/09/2021)
+## Changes
+- Add function for downloading source @soimkim (#30)
+
+---
+
 ## v1.2.0 (24/08/2021)
 ## Changes
 ## 🐛 Hotfixes
