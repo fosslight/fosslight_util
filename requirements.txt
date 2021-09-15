@@ -6,3 +6,6 @@ progress
 PyYAML
 lastversion
 coloredlogs
+pygit2
+python3-wget
+beautifulsoup4

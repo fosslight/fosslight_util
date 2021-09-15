@@ -14,6 +14,7 @@ It is a package that supports common utils used by FOSSLight Scanner.
 3. It provides a simple function to create a text file.
 4. It defines common constant variables.
 5. It provides a thread that prints the spinner.
+6. Download source code.
 
 [or]: http://collab.lge.com/main/x/xDHlFg
 
@@ -108,6 +109,27 @@ from fosslight_util.timer_thread import TimerThread
 timer = TimerThread()
 timer.setDaemon(True)
 timer.start()
+```
+
+### 6. Download the source code (tests/test_download.py)
+If you give a link, the source is downloaded to the target directory through git clone or wget.
+
+#### How it works
+1. Try git clone.
+2. If git clone fails, download it with wget and extract the compressed file.
+3. After extracting the compressed file, delete the compressed file.
+
+#### Parameters      
+| Parameter  | Argument | Description |
+| ------------- | ------------- | ------------- |
+| h | None | Print help message. | 
+| s | String | Link to download. | 
+| t | String | Path to download and extract. |
+| d | String | Path to save a log file. | 
+
+#### How to run
+```
+$ fosslight_download  -s "https://github.com/LGE-OSS/example" -t target_dir/
 ```
 
 ## 👏 How to report issue
