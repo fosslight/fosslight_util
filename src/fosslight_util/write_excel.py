@@ -170,7 +170,7 @@ def merge_excels(find_excel_dir, final_out):
                         df_excel = pd.read_excel(
                             file, sheet_name=sheet_name, engine='openpyxl')
                         df_excel.to_excel(
-                            writer, f_short_name + '_' + sheet_name,
+                            writer, sheet_name + '_' + f_short_name,
                             index=False)
             writer.save()
     except Exception as ex:
