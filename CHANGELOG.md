@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.1 (24/09/2021)
+## Changes
+## 🔧 Maintenance
+
+- Change sheet name format when merging excel @soimkim (#31)
+
+---
+
 ## v1.3.0 (15/09/2021)
 ## Changes
 - Add function for downloading source @soimkim (#30)
