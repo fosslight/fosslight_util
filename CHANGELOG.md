@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2 (12/10/2021)
+## Changes
+## 🔧 Maintenance
+
+- Update version of pygit2 to 1.6.1 @soimkim (#32)
+
+---
+
 ## v1.3.1 (24/09/2021)
 ## Changes
 ## 🔧 Maintenance
