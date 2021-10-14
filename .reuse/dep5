@@ -21,3 +21,11 @@ License: Apache-2.0
 Files: .bumpversion.cfg
 Copyright: 2021 LG Electronics
 License: Apache-2.0
+
+Files: src/fosslight_util/frequentLicenselist.json
+Copyright: 2021 LG Electronics
+License: Apache-2.0
+
+Files: src/fosslight_util/licenses.json
+Copyright: SPDX
+License: CC-BY-3.0
