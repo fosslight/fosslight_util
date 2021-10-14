@@ -2,13 +2,12 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
-from fosslight_util.write_excel import write_excel_and_csv
+from fosslight_util.write_excel import write_excel_and_csv, write_result_to_csv, write_result_to_excel
 from fosslight_util.set_log import init_log
 
 
 def main():
-    logger, _result_log = init_log("test_result/excel/log_write_excel.txt")
-    logger.warning("TESTING - Writing an excel")
+    logger, _result_log = init_log("test_result/excel_and_csv/log_write_excel_and_csv.txt")
 
     sheet_contents = {}
     src_sheet_items = [['run_scancode.py', 'fosslight_source',
@@ -51,8 +50,25 @@ def main():
     sheet_contents['SRC_NULL'] = []
     sheet_contents['NULL_SHEET'] = []
     sheet_contents['CUSTOM_HEADER_SHEET'] = sheet_items
+
+    logger.warning("TESTING - Writing an excel and csv")
     success, msg = write_excel_and_csv(
-        'test_result/excel/FOSSLight-Report', sheet_contents)
+        'test_result/excel_and_csv/FOSSLight-Report', sheet_contents)
+    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+
+    logger.warning("TESTING - Writing an excel")
+    success, msg = write_result_to_excel(
+        'test_result/excel_and_csv/excel/Test_Excel.xlsx', sheet_contents)
+    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+
+    logger.warning("TESTING - Writing an csv (separate sheet)")
+    success, msg = write_result_to_csv(
+        'test_result/excel_and_csv/csv/Test_Csv.csv', sheet_contents, True)
+    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+
+    logger.warning("TESTING - Writing an csv (merge one sheet)")
+    success, msg = write_result_to_csv(
+        'test_result/excel_and_csv/csv/Test_Csv.csv', sheet_contents)
     logger.warning("Result:" + str(success) + ", error_msg:" + msg)
 
 

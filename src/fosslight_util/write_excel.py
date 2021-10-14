@@ -9,6 +9,7 @@ import logging
 import os
 import platform
 import pandas as pd
+import copy
 from pathlib import Path
 import fosslight_util.constant as constant
 
@@ -45,7 +46,7 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False)
         success, error_msg = write_result_to_excel(filename_without_extension + ".xlsx", sheet_list)
 
         if ignore_os or platform.system() != "Windows":
-            success_csv, error_msg_csv = write_result_to_csv(filename_without_extension, sheet_list)
+            success_csv, error_msg_csv = write_result_to_csv(filename_without_extension + ".csv", sheet_list, True)
         if not success:
             error_msg = "[Error] Writing excel:" + error_msg
         if not success_csv:
@@ -92,24 +93,46 @@ def get_header_row(sheet_name, sheet_content):
     return selected_header, sheet_content
 
 
-def write_result_to_csv(output_file, sheet_list):
+def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False):
     success = True
     error_msg = ""
     file_extension = ".csv"
+
     try:
-        for sheet_name, sheet_contents in sheet_list.items():
-            row_num = 1
-            header_row, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:])
-            with open(output_file + "_" + sheet_name + file_extension, 'w', newline='') as file:
-                writer = csv.writer(file, delimiter='\t')
-                writer.writerow(header_row)
-                for row_item in sheet_content_without_header:
-                    row_item.insert(0, row_num)
-                    writer.writerow(row_item)
-                    row_num += 1
+        sheet_list = copy.deepcopy(sheet_list_origin)
+        is_not_null, sheet_list = remove_empty_sheet(sheet_list)
+        if is_not_null:
+            output_dir = os.path.dirname(output_file)
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
+            if separate_sheet:
+                filename = os.path.splitext(os.path.basename(output_file))[0]
+                separate_output_file = os.path.join(output_dir, filename)
+
+            merge_sheet = []
+            for sheet_name, sheet_contents in sheet_list.items():
+                row_num = 1
+                header_row, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:])
+
+                if not separate_sheet:
+                    merge_sheet.extend(sheet_content_without_header)
+                    if sheet_name == list(sheet_list.keys())[-1]:
+                        sheet_content_without_header = merge_sheet
+                    else:
+                        continue
+                else:
+                    output_file = separate_output_file + "_" + sheet_name + file_extension
+
+                with open(output_file, 'w', newline='') as file:
+                    writer = csv.writer(file, delimiter='\t')
+                    writer.writerow(header_row)
+                    for row_item in sheet_content_without_header:
+                        row_item.insert(0, row_num)
+                        writer.writerow(row_item)
+                        row_num += 1
     except Exception as ex:
         error_msg = str(ex)
         success = False
+
     return success, error_msg
 
 
@@ -117,12 +140,17 @@ def write_result_to_excel(out_file_name, sheet_list):
     success = True
     error_msg = ""
     try:
-        workbook = xlsxwriter.Workbook(out_file_name)
-        for sheet_name, sheet_contents in sheet_list.items():
-            selected_header, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:])
-            worksheet = create_worksheet(workbook, sheet_name, selected_header)
-            write_result_to_sheet(worksheet, sheet_content_without_header)
-        workbook.close()
+        is_not_null, sheet_list = remove_empty_sheet(sheet_list)
+        if is_not_null:
+            output_dir = os.path.dirname(out_file_name)
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+            workbook = xlsxwriter.Workbook(out_file_name)
+            for sheet_name, sheet_contents in sheet_list.items():
+                selected_header, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:])
+                worksheet = create_worksheet(workbook, sheet_name, selected_header)
+                write_result_to_sheet(worksheet, sheet_content_without_header)
+            workbook.close()
     except Exception as ex:
         error_msg = str(ex)
         success = False
