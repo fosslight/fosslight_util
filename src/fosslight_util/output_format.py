@@ -3,6 +3,8 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import os
+from fosslight_util.write_excel import write_result_to_excel, write_excel_and_csv, write_result_to_csv
+from fosslight_util.write_opossum import write_opossum
 
 SUPPORT_FORMAT = {'excel': '.xlsx', 'csv': '.csv', 'opossum': '.json'}
 
@@ -47,3 +49,22 @@ def check_output_format(output='', format=''):
                 output_path = output
 
     return success, msg, output_path, output_file, output_extension
+
+
+def write_output_file(output_file_without_ext, file_extension, sheet_list, scanner=''):
+    success = True
+    msg = ''
+
+    if file_extension == '':
+        success, msg = write_excel_and_csv(output_file_without_ext, sheet_list)
+    elif file_extension == '.xlsx':
+        success, msg = write_result_to_excel(output_file_without_ext + file_extension, sheet_list)
+    elif file_extension == '.csv':
+        success, msg = write_result_to_csv(output_file_without_ext + file_extension, sheet_list)
+    elif file_extension == '.json':
+        success, msg = write_opossum(output_file_without_ext + file_extension, sheet_list, scanner)
+    else:
+        success = False
+        msg = 'Not supported file extension(' + file_extension + ')'
+
+    return success, msg
