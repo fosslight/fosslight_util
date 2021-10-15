@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Copyright (c) 2021 LG Electronics Inc.
+# SPDX-License-Identifier: Apache-2.0
+from fosslight_util.write_opossum import write_opossum, FL_SOURCE
+from fosslight_util.set_log import init_log
+
+
+def main():
+    logger, _result_log = init_log("test_result/excel/log_write_opossum.txt")
+    logger.warning("TESTING - Writing an opossum")
+
+    sheet_list = {'SRC': [
+                  ['test/lib/babel-polyfill.js', '', '', 'bsd-3-clause,facebook-patent-rights-2', '', '',
+                   'Copyright (c) 2014, Facebook, Inc.', 'Exclude', ''],
+                  ['bower.json', '', '', 'mit', '', '', '', '', ''],
+                  ['LICENSE', '', '', 'mit', '', '', 'Copyright (c) 2016-2021, The Cytoscape Consortium', '', ''],
+                  ['license-update.js', '', '', 'mit', '', '', 'Copyright (c) 2016-$ year, The Cytoscape Consortium', '', ''],
+                  ['package.json', '', '', 'mit', '', '', '', '', ''], ['README.md', '', '', 'mit', '', '', '', '', ''],
+                  ['dist/cytoscape.cjs.js', '', '', 'mit', '', '', 'Copyright Gaetan Renaudeau,Copyright (c) 2016-2021,c \
+                   The Cytoscape Consortium,copyright Koen Bok,Copyright (c) 2013-2014 Ralf S. Engelschall \
+                   (http://engelschall.com)', '', ''],
+                  ['dist/cytoscape.esm.js', '', '', 'mit', '', '', 'Copyright Gaetan Renaudeau,Copyright (c) 2016-2021,\
+                   The Cytoscape Consortium,copyright Koen Bok,Copyright (c) 2013-2014 Ralf S. Engelschall \
+                   (http://engelschall.com)', '', ''],
+                  ['dist/cytoscape.esm.min.js', '', '', 'mit', '', '', 'Copyright Gaetan Renaudeau,copyright Koen Bok, \
+                   Copyright (c) 2013-2014 Ralf S. Engelschall (http://engelschall.com)', '', ''],
+                  ['dist/cytoscape.min.js', '', '', 'mit',
+                   '', '', 'Copyright Gaetan Renaudeau,Copyright (c) 2016-2021, The Cytoscape Consortium,copyright Koen Bok,Copyright \
+                  (c) 2013-2014 Ralf S. Engelschall (http://engelschall.com)', '', ''],
+                  ['dist/cytoscape.umd.js', '', '', 'mit', '', '',
+                   'Copyright Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors,Copyright jQuery Foundation \
+                   and other contributors <https://jquery.org/>,Copyright (c) 2016-2021, The Cytoscape Consortium,copyright Koen\
+                   Bok,Copyright Gaetan Renaudeau,Copyright (c) 2013-2014 Ralf S. Engelschall (http://engelschall.com)', '', ''],
+                  ['documentation/css/highlight/monokai_sublime.css', '', '', 'mit', '', '', '', '', ''],
+                  ['documentation/js/cytoscape.min.js', '', '', 'mit', '', '', 'Copyright Gaetan Renaudeau,\
+                   Copyright (c) 2016-2021, The Cytoscape Consortium,copyright Koen Bok, \
+                   Copyright (c) 2013-2014 Ralf S. Engelschall (http://engelschall.com)', '', ''],
+                  ['documentation/md/links.md', '', '', 'mit', '', '', '', '', ''],
+                  ['src/event.js', '', '', 'mit', '', '', '', '', '']]}
+
+    success, msg = write_opossum(
+        'test_result/opossum/FL-SOURCE_opossum.json', sheet_list, FL_SOURCE)
+    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+
+
+if __name__ == '__main__':
+    main()
