@@ -45,6 +45,5 @@ def check_output_format(output='', format=''):
                     msg = 'Enter the supported file extension: ' + ', '.join(list(SUPPORT_FORMAT.values()))
             else:
                 output_path = output
-                output_file = ''
 
     return success, msg, output_path, output_file, output_extension
