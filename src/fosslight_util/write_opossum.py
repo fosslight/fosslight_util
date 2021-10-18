@@ -16,6 +16,8 @@ from fosslight_util.write_excel import remove_empty_sheet
 
 FL_SOURCE = 'FL-Source'
 FL_DEPENDENCY = 'FL-Dependency'
+FL_BINARY = 'FL-Binary'
+
 _attributionConfidence = 80
 logger = logging.getLogger(constant.LOGGER_NAME)
 
@@ -115,7 +117,7 @@ def make_frequentlicenses():
     success = True
     error_msg = ''
     frequentLicenses = {}
-    frequentLicensesFile = "frequentLicenselist.json"
+    frequentLicensesFile = os.path.join("resources", "frequentLicenselist.json")
     try:
         base_dir = sys._MEIPASS
     except Exception:
