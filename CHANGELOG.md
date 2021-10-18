@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.3 (18/10/2021)
+## Changes
+## 🚀 Features
+
+- Add the function to write opossum format result file and modify the function write result file. @dd-jy (#33)
+
+## 🔧 Maintenance
+
+- Add the function to write output with format @dd-jy (#34)
+- Add the function to write opossum format result file and modify the function write result file. @dd-jy (#33)
+
+---
+
 ## v1.3.2 (12/10/2021)
 ## Changes
 ## 🔧 Maintenance
