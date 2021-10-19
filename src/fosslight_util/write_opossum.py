@@ -14,9 +14,10 @@ import traceback
 import fosslight_util.constant as constant
 from fosslight_util.write_excel import remove_empty_sheet
 
-FL_SOURCE = 'FL-Source'
-FL_DEPENDENCY = 'FL-Dependency'
-FL_BINARY = 'FL-Binary'
+FL_SOURCE = 'FL_Source'
+FL_DEPENDENCY = 'FL_Dependency'
+FL_BINARY = 'FL_Binary'
+_supported_sheet_name = ['SRC_' + FL_SOURCE, 'SRC_' + FL_DEPENDENCY, 'BIN_' + FL_BINARY]
 
 _attributionConfidence = 80
 logger = logging.getLogger(constant.LOGGER_NAME)
@@ -24,7 +25,7 @@ logger = logging.getLogger(constant.LOGGER_NAME)
 
 class AttributionItem():
     def __init__(self, source_name, licenseName, exclude,
-                 copyright='', packageType='', packageName='', packageVersion='', url=''):
+                 copyright='', packageName='', packageVersion='', url='', packageType=''):
         self.attributionConfidence = _attributionConfidence
         self.documentConfidence = _attributionConfidence
         if exclude:
@@ -48,9 +49,9 @@ class AttributionItem():
 
 class Attribution(AttributionItem):
     def __init__(self, source_name, licenseName, exclude,
-                 copyright='', packageType='', packageName='', packageVersion='', url=''):
+                 copyright='', packageName='', packageVersion='', url='', packageType=''):
         super().__init__(source_name, licenseName, exclude, copyright=copyright,
-                         packageType=packageType, packageName=packageName, packageVersion=packageVersion, url=url)
+                         packageName=packageName, packageVersion=packageVersion, url=url, packageType=packageType)
 
         self.uuid = uuid.uuid4()
 
@@ -90,11 +91,17 @@ class Attribution(AttributionItem):
 
         if self.source_name == FL_SOURCE:
             dict[copyright] = self.copyright
-        elif self.source_name == FL_DEPENDENCY:
+        elif self.source_name == FL_BINARY:
+            dict[copyright] = self.copyright
             dict[packageName] = self.packageName
-            dict[packageType] = self.packageType
             dict[packageVersion] = self.packageVersion
             dict[url] = self.url
+        elif self.source_name == FL_DEPENDENCY:
+            dict[copyright] = self.copyright
+            dict[packageName] = self.packageName
+            dict[packageVersion] = self.packageVersion
+            dict[url] = self.url
+            dict[packageType] = self.packageType
 
         return dict
 
@@ -136,11 +143,10 @@ def make_frequentlicenses():
     return frequentLicenses, success, error_msg
 
 
-def write_opossum(filename, sheet_list, scanner):
+def write_opossum(filename, sheet_list):
     success = True
     error_msg = ''
     dict = {}
-    _src_sheetname = 'SRC'
     _metadata_key = 'metadata'
     _resources_key = 'resources'
     _externalAttributions_key = 'externalAttributions'
@@ -153,27 +159,35 @@ def write_opossum(filename, sheet_list, scanner):
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
         success, dict[_metadata_key] = make_metadata()
-        if success:
-            ret_resources_attribution = make_resources_and_attributions(sheet_list[_src_sheetname], scanner)
-            success, resources, externalAttributions, resourcesToAttributions = ret_resources_attribution
+        resources = {}
+        dict[_resources_key] = {}
+        dict[_externalAttributions_key] = {}
+        dict[_resourcesToAttributions_key] = {}
+        try:
+            for sheet_name, sheet_contents in sheet_list.items():
+                if sheet_name in _supported_sheet_name:
+                    scanner = '_'.join(sheet_name.split('_')[1:])
+                else:
+                    logger.warning("Not supported scanner(sheet_name):" + sheet_name)
+                    continue
 
-        if success:
-            dict[_resources_key] = resources
-            dict[_externalAttributions_key] = externalAttributions
-            dict[_resourcesToAttributions_key] = resourcesToAttributions
+                ret_resources_attribution = make_resources_and_attributions(sheet_contents, scanner, resources)
+                success, resources, externalAttributions, resourcesToAttributions = ret_resources_attribution
+                if success:
+                    dict[_resources_key].update(resources)
+                    dict[_externalAttributions_key].update(externalAttributions)
+                    dict[_resourcesToAttributions_key].update(resourcesToAttributions)
 
-            frequentLicenses, success, error_msg = make_frequentlicenses()
             if success:
+                frequentLicenses, success, error_msg = make_frequentlicenses()
                 dict.update(frequentLicenses)
 
                 opossum_json = json.dumps(dict)
-
                 with open(filename, 'w+') as json_f:
                     json_f.write(opossum_json)
-
-        else:
-            success = False
-            error_msg = 'Failed to write opossum json'
+        except Exception as e:
+            error_msg = 'Failed to write opossum json' + str(e)
+            logger.error(traceback.format_exc())
     else:
         success = False
         error_msg = 'No item to write in output file.'
@@ -203,9 +217,8 @@ def make_resources(path, resources):
     return succuess, resources
 
 
-def make_resources_and_attributions(sheet_items, scanner):
+def make_resources_and_attributions(sheet_items, scanner, resources):
     success = True
-    resources = {}
     resourcesToAttributions = {}
     externalAttributions = {}
     externalAttribution_list = []
@@ -217,11 +230,16 @@ def make_resources_and_attributions(sheet_items, scanner):
             if scanner == FL_SOURCE:
                 success, resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright)
+            elif scanner == FL_BINARY:
+                success, resources = make_resources(path, resources)
+                attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
             elif scanner == FL_DEPENDENCY:
                 # todo : make filesWithChildren, attributionBreakpoints (optional field)
                 attribution = Attribution(scanner, license, exclude,
-                                          copyright, packageType='', packageName='', packageVersion='', url='')
-                pass
+                                          copyright, oss_name, oss_version, url, packageType='')
+            else:
+                logger.error("Not supported scanner:" + scanner)
+                break
 
             find_same_attribution = False
             uuid = ''

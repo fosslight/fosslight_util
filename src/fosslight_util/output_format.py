@@ -51,7 +51,7 @@ def check_output_format(output='', format=''):
     return success, msg, output_path, output_file, output_extension
 
 
-def write_output_file(output_file_without_ext, file_extension, sheet_list, scanner=''):
+def write_output_file(output_file_without_ext, file_extension, sheet_list):
     success = True
     msg = ''
 
@@ -62,7 +62,7 @@ def write_output_file(output_file_without_ext, file_extension, sheet_list, scann
     elif file_extension == '.csv':
         success, msg = write_result_to_csv(output_file_without_ext + file_extension, sheet_list)
     elif file_extension == '.json':
-        success, msg = write_opossum(output_file_without_ext + file_extension, sheet_list, scanner)
+        success, msg = write_opossum(output_file_without_ext + file_extension, sheet_list)
     else:
         success = False
         msg = 'Not supported file extension(' + file_extension + ')'
