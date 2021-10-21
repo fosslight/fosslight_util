@@ -19,6 +19,17 @@ FL_DEPENDENCY = 'FL_Dependency'
 FL_BINARY = 'FL_Binary'
 _supported_sheet_name = ['SRC_' + FL_SOURCE, 'SRC_' + FL_DEPENDENCY, 'BIN_' + FL_BINARY]
 
+PACKAE = {
+    'requirements.txt': 'pypi',
+    'package.json': 'npm',
+    'pom.xml': 'maven',
+    'build.gradle': 'gradle',
+    'pubspec.yaml': 'pub',
+    'Podfile.lock': 'cocoapods',
+    'Package.resolved': 'swift',
+    'Cartfile.resolved': 'carthage'
+}
+
 _attributionConfidence = 80
 logger = logging.getLogger(constant.LOGGER_NAME)
 
@@ -151,6 +162,8 @@ def write_opossum(filename, sheet_list):
     _resources_key = 'resources'
     _externalAttributions_key = 'externalAttributions'
     _resourcesToAttributions_key = 'resourcesToAttributions'
+    _filesWithChildren_key = 'filesWithChildren'
+    _attributionBreakpoints_key = 'attributionBreakpoints'
 
     is_not_null, sheet_list = remove_empty_sheet(sheet_list)
 
@@ -160,9 +173,12 @@ def write_opossum(filename, sheet_list):
 
         success, dict[_metadata_key] = make_metadata()
         resources = {}
+        fc_list = []
         dict[_resources_key] = {}
         dict[_externalAttributions_key] = {}
         dict[_resourcesToAttributions_key] = {}
+        filesWithChildren_list = []
+        attributionBreakpoints_list = []
         try:
             for sheet_name, sheet_contents in sheet_list.items():
                 if sheet_name in _supported_sheet_name:
@@ -171,14 +187,18 @@ def write_opossum(filename, sheet_list):
                     logger.warning("Not supported scanner(sheet_name):" + sheet_name)
                     continue
 
-                ret_resources_attribution = make_resources_and_attributions(sheet_contents, scanner, resources)
-                success, resources, externalAttributions, resourcesToAttributions = ret_resources_attribution
+                ret_resources_attribution = make_resources_and_attributions(sheet_contents, scanner, resources, fc_list)
+                success, rsc, ea, ra, fl, ab = ret_resources_attribution
                 if success:
-                    dict[_resources_key].update(resources)
-                    dict[_externalAttributions_key].update(externalAttributions)
-                    dict[_resourcesToAttributions_key].update(resourcesToAttributions)
+                    dict[_resources_key].update(rsc)
+                    dict[_externalAttributions_key].update(ea)
+                    dict[_resourcesToAttributions_key].update(ra)
+                    filesWithChildren_list.extend(fl)
+                    attributionBreakpoints_list.extend(ab)
 
             if success:
+                dict[_filesWithChildren_key] = filesWithChildren_list
+                dict[_attributionBreakpoints_key] = attributionBreakpoints_list
                 frequentLicenses, success, error_msg = make_frequentlicenses()
                 dict.update(frequentLicenses)
 
@@ -196,8 +216,6 @@ def write_opossum(filename, sheet_list):
 
 
 def make_resources(path, resources):
-    succuess = True
-
     files = os.path.basename(path)
     dirs = os.path.dirname(path).split(os.sep)
 
@@ -211,32 +229,40 @@ def make_resources(path, resources):
                 if dir == dirs[-1]:
                     tmp[files] = 1
     except Exception as e:
-        logger.error("Failed to make resources: " + str(e))
-        succuess = False
+        logger.error("Failed to make resources: " + str(e) + traceback.format_exc())
 
-    return succuess, resources
+    return resources
 
 
-def make_resources_and_attributions(sheet_items, scanner, resources):
+def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
     success = True
     resourcesToAttributions = {}
     externalAttributions = {}
     externalAttribution_list = []
+    ab_list = []
 
     try:
         for items in sheet_items:
             path, oss_name, oss_version, license, url, homepage, copyright, exclude, comment = items
 
             if scanner == FL_SOURCE:
-                success, resources = make_resources(path, resources)
+                if (os.path.join(os.sep, path) + os.sep) not in fc_list:
+                    resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright)
             elif scanner == FL_BINARY:
-                success, resources = make_resources(path, resources)
+                resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
             elif scanner == FL_DEPENDENCY:
-                # todo : make filesWithChildren, attributionBreakpoints (optional field)
+                packageType = PACKAE[path]
+                if (os.path.join(os.sep, path) + os.sep) not in fc_list:
+                    fc_list.append(os.path.join(os.sep, path) + os.sep)
+                    ab_list.append(os.path.join(os.sep, path, packageType) + os.sep)
+                    if path in resources.keys():
+                        del resources[path]
+                path = os.path.join(path, packageType, oss_name)
+                resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude,
-                                          copyright, oss_name, oss_version, url, packageType='')
+                                          copyright, oss_name, oss_version, url, packageType)
             else:
                 logger.error("Not supported scanner:" + scanner)
                 break
@@ -266,4 +292,4 @@ def make_resources_and_attributions(sheet_items, scanner, resources):
         logger.error(traceback.format_exc())
         success = False
 
-    return success, resources, externalAttributions, resourcesToAttributions
+    return success, resources, externalAttributions, resourcesToAttributions, fc_list, ab_list
