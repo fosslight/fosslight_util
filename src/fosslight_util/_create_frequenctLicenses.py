@@ -5,22 +5,29 @@
 
 from urllib.request import urlopen
 import os
+import sys
 import json
 import traceback
+
+_resources_dir = 'resources'
+_licenses_json_file = 'licenses.json'
+_frequentLicenselist_file = 'frequentLicenselist.json'
 
 
 def create_frequentlicenses():
     success = True
     error_msg = ''
     licenses = ''
-    licenses_file = 'licenses.json'
+    licenses_file = os.path.join(_resources_dir, _licenses_json_file)
     frequentLicenses = {}
     _frequentLicenses_key = 'frequentLicenses'
 
     # spdx_txt_url = _spdx_txt_base_url + version + /text/ + licenseId + '.txt'
     _spdx_txt_base_url = 'https://raw.githubusercontent.com/spdx/license-list-data/'
-
-    base_dir = os.path.dirname(__file__)
+    try:
+        base_dir = sys._MEIPASS
+    except Exception:
+        base_dir = os.path.dirname(__file__)
     # https://github.com/spdx/license-list-data/blob/v3.14/json/licenses.json
     file_withpath = os.path.join(base_dir, licenses_file)
 
@@ -56,11 +63,12 @@ def create_frequentlicenses():
 
 
 def main():
-    _frequencyLicense = 'frequentLicenselist.json'
+    _frequencyLicense = os.path.join(_resources_dir, _frequentLicenselist_file)
     frequentLicenses, success, error_msg = create_frequentlicenses()
     if success:
         with open(_frequencyLicense, 'w', encoding='utf-8') as f:
             json.dump(frequentLicenses, f, sort_keys=True, indent=4)
+        print("Created " + _frequentLicenselist_file + " in " + _resources_dir)
 
 
 if __name__ == '__main__':
