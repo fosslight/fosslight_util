@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.4 (21/10/2021)
+## Changes
+## 🚀 Features
+
+- Modify the function to write opossum result @dd-jy (#35)
+
+## 🔧 Maintenance
+
+- Modify the function to write opossum result @dd-jy (#35)
+
+---
+
 ## v1.3.3 (18/10/2021)
 ## Changes
 ## 🚀 Features
