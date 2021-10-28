@@ -14,26 +14,42 @@ _licenses_json_file = 'licenses.json'
 _frequentLicenselist_file = 'frequentLicenselist.json'
 
 
+def get_spdx_licenses_json():
+    success = True
+    error_msg = ''
+    licenses = ''
+    # licenses : https://github.com/spdx/license-list-data/blob/v3.14/json/licenses.json
+    licenses_file = os.path.join(_resources_dir, _licenses_json_file)
+
+    try:
+        base_dir = sys._MEIPASS
+    except Exception:
+        base_dir = os.path.dirname(__file__)
+
+    file_withpath = os.path.join(base_dir, licenses_file)
+    try:
+        with open(file_withpath, 'r') as f:
+            licenses = json.load(f)
+    except Exception as e:
+        success = False
+        error_msg = 'Failed to open ' + file_withpath + ': ' + str(e)
+
+    return success, error_msg, licenses
+
+
 def create_frequentlicenses():
     success = True
     error_msg = ''
     licenses = ''
-    licenses_file = os.path.join(_resources_dir, _licenses_json_file)
     frequentLicenses = {}
     _frequentLicenses_key = 'frequentLicenses'
 
     # spdx_txt_url = _spdx_txt_base_url + version + /text/ + licenseId + '.txt'
     _spdx_txt_base_url = 'https://raw.githubusercontent.com/spdx/license-list-data/'
-    try:
-        base_dir = sys._MEIPASS
-    except Exception:
-        base_dir = os.path.dirname(__file__)
-    # https://github.com/spdx/license-list-data/blob/v3.14/json/licenses.json
-    file_withpath = os.path.join(base_dir, licenses_file)
 
     try:
-        with open(file_withpath, 'r') as f:
-            licenses = json.load(f)
+        success, error_msg, licenses = get_spdx_licenses_json()
+        if success:
             version = licenses['licenseListVersion']
             frequentLicenses[_frequentLicenses_key] = []
             for lic in licenses['licenses']:
@@ -55,7 +71,7 @@ def create_frequentlicenses():
 
     except Exception as e:
         success = False
-        error_msg = 'Failed to open and parse ' + licenses_file
+        error_msg = 'Failed to open and parse licenses.json'
         print(error_msg, ": ", e)
         print(traceback.format_exc())
 
