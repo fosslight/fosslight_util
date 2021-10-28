@@ -10,8 +10,8 @@ It is a package that supports common utils used by FOSSLight Scanner.
 
 ## Features 
 1. It simplifies the logger setup.
-2. It easily outputs csv file and excel file in FOSSLight Report format.
-3. It provides a simple function to create a text file.
+2. It provides a simple function to create a output file.
+3. It provides a spdx license list with json format.
 4. It defines common constant variables.
 5. It provides a thread that prints the spinner.
 6. Download source code.
@@ -78,7 +78,7 @@ def test():
                         '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_dependency', 'https://github.com/LGE-OSS/fosslight_dependency', 'Copyright (c) 2020 LG Electronics, Inc.', '', '']],
                       'BIN':[['askalono.exe', 'askalono',
                         '0.4.3', 'Apache-2.0', 'https://github.com/jpeddicord/askalono', '', 'Copyright (c) 2018 Amazon.com, Inc. or its affiliates.', '', '']]}
-    success, msg = write_output_file('test_result/excel/FOSSLight-Report', 'excel', sheet_contents)
+    success, msg = write_output_file('test_result/excel/FOSSLight-Report', '.xlsx', sheet_contents)
 ```
   
 ### 3. Get spdx licenses (tests/test_spdx_licenses.py)
