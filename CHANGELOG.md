@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.5 (28/10/2021)
+## Changes
+## 🔧 Maintenance
+
+- Add function to get spdx licenses @dd-jy (#36)
+
+---
+
 ## v1.3.4 (21/10/2021)
 ## Changes
 ## 🚀 Features
