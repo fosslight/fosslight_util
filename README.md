@@ -65,11 +65,12 @@ def test():
 ```
 
   
-### 2. Write csv and excel files (tests/test_excel.py)
+### 2. Write result files (tests/test_output_format.py)
 ```
-from fosslight_util._write_excel import write_excel_and_csv
+from fosslight_util.output_format import write_output_file
 
-
+# 2nd param : output file format
+#            => file format(excel: .xlsx, csv: .csv, opossum: .json)
 def test():
     sheet_contents = {'SRC':[['run_scancode.py', 'fosslight_source',
                         '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_source', 'https://github.com/LGE-OSS/fosslight_source', 'Copyright (c) 2021 LG Electronics, Inc.', 'Exclude', 'Comment message'],
@@ -77,19 +78,16 @@ def test():
                         '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_dependency', 'https://github.com/LGE-OSS/fosslight_dependency', 'Copyright (c) 2020 LG Electronics, Inc.', '', '']],
                       'BIN':[['askalono.exe', 'askalono',
                         '0.4.3', 'Apache-2.0', 'https://github.com/jpeddicord/askalono', '', 'Copyright (c) 2018 Amazon.com, Inc. or its affiliates.', '', '']]}
-
-    success, msg = write_excel_and_csv(
-        'test_result/excel/FOSSLight-Report', sheet_contents)
+    success, msg = write_output_file('test_result/excel/FOSSLight-Report', 'excel', sheet_contents)
 ```
   
-### 3. Write a text file (tests/test_text.py)
+### 3. Get spdx licenses (tests/test_spdx_licenses.py)
 ```
-from fosslight_util.write_txt import write_txt_file
+from fosslight_util.spdx_licenses import get_spdx_licenses_json
 
 
 def test():
-    success, error_msg = write_txt_file("test_result/txt/test.txt",
-                                       "Testing - Writing text in a file.")
+    success, error_msg, licenses = get_spdx_licenses_json()
 ```
 
 ### 4. Load common constant (tests/_print_log_with_another_logger.py)
