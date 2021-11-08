@@ -11,6 +11,8 @@ import logging
 from datetime import datetime
 from pathlib import Path
 import traceback
+from typing import Dict
+
 import fosslight_util.constant as constant
 from fosslight_util.write_excel import remove_empty_sheet
 
@@ -237,7 +239,7 @@ def make_resources(path, resources):
 def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
     success = True
     resourcesToAttributions = {}
-    externalAttributions = {}
+    externalAttributions: Dict[str, Attribution] = {}
     externalAttribution_list = []
     ab_list = []
 
@@ -269,7 +271,7 @@ def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
 
             find_same_attribution = False
             uuid = ''
-            for externalAttribution in externalAttributions:
+            for externalAttribution in externalAttributions.values():
                 if attribution == externalAttribution:
                     find_same_attribution = True
                     uuid = externalAttribution.uuid
@@ -285,11 +287,14 @@ def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
             resourcesToAttributions[os.path.join(os.sep, path)] = uuid_list
 
             for ext in externalAttribution_list:
-                dict = ext.get_externalAttribution_dict()
-                externalAttributions[str(ext.uuid)] = dict
+                externalAttributions[str(ext.uuid)] = ext
     except Exception as e:
         logger.error("Failed to make_resources_and_attributions: " + str(e))
         logger.error(traceback.format_exc())
         success = False
 
-    return success, resources, externalAttributions, resourcesToAttributions, fc_list, ab_list
+    externalAttributionsConverted = {
+        uuid: ext.get_externalAttribution_dict() for uuid, ext in externalAttributions.items()
+    }
+
+    return success, resources, externalAttributionsConverted, resourcesToAttributions, fc_list, ab_list
