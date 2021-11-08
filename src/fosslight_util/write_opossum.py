@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 import traceback
-from typing import Dict
+from typing import Dict, Optional
 
 import fosslight_util.constant as constant
 from fosslight_util.write_excel import remove_empty_sheet
@@ -37,8 +37,15 @@ logger = logging.getLogger(constant.LOGGER_NAME)
 
 
 class AttributionItem():
-    def __init__(self, source_name, licenseName, exclude,
-                 copyright='', packageName='', packageVersion='', url='', packageType=''):
+    def __init__(self,
+                 source_name: str,
+                 licenseName: str,
+                 exclude: bool,
+                 copyright: Optional[str] = None,
+                 packageName: Optional[str] = None,
+                 packageVersion: Optional[str] = None,
+                 url: Optional[str] = None,
+                 packageType: Optional[str] = None):
         self.attributionConfidence = _attributionConfidence
         self.documentConfidence = _attributionConfidence
         if exclude:
@@ -61,8 +68,15 @@ class AttributionItem():
 
 
 class Attribution(AttributionItem):
-    def __init__(self, source_name, licenseName, exclude,
-                 copyright='', packageName='', packageVersion='', url='', packageType=''):
+    def __init__(self,
+                 source_name: str,
+                 licenseName: str,
+                 exclude: bool,
+                 copyright: Optional[str] = None,
+                 packageName: Optional[str] = None,
+                 packageVersion: Optional[str] = None,
+                 url: Optional[str] = None,
+                 packageType: Optional[str] = None):
         super().__init__(source_name, licenseName, exclude, copyright=copyright,
                          packageName=packageName, packageVersion=packageVersion, url=url, packageType=packageType)
 
@@ -116,7 +130,7 @@ class Attribution(AttributionItem):
             dict[url] = self.url
             dict[packageType] = self.packageType
 
-        return dict
+        return {key: value for key, value in dict if value is not None}
 
 
 def make_metadata():
