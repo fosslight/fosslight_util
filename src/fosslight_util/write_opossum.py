@@ -130,7 +130,7 @@ class Attribution(AttributionItem):
             dict[url] = self.url
             dict[packageType] = self.packageType
 
-        return {key: value for key, value in dict if value is not None}
+        return {key: value for key, value in dict.items() if value is not None}
 
 
 def make_metadata():
