@@ -130,9 +130,7 @@ class Attribution(AttributionItem):
             dict[url] = self.url
             dict[packageType] = self.packageType
 
-        ret_dict = {key: value for key, value in dict.items() if value is not None}
-        logger.warning(ret_dict)
-        return ret_dict
+        return {key: value for key, value in dict.items() if value is not None}
 
 
 def make_metadata():
