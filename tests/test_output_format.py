@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
+import sys
 from fosslight_util.output_format import write_output_file
 from fosslight_util.set_log import init_log
 
@@ -51,13 +52,19 @@ def main():
 
     logger.warning("TESTING - Writing an excel output")
     success, msg = write_output_file(
-        'test_result/output_format/FL-TEST_Excel.xlsx', '.xlsx', sheet_list)
+        'test_result/output_format/FL-TEST_Excel', '.xlsx', sheet_list)
     logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+
+    if not success:
+        sys.exit(1)
 
     logger.warning("TESTING - Writing an opossum output")
     success, msg = write_output_file(
-        'test_result/output_format/FL-TEST_opossum.json', '.json', sheet_list)
+        'test_result/output_format/FL-TEST_opossum', '.json', sheet_list)
     logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+
+    if not success:
+        sys.exit(1)
 
 
 if __name__ == '__main__':
