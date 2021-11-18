@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.3.6 (18/11/2021)
+## Changes
+## 🐛 Hotfixes
+
+- Fix bug in opossum exporter @nicarl (#37)
+
+## 🔧 Maintenance
+
+- Modify the tox issue @dd-jy (#41)
+- Update spdx license list data v3.15 @dd-jy (#39)
+- Exclude null fields from opossum export @nicarl (#38)
+
+---
+
 ## v1.3.5 (28/10/2021)
 ## Changes
 ## 🔧 Maintenance
