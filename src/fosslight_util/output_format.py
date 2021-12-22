@@ -51,14 +51,14 @@ def check_output_format(output='', format=''):
     return success, msg, output_path, output_file, output_extension
 
 
-def write_output_file(output_file_without_ext, file_extension, sheet_list):
+def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}):
     success = True
     msg = ''
 
     if file_extension == '':
-        success, msg = write_excel_and_csv(output_file_without_ext, sheet_list)
+        success, msg = write_excel_and_csv(output_file_without_ext, sheet_list, False, extended_header)
     elif file_extension == '.xlsx':
-        success, msg = write_result_to_excel(output_file_without_ext + file_extension, sheet_list)
+        success, msg = write_result_to_excel(output_file_without_ext + file_extension, sheet_list, extended_header)
     elif file_extension == '.csv':
         success, msg = write_result_to_csv(output_file_without_ext + file_extension, sheet_list)
     elif file_extension == '.json':
