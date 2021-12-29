@@ -95,7 +95,7 @@ def get_header_row(sheet_name, sheet_content, extended_header = {}):
                 selected_header = merged_headers[header_key]
                 break
 
-    if len(selected_header) == 0:
+    if not selected_header:
         selected_header = sheet_content.pop(0)
     return selected_header, sheet_content
 
