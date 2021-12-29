@@ -12,7 +12,7 @@ import pandas as pd
 import copy
 from pathlib import Path
 import fosslight_util.constant as constant
-from  jsonmerge import merge
+from jsonmerge import merge
 
 _HEADER = {'BIN (': ['ID', 'Binary Name', 'Source Code Path',
                      'NOTICE.html', 'OSS Name', 'OSS Version',
@@ -83,7 +83,7 @@ def remove_empty_sheet(sheet_items):
     return success, final_sheet_to_print
 
 
-def get_header_row(sheet_name, sheet_content, extended_header = {}):
+def get_header_row(sheet_name, sheet_content, extended_header={}):
     selected_header = []
 
     merged_headers = merge(_HEADER, extended_header)
