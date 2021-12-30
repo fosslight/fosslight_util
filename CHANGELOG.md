@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.7 (30/12/2021)
+## Changes
+- Add extended header feature for additional information on excel @soimkim (#44)
+
+## 🚀 Features
+
+- Add extended header feature for additional information on excel @JustinWonjaePark (#43)
+
+---
+
 ## v1.3.6 (18/11/2021)
 ## Changes
 ## 🐛 Hotfixes
