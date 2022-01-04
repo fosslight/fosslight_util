@@ -3,6 +3,7 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import sys
+import pkg_resources
 
 _HELP_MESSAGE_COMMON = """
          _______  _______  _______  _______  ___      ___   _______  __   __  _______
@@ -27,3 +28,13 @@ class PrintHelpMsg():
 
         if exitopt:
             sys.exit()
+
+
+def print_package_version(pkg_name, msg="", exitopt=True):
+    if msg == "":
+        msg = f"{pkg_name} Version :"
+    cur_version = pkg_resources.get_distribution(pkg_name).version
+    print(f'{msg} {cur_version}')
+
+    if exitopt:
+        sys.exit(0)
