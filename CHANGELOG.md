@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.8 (04/01/2022)
+## Changes
+## 🔧 Maintenance
+
+- Add function for print package version @soimkim (#45)
+
+---
+
 ## v1.3.7 (30/12/2021)
 ## Changes
 - Add extended header feature for additional information on excel @soimkim (#44)
