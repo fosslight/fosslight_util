@@ -19,7 +19,8 @@ from fosslight_util.write_excel import remove_empty_sheet
 FL_SOURCE = 'FL_Source'
 FL_DEPENDENCY = 'FL_Dependency'
 FL_BINARY = 'FL_Binary'
-_supported_sheet_name = ['SRC_' + FL_SOURCE, 'SRC_' + FL_DEPENDENCY, 'BIN_' + FL_BINARY]
+supported_sheet_and_scanner = {'SRC': FL_SOURCE, 'BIN': FL_BINARY}
+supported_sheet_name = ['SRC_' + FL_SOURCE, 'SRC_' + FL_DEPENDENCY, 'BIN_' + FL_BINARY]
 
 PACKAE = {
     'requirements.txt': 'pypi',
@@ -195,7 +196,9 @@ def write_opossum(filename, sheet_list):
         attributionBreakpoints_list = []
         try:
             for sheet_name, sheet_contents in sheet_list.items():
-                if sheet_name in _supported_sheet_name:
+                if sheet_name in supported_sheet_and_scanner:
+                    scanner = supported_sheet_and_scanner.get(sheet_name)
+                elif sheet_name in supported_sheet_name:
                     scanner = '_'.join(sheet_name.split('_')[1:])
                 else:
                     logger.warning("Not supported scanner(sheet_name):" + sheet_name)
