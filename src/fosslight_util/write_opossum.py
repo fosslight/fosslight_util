@@ -116,9 +116,7 @@ class Attribution(AttributionItem):
         dict[licenseName] = self.licenseName
         dict[preSelected] = self.preSelected
 
-        if self.source_name == FL_SOURCE:
-            dict[copyright] = self.copyright
-        elif self.source_name == FL_BINARY:
+        if self.source_name == FL_SOURCE or FL_BINARY:
             dict[copyright] = self.copyright
             dict[packageName] = self.packageName
             dict[packageVersion] = self.packageVersion
@@ -264,7 +262,7 @@ def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
             if scanner == FL_SOURCE:
                 if (os.path.join(os.sep, path) + os.sep) not in fc_list:
                     resources = make_resources(path, resources)
-                attribution = Attribution(scanner, license, exclude, copyright)
+                attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
             elif scanner == FL_BINARY:
                 resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
