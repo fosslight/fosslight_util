@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.9 (13/01/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Add scanoss info on opossum @JustinWonjaePark (#46)
+
+## 🔧 Maintenance
+
+- Modify to run github action for all branches when PR is created. @bjk7119 (#48)
+- Change the upgrade message @soimkim (#47)
+
+---
+
 ## v1.3.8 (04/01/2022)
 ## Changes
 ## 🔧 Maintenance
