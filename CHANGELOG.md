@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.10 (14/01/2022)
+## Changes
+## 🔧 Maintenance
+
+- Support to output SRC and BIN sheets as opossum. @soimkim (#49)
+
+---
+
 ## v1.3.9 (13/01/2022)
 ## Changes
 ## 🐛 Hotfixes
