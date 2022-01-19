@@ -260,6 +260,7 @@ def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
 
     try:
         for items in sheet_items:
+            items = items[0:9]
             path, oss_name, oss_version, license, url, homepage, copyright, exclude, comment = items
 
             if scanner == FL_SOURCE:
