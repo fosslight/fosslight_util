@@ -31,7 +31,7 @@ _EMPTY_ITEM_MSG = "* There is no item"\
 logger = logging.getLogger(constant.LOGGER_NAME)
 
 
-def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False, extended_header={}):
+def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False, extended_header={}, string_col_num=0):
     success = True
     error_msg = ""
     success_csv = True
@@ -43,7 +43,8 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False,
         output_dir = os.path.dirname(filename_without_extension)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-        success, error_msg = write_result_to_excel(filename_without_extension + ".xlsx", sheet_list, extended_header)
+        success, error_msg = write_result_to_excel(filename_without_extension + ".xlsx", sheet_list,
+                                                   extended_header, string_col_num)
 
         if ignore_os or platform.system() != "Windows":
             success_csv, error_msg_csv = write_result_to_csv(filename_without_extension + ".csv",
@@ -143,7 +144,7 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
     return success, error_msg
 
 
-def write_result_to_excel(out_file_name, sheet_list, extended_header={}):
+def write_result_to_excel(out_file_name, sheet_list, extended_header={}, string_col_num=0):
     success = True
     error_msg = ""
 
@@ -157,7 +158,7 @@ def write_result_to_excel(out_file_name, sheet_list, extended_header={}):
             for sheet_name, sheet_contents in sheet_list.items():
                 selected_header, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:], extended_header)
                 worksheet = create_worksheet(workbook, sheet_name, selected_header)
-                write_result_to_sheet(worksheet, sheet_content_without_header)
+                write_result_to_sheet(worksheet, sheet_content_without_header, string_col_num)
             workbook.close()
     except Exception as ex:
         error_msg = str(ex)
@@ -165,12 +166,15 @@ def write_result_to_excel(out_file_name, sheet_list, extended_header={}):
     return success, error_msg
 
 
-def write_result_to_sheet(worksheet, sheet_contents):
+def write_result_to_sheet(worksheet, sheet_contents, string_col_num=0):
     row = 1
     for row_item in sheet_contents:
         worksheet.write(row, 0, row)
         for col_num, value in enumerate(row_item):
-            worksheet.write(row, col_num + 1, value)
+            if string_col_num == 9 and value != "":
+                worksheet.write_string(row, col_num + 1, value)
+            else:
+                worksheet.write(row, col_num + 1, value)
         row += 1
 
 
