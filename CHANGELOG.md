@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.11 (20/01/2022)
+## Changes
+## 🔧 Maintenance
+
+- When outputting opossum format, cut as many columns as necessary. @bjk7119 (#51)
+
+---
+
 ## v1.3.10 (14/01/2022)
 ## Changes
 ## 🔧 Maintenance
