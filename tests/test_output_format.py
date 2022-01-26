@@ -51,17 +51,17 @@ def main():
                    'https://pandas.pydata.org', '', '', '']]}
 
     logger.warning("TESTING - Writing an excel output")
-    success, msg = write_output_file(
+    success, msg, result_file = write_output_file(
         'test_result/output_format/FL-TEST_Excel', '.xlsx', sheet_list)
-    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+    logger.warning(f"Result: {success} error_msg:: {msg}, result_file: {result_file}")
 
     if not success:
         sys.exit(1)
 
     logger.warning("TESTING - Writing an opossum output")
-    success, msg = write_output_file(
+    success, msg, result_file = write_output_file(
         'test_result/output_format/FL-TEST_opossum', '.json', sheet_list)
-    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+    logger.warning(f"Result: {success} error_msg:: {msg}, result_file: {result_file}")
 
     if not success:
         sys.exit(1)
