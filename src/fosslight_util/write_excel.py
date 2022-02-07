@@ -43,10 +43,10 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False,
         output_dir = os.path.dirname(filename_without_extension)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-        success, error_msg = write_result_to_excel(filename_without_extension + ".xlsx", sheet_list, extended_header)
+        success, error_msg = write_result_to_excel(f"{filename_without_extension}.xlsx", sheet_list, extended_header)
 
         if ignore_os or platform.system() != "Windows":
-            success_csv, error_msg_csv = write_result_to_csv(filename_without_extension + ".csv",
+            success_csv, error_msg_csv = write_result_to_csv(f"{filename_without_extension}.csv",
                                                              sheet_list, True, extended_header)
         if not success:
             error_msg = "[Error] Writing excel:" + error_msg

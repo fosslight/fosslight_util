@@ -54,17 +54,19 @@ def check_output_format(output='', format=''):
 def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}):
     success = True
     msg = ''
+    result_file = output_file_without_ext + file_extension
 
     if file_extension == '':
         success, msg = write_excel_and_csv(output_file_without_ext, sheet_list, False, extended_header)
+        result_file = f"{output_file_without_ext}.xlsx, {output_file_without_ext}.csv"
     elif file_extension == '.xlsx':
-        success, msg = write_result_to_excel(output_file_without_ext + file_extension, sheet_list, extended_header)
+        success, msg = write_result_to_excel(result_file, sheet_list, extended_header)
     elif file_extension == '.csv':
-        success, msg = write_result_to_csv(output_file_without_ext + file_extension, sheet_list)
+        success, msg = write_result_to_csv(result_file, sheet_list)
     elif file_extension == '.json':
-        success, msg = write_opossum(output_file_without_ext + file_extension, sheet_list)
+        success, msg = write_opossum(result_file, sheet_list)
     else:
         success = False
-        msg = 'Not supported file extension(' + file_extension + ')'
+        msg = f'Not supported file extension({file_extension})'
 
-    return success, msg
+    return success, msg, result_file
