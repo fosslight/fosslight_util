@@ -18,7 +18,7 @@ def get_spdx_licenses_json():
     success = True
     error_msg = ''
     licenses = ''
-    # licenses : https://github.com/spdx/license-list-data/blob/v3.15/json/licenses.json
+    # licenses : https://github.com/spdx/license-list-data/blob/v3.16/json/licenses.json
     licenses_file = os.path.join(_resources_dir, _licenses_json_file)
 
     try:
