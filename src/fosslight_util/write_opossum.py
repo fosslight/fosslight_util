@@ -300,7 +300,10 @@ def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
 
             uuid_list = []
             uuid_list.append(str(uuid))
-            resourcesToAttributions[os.path.join(os.sep, path)] = uuid_list
+            if os.path.join(os.sep, path) in resourcesToAttributions:
+                resourcesToAttributions[os.path.join(os.sep, path)].extend(uuid_list)
+            else:
+                resourcesToAttributions[os.path.join(os.sep, path)] = uuid_list
 
             for ext in externalAttribution_list:
                 externalAttributions[str(ext.uuid)] = ext

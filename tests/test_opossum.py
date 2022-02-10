@@ -13,6 +13,10 @@ def main():
     sheet_list = {'SRC_FL_Source': [
                   ['test/lib/babel-polyfill.js', '', '', 'bsd-3-clause,facebook-patent-rights-2', '', '',
                    'Copyright (c) 2014, Facebook, Inc.', 'Exclude', ''],
+                  ['lib/babel-polyfill.js', '', '', 'bsd-3-clause', '', '',
+                   'Copyright (c) 2014, Facebook, Inc.', '', ''],
+                  ['lib/babel-polyfill.js', '', '', 'facebook-patent-rights-2', '', '',
+                   'Copyright (c) 2014, Facebook, Inc.', '', ''],
                   ['requirements.txt', '', '', 'MIT', 'https://pypi.org/project/future/0.18.2', '', '', '', ''],
                   ['bower.json', '', '', 'mit', '', '', '', '', ''],
                   ['LICENSE', '', '', 'mit', '', '', 'Copyright (c) 2016-2021, The Cytoscape Consortium', '', ''],
