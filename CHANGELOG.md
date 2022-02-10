@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.12 (10/02/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the opossum result to print the multiple resourcesToAttribution @dd-jy (#54)
+
+## 🔧 Maintenance
+
+- Update spdx license list data v3.16 @dd-jy (#53)
+- Print output file(s) list @bjk7119 (#52)
+
+---
+
 ## v1.3.11 (20/01/2022)
 ## Changes
 ## 🔧 Maintenance
