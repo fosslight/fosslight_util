@@ -184,32 +184,43 @@ def create_worksheet(workbook, sheet_name, header_row):
     return worksheet
 
 
-def merge_excels(find_excel_dir, final_out):
+def merge_excels(find_excel_dir, final_out, csv=True):
     success = True
-    error_msg = ""
-    _find_extension = '.xlsx'
-
+    msg = ""
+    output_files = []
+    FIND_EXTENSION = '.xlsx'
+    added_sheet_names = []
     try:
         files = os.listdir(find_excel_dir)
+        out_dir = os.path.dirname(final_out)
 
-        if len([name for name in files if name.endswith(_find_extension)]) > 0:
+        if len([name for name in files if name.endswith(FIND_EXTENSION)]) > 0:
             writer = pd.ExcelWriter(final_out)
 
             for file in files:
-                if file.endswith(_find_extension):
+                if file.endswith(FIND_EXTENSION):
                     f_short_name = os.path.splitext(
                         file)[0].replace(_OUTPUT_FILE_PREFIX, "")
                     file = os.path.join(find_excel_dir, file)
                     excel_file = pd.ExcelFile(file, engine='openpyxl')
 
                     for sheet_name in excel_file.sheet_names:
+                        sheet_name_to_copy = f"{f_short_name}_{sheet_name}"
                         df_excel = pd.read_excel(
                             file, sheet_name=sheet_name, engine='openpyxl')
-                        df_excel.to_excel(
-                            writer, sheet_name + '_' + f_short_name,
-                            index=False)
+                        if csv:
+                            csv_file = os.path.join(out_dir, f"{sheet_name_to_copy}.csv")
+                            df_excel.to_csv(csv_file, index=False)
+                            output_files.append(csv_file)
+                        if sheet_name not in added_sheet_names:
+                            sheet_name_to_copy = sheet_name
+                        df_excel.to_excel(writer, sheet_name_to_copy,
+                                          index=False)
             writer.save()
+            output_files.append(final_out)
     except Exception as ex:
-        error_msg = str(ex)
+        msg = str(ex)
         success = False
-    return success, error_msg
+    if success:
+        msg = ",".join(output_files)
+    return success, msg
