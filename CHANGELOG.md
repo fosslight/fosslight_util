@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.13 (17/02/2022)
+## Changes
+## 🔧 Maintenance
+
+- When merging excel, add the option to create a csv file @soimkim (#55)
+
+---
+
 ## v1.3.12 (10/02/2022)
 ## Changes
 ## 🐛 Hotfixes
