@@ -33,6 +33,8 @@ if __name__ == "__main__":
         install_requires=required,
         package_data={'fosslight_util': ['resources/frequentLicenselist.json', 'resources/licenses.json']},
         include_package_data=True,
+        extras_require={":python_version<'3.7'": ["pygit2==1.6.1"],
+                        ":python_version>'3.6'": ["pygit2"]},
         entry_points={
             "console_scripts": [
                 "fosslight_download = fosslight_util.download:main",
