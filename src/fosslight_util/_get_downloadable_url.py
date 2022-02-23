@@ -46,15 +46,14 @@ def get_download_location_for_pypi(link):
         content = urlopen(pypi_url).read().decode('utf8')
         bs_obj = BeautifulSoup(content, 'html.parser')
 
-        tr_list = bs_obj.find('div', {'id': 'files'}).findAll('tr')
-        for i in tr_list:
-            td = i.findAll('td')
-            for td_i in td:
-                str_i = str(td_i).replace('\n', ' ')
-                if re.findall(r'<span class="table__mobile-label">File type</span>[\s]*(Source)[\s]*</td>', str_i):
-                    new_link = i.find('a').attrs['href']
-                    ret = True
-                    break
+        card_file_list = bs_obj.findAll('div', {'class': 'card file__card'})
+
+        for card_file in card_file_list:
+            file_code = card_file.find('code').text
+            if file_code == "source":
+                new_link = card_file.find('a').attrs['href']
+                ret = True
+                break
     except Exception as error:
         ret = False
         logger.warning('Cannot find the link for pypi (url:'+link+') '+str(error))
