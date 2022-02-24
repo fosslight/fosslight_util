@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.14 (24/02/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Modify to get the source url for pypi @dd-jy (#57)
+
+## 🔧 Maintenance
+
+- Comment out some sentences in the PR template @soimkim (#58)
+- Install pygit2 according to python version @soimkim (#56)
+
+---
+
 ## v1.3.13 (17/02/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -265,11 +278,3 @@
 ## 🔧 Maintenance
 
 - Add common constant variables. @soimkim (#2)
-
----
-
-## Release version 1.0 (23/04/2021)
-## Changes
-## 🔧 Maintenance
-
-- Update license in setup.py @soimkim (#1)
