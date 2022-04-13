@@ -26,10 +26,12 @@ def check_output_format(output='', format=''):
 
     if success:
         if output != '':
-            output_path = os.path.dirname(output)
+            basename_extension = ''
+            if not os.path.isdir(output):
+                output_path = os.path.dirname(output)
 
-            basename = os.path.basename(output)
-            basename_file, basename_extension = os.path.splitext(basename)
+                basename = os.path.basename(output)
+                basename_file, basename_extension = os.path.splitext(basename)
             if basename_extension:
                 find_ext = False
                 for _format, _ext in SUPPORT_FORMAT.items():
