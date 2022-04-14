@@ -36,6 +36,7 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False,
     error_msg = ""
     success_csv = True
     error_msg_csv = ""
+    output_files = ""
 
     is_not_null, sheet_list = remove_empty_sheet(sheet_list)
 
@@ -46,17 +47,22 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False,
         success, error_msg = write_result_to_excel(f"{filename_without_extension}.xlsx", sheet_list, extended_header)
 
         if ignore_os or platform.system() != "Windows":
-            success_csv, error_msg_csv = write_result_to_csv(f"{filename_without_extension}.csv",
-                                                             sheet_list, True, extended_header)
-        if not success:
+            success_csv, error_msg_csv, output_csv = write_result_to_csv(f"{filename_without_extension}.csv",
+                                                                         sheet_list, True, extended_header)
+        if success:
+            output_files = f"{filename_without_extension}.xlsx"
+        else:
             error_msg = "[Error] Writing excel:" + error_msg
-        if not success_csv:
+        if success_csv:
+            if output_csv:
+                output_files = f"{output_files}, {output_csv}" if output_files else output_csv
+        else:
             error_msg += "\n[Error] Writing csv:" + error_msg_csv
     else:
         success = False
         error_msg = _EMPTY_ITEM_MSG
 
-    return (success and success_csv), error_msg
+    return (success and success_csv), error_msg, output_files
 
 
 def remove_empty_sheet(sheet_items):
@@ -104,11 +110,13 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
     success = True
     error_msg = ""
     file_extension = ".csv"
+    output = ""
 
     try:
         sheet_list = copy.deepcopy(sheet_list_origin)
         is_not_null, sheet_list = remove_empty_sheet(sheet_list)
         if is_not_null:
+            output_files = []
             output_dir = os.path.dirname(output_file)
             Path(output_dir).mkdir(parents=True, exist_ok=True)
             if separate_sheet:
@@ -136,11 +144,14 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
                         row_item.insert(0, row_num)
                         writer.writerow(row_item)
                         row_num += 1
+                output_files.append(output_file)
+            if output_files:
+                output = ", ".join(output_files)
     except Exception as ex:
         error_msg = str(ex)
         success = False
 
-    return success, error_msg
+    return success, error_msg, output
 
 
 def write_result_to_excel(out_file_name, sheet_list, extended_header={}):

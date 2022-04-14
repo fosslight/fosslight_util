@@ -52,24 +52,24 @@ def main():
     sheet_contents['CUSTOM_HEADER_SHEET'] = sheet_items
 
     logger.warning("TESTING - Writing an excel and csv")
-    success, msg = write_excel_and_csv(
+    success, msg, result_file = write_excel_and_csv(
         'test_result/excel_and_csv/FOSSLight-Report', sheet_contents)
-    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+    logger.warning(f"Result:{success}, error_msg:{msg}, result:{result_file}")
 
     logger.warning("TESTING - Writing an excel")
     success, msg = write_result_to_excel(
         'test_result/excel_and_csv/excel/Test_Excel.xlsx', sheet_contents)
-    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+    logger.warning(f"Result:{success}, error_msg:{msg}")
 
     logger.warning("TESTING - Writing an csv (separate sheet)")
-    success, msg = write_result_to_csv(
+    success, msg, result_file = write_result_to_csv(
         'test_result/excel_and_csv/csv/Test_Csv.csv', sheet_contents, True)
-    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+    logger.warning(f"Result:{success}, error_msg:{msg}, result:{result_file}")
 
     logger.warning("TESTING - Writing an csv (merge one sheet)")
-    success, msg = write_result_to_csv(
+    success, msg, result_file = write_result_to_csv(
         'test_result/excel_and_csv/csv/Test_Csv.csv', sheet_contents)
-    logger.warning("Result:" + str(success) + ", error_msg:" + msg)
+    logger.warning(f"Result:{success}, error_msg:{msg}, result:{result_file}")
 
 
 if __name__ == '__main__':
