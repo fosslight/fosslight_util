@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.15 (14/04/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the bug where csv name is output differently @soimkim (#62)
+- Fix formatting errors that occur when dir is input @soimkim (#60)
+
+## 🔧 Maintenance
+
+- Add a commit message checker @soimkim (#59)
+
+---
+
 ## v1.3.14 (24/02/2022)
 ## Changes
 ## 🐛 Hotfixes
@@ -270,11 +283,3 @@
 ## 🐛 Hotfixes
 
 - Add a file for constant @soimkim (#3)
-
----
-
-## v1.0.1 (23/04/2021)
-## Changes
-## 🔧 Maintenance
-
-- Add common constant variables. @soimkim (#2)
