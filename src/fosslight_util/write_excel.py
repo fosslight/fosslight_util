@@ -37,6 +37,7 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False,
     success_csv = True
     error_msg_csv = ""
     output_files = ""
+    output_csv = ""
 
     is_not_null, sheet_list = remove_empty_sheet(sheet_list)
 
