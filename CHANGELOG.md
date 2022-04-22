@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.16 (22/04/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the unbound error (write_excel.py) @dd-jy (#63)
+
+---
+
 ## v1.3.15 (14/04/2022)
 ## Changes
 ## 🐛 Hotfixes
@@ -275,11 +283,3 @@
 ## v1.0.3 (29/04/2021)
 ## Changes
 - Add a class for printing spinner @soimkim (#4)
-
----
-
-## v1.0.2 (23/04/2021)
-## Changes
-## 🐛 Hotfixes
-
-- Add a file for constant @soimkim (#3)
