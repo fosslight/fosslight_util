@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.17 (29/04/2022)
+## Changes
+## 🔧 Maintenance
+
+- Add yaml parsing code @bjk7119 (#64)
+
+---
+
 ## v1.3.16 (22/04/2022)
 ## Changes
 ## 🐛 Hotfixes
@@ -277,9 +285,3 @@
 ## v1.0.4 (02/05/2021)
 ## Changes
 - Do not print empty sheets @soimkim (#5)
-
----
-
-## v1.0.3 (29/04/2021)
-## Changes
-- Add a class for printing spinner @soimkim (#4)
