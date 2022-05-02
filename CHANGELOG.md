@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.18 (02/05/2022)
+## Changes
+## 🔧 Maintenance
+
+- Modify relative path in parsing yaml function @bjk7119 (#65)
+
+---
+
 ## v1.3.17 (29/04/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -279,9 +287,3 @@
 ## 🔧 Maintenance
 
 - Add options to change stream and file log level @dd-jy (#6)
-
----
-
-## v1.0.4 (02/05/2021)
-## Changes
-- Do not print empty sheets @soimkim (#5)
