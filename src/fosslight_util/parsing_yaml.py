@@ -25,6 +25,8 @@ def parsing_yml(yaml_file, base_path):
 
         if path_of_yml != base_path:
             relative_path = os.path.relpath(path_of_yml, base_path)
+        else:
+            relative_path = base_path
 
         doc = yaml.safe_load(codecs.open(yaml_file, "r", "utf-8"))
         for root_element in doc:
