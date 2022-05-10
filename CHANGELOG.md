@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.19 (10/05/2022)
+## Changes
+## 🔧 Maintenance
+
+- Update SPDX lcense list data v3.17 @dd-jy (#66)
+
+---
+
 ## v1.3.18 (02/05/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -279,11 +287,3 @@
 ## v1.0.6 (13/05/2021)
 ## Changes
 - Add Common Help Message @bjk7119 (#7)
-
----
-
-## v1.0.5 (13/05/2021)
-## Changes
-## 🔧 Maintenance
-
-- Add options to change stream and file log level @dd-jy (#6)
