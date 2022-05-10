@@ -152,7 +152,7 @@ def make_frequentlicenses():
     frequentLicenses = {}
     frequentLicensesFile = os.path.join("resources", "frequentLicenselist.json")
     try:
-        base_dir = sys._MEIPASS
+        base_dir = os.path.join(sys._MEIPASS, vars(sys.modules[__name__])['__package__'])
     except Exception:
         base_dir = os.path.dirname(__file__)
     file_withpath = os.path.join(base_dir, frequentLicensesFile)
