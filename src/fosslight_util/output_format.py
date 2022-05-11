@@ -9,20 +9,25 @@ from fosslight_util.write_opossum import write_opossum
 SUPPORT_FORMAT = {'excel': '.xlsx', 'csv': '.csv', 'opossum': '.json'}
 
 
-def check_output_format(output='', format=''):
+def check_output_format(output='', format='', customized_format={}):
     success = True
     msg = ''
     output_path = ''
     output_file = ''
     output_extension = ''
 
+    if customized_format:
+        support_format = customized_format
+    else:
+        support_format = SUPPORT_FORMAT
+
     if format:
         format = format.lower()
-        if format not in list(SUPPORT_FORMAT.keys()):
+        if format not in list(support_format.keys()):
             success = False
-            msg = 'Add the supported format with -f option: ' + ', '.join(list(SUPPORT_FORMAT.keys()))
+            msg = 'Add the supported format with -f option: ' + ', '.join(list(support_format.keys()))
         else:
-            output_extension = SUPPORT_FORMAT[format]
+            output_extension = support_format[format]
 
     if success:
         if output != '':
@@ -34,7 +39,7 @@ def check_output_format(output='', format=''):
                 basename_file, basename_extension = os.path.splitext(basename)
             if basename_extension:
                 find_ext = False
-                for _format, _ext in SUPPORT_FORMAT.items():
+                for _format, _ext in support_format.items():
                     if basename_extension == _ext:
                         find_ext = True
                         if format:
@@ -46,7 +51,7 @@ def check_output_format(output='', format=''):
                             output_extension = _ext
                 if not find_ext:
                     success = False
-                    msg = 'Enter the supported file extension: ' + ', '.join(list(SUPPORT_FORMAT.values()))
+                    msg = 'Enter the supported file extension: ' + ', '.join(list(support_format.values()))
             else:
                 output_path = output
 
