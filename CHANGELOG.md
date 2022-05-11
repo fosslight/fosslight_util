@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.20 (11/05/2022)
+## Changes
+## 🔧 Maintenance
+
+- Add resue output format for check_output_format fct. @bjk7119 (#67)
+
+---
+
 ## v1.3.19 (10/05/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -281,9 +289,3 @@
 ## v1.0.7 (13/05/2021)
 ## Changes
 - Add exit option for Print Help Msg @bjk7119 (#9)
-
----
-
-## v1.0.6 (13/05/2021)
-## Changes
-- Add Common Help Message @bjk7119 (#7)
