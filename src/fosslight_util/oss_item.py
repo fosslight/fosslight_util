@@ -32,7 +32,7 @@ class OssItem:
         self.files = []
         self.copyright = ""
         self.comment = ""
-        self.exclude = ""
+        self.exclude = False
         self.homepage = ""
         self.relative_path = value
         self.source_name_or_path = []
