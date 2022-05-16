@@ -5,8 +5,9 @@
 import os
 from fosslight_util.write_excel import write_result_to_excel, write_excel_and_csv, write_result_to_csv
 from fosslight_util.write_opossum import write_opossum
+from fosslight_util.write_yaml import write_yaml
 
-SUPPORT_FORMAT = {'excel': '.xlsx', 'csv': '.csv', 'opossum': '.json'}
+SUPPORT_FORMAT = {'excel': '.xlsx', 'csv': '.csv', 'opossum': '.json', 'yaml': '.yaml'}
 
 
 def check_output_format(output='', format='', customized_format={}):
@@ -71,6 +72,8 @@ def write_output_file(output_file_without_ext, file_extension, sheet_list, exten
         success, msg, result_file = write_result_to_csv(result_file, sheet_list)
     elif file_extension == '.json':
         success, msg = write_opossum(result_file, sheet_list)
+    elif file_extension == '.yaml':
+        success, msg, result_file = write_yaml(result_file, sheet_list, False)
     else:
         success = False
         msg = f'Not supported file extension({file_extension})'
