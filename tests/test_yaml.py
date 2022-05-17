@@ -7,7 +7,7 @@ from fosslight_util.set_log import init_log
 
 
 def main():
-    logger, _result_log = init_log("test_result/excel/log_write_yaml.txt")
+    logger, _result_log = init_log("test_result/yaml/log_write_yaml.txt")
     logger.warning("TESTING - Writing a yaml")
 
     sheet_list = {'SRC_FL_Source': [

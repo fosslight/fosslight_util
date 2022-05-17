@@ -10,117 +10,128 @@ _logger = logging.getLogger(LOGGER_NAME)
 
 
 class OssItem:
-    name = "-"
-    version = ""
-    licenses = []
-    source = ""
-    files = []
-    copyright = ""
-    comment = ""
-    exclude = ""
-    homepage = ""
-    relative_path = ""
-    source_name_or_path = []
-    download_location = ""
-    copyright_text = ""
-
     def __init__(self, value):
-        self.name = "-"
-        self.version = ""
-        self.licenses = []
+        self._name = "-"
+        self._version = ""
+        self._licenses = []
         self.source = ""
-        self.files = []
-        self.copyright = ""
+        self._files = []
+        self._copyright = ""
         self.comment = ""
-        self.exclude = False
+        self._exclude = False
         self.homepage = ""
         self.relative_path = value
-        self.source_name_or_path = []
+        self._source_name_or_path = []
         self.download_location = ""
-        self.copyright_text = ""
+        self._copyright_text = ""
 
     def __del__(self):
         pass
 
-    def set_homepage(self, value):
-        self.homepage = value
+    @property
+    def copyright(self):
+        return self._copyright
 
-    def set_comment(self, value):
-        self.comment = value
-
-    def set_copyright(self, value):
+    @copyright.setter
+    def copyright(self, value):
         if value != "":
             if isinstance(value, list):
                 value = "\n".join(value)
             value = value.strip()
-        self.copyright = value
+        self._copyright = value
 
-    def set_exclude(self, value):
-        if value:
-            self.exclude = True
-        else:
-            self.exclude = False
+    @property
+    def copyright_text(self):
+        return self._copyright_text
 
-    def set_name(self, value):
+    @copyright_text.setter
+    def copyright_text(self, value):
         if value != "":
-            self.name = value
+            if isinstance(value, list):
+                value = "\n".join(value)
+            value = value.strip()
+        self._copyright_text = value
 
-    def set_version(self, value):
+    @property
+    def exclude(self):
+        return self._exclude
+
+    @exclude.setter
+    def exclude(self, value):
         if value:
-            self.version = str(value)
+            self._exclude = True
         else:
-            self.version = ""
+            self._exclude = False
 
-    def set_licenses(self, value):
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if value != "":
+            self._name = value
+
+    @property
+    def version(self):
+        return self._version
+
+    @version.setter
+    def version(self, value):
+        if value:
+            self._version = str(value)
+        else:
+            self._version = ""
+
+    @property
+    def licenses(self):
+        return self._licenses
+
+    @licenses.setter
+    def licenses(self, value):
         if not isinstance(value, list):
             value = value.split(",")
-        self.licenses.extend(value)
-        self.licenses = [item.strip() for item in self.licenses]
-        self.licenses = list(set(self.licenses))
+        self._licenses.extend(value)
+        self._licenses = [item.strip() for item in self._licenses]
+        self._licenses = list(set(self._licenses))
 
-    def set_files(self, value):
+    @property
+    def files(self):
+        return self._files
+
+    @files.setter
+    def files(self, value):
         if isinstance(value, list):
-            self.files.extend(value)
+            self._files.extend(value)
         else:
-            self.files.append(value)
-        self.files = list(set(self.files))
+            self._files.append(value)
+        self._files = list(set(self._files))
 
-    def set_source(self, value):
-        self.source = value
+    @property
+    def source_name_or_path(self):
+        return self._source_name_or_path
 
-    # new keys for updated yaml format
-    # replace 'file' key
-    def set_source_name_or_path(self, value):
+    @source_name_or_path.setter
+    def source_name_or_path(self, value):
         if not isinstance(value, list):
             value = value.split(",")
-        self.source_name_or_path.extend(value)
-        self.source_name_or_path = [item.strip() for item in self.source_name_or_path]
-        self.source_name_or_path = list(set(self.source_name_or_path))
-
-    # replace 'source' key
-    def set_download_location(self, value):
-        self.download_location = value
-
-    # replace 'copyright' key
-    def set_copyright_text(self, value):
-        self.copyright_text = value
+        self._source_name_or_path.extend(value)
+        self._source_name_or_path = [item.strip() for item in self._source_name_or_path]
+        self._source_name_or_path = list(set(self._source_name_or_path))
 
     def set_sheet_item(self, item):
-        switcher = {
-            0: self.set_source_name_or_path,
-            1: self.set_name,
-            2: self.set_version,
-            3: self.set_licenses,
-            4: self.set_download_location,
-            5: self.set_homepage,
-            6: self.set_copyright_text,
-            7: self.set_exclude,
-            8: self.set_comment
-        }
-
-        for i in range(0, len(switcher)):
-            func = switcher.get(i, "invalid")
-            func(item[i])
+        if len(item) < 9:
+            _logger.warning(f"sheet list is too short ({len(item)}): {item}")
+            return
+        self.source_name_or_path = item[0]
+        self.name = item[1]
+        self.version = item[2]
+        self.licenses = item[3]
+        self.download_location = item[4]
+        self.homepage = item[5]
+        self.copyright_text = item[6]
+        self.exclude = item[7]
+        self.comment = item[8]
 
     def get_print_array(self):
         items = []
@@ -129,9 +140,7 @@ class OssItem:
         if len(self.licenses) == 0:
             self.licenses.append("")
 
-        exclude = ""
-        if self.exclude:
-            exclude = "Exclude"
+        exclude = "Exclude" if self.exclude else ""
 
         for file in self.files:
             lic = ",".join(self.licenses)
