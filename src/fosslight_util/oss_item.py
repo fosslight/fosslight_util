@@ -19,7 +19,7 @@ class OssItem:
         self._exclude = False
         self.homepage = ""
         self.relative_path = value
-        self._source_name_or_path = []
+        self._source_name_or_path = ""
         self.download_location = ""
 
     def __del__(self):
@@ -87,10 +87,10 @@ class OssItem:
     @source_name_or_path.setter
     def source_name_or_path(self, value):
         if isinstance(value, list):
-            self._source_name_or_path.extend(value)
+            self._source_name_or_path = list(set(self._source_name_or_path))
+            self._source_name_or_path = ", ".join(self._source_name_or_path)
         else:
-            self._source_name_or_path.append(value)
-        self._source_name_or_path = list(set(self._source_name_or_path))
+            self._source_name_or_path = value
 
     def set_sheet_item(self, item):
         if len(item) < 9:
@@ -108,19 +108,18 @@ class OssItem:
 
     def get_print_array(self):
         items = []
-        if len(self.source_name_or_path) == 0:
-            self.source_name_or_path.append("")
+
         if len(self.licenses) == 0:
             self.licenses.append("")
 
         exclude = "Exclude" if self.exclude else ""
 
-        for source_name_or_path in self.source_name_or_path:
+        for source_name_or_path in self.source_name_or_path.split(","):
             lic = ",".join(self.licenses)
             if self.relative_path != "" and not str(self.relative_path).endswith("/"):
                 self.relative_path += "/"
             items.append([self.relative_path + source_name_or_path, self.name, self.version, lic,
-                          self.download_location, self.homepage, self.copyright, "", exclude, self.comment])
+                          self.download_location, self.homepage, self.copyright, exclude, self.comment])
         return items
 
     def get_print_json(self):
@@ -128,16 +127,16 @@ class OssItem:
         json_item["name"] = self.name
 
         json_item["version"] = self.version
-        if len(self.source_name_or_path) > 0:
-            json_item["source_name_or_path"] = self.source_name_or_path
+        if self.source_name_or_path != "":
+            json_item["source name or path"] = self.source_name_or_path
         if len(self.licenses) > 0:
             json_item["license"] = self.licenses
         if self.download_location != "":
-            json_item["download_location"] = self.download_location
+            json_item["download location"] = self.download_location
         if self.homepage != "":
             json_item["homepage"] = self.homepage
         if self.copyright != "":
-            json_item["copyright_text"] = self.copyright
+            json_item["copyright text"] = self.copyright
         if self.exclude:
             json_item["exclude"] = self.exclude
         if self.comment != "":

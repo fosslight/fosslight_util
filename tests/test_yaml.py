@@ -13,6 +13,8 @@ def main():
     sheet_list = {'SRC_FL_Source': [
                   ['test/lib/babel-polyfill.js', '', '', 'bsd-3-clause,facebook-patent-rights-2', '', '',
                    'Copyright (c) 2014, Facebook, Inc.', 'Exclude', ''],
+                  ['test/lib/babel-polyfill2.js', '', '', 'bsd-3-clause,facebook-patent-rights-2', '', '',
+                   'Copyright (c) 2014, Facebook, Inc.', 'Exclude', ''],
                   ['test/lib/babel-polyfill.js', '', '', 'bsd-3-clause,facebook-patent-rights-2', '', '',
                    'Copyright (c) 2014, Facebook, Inc.', 'Exclude', ''],
                   ['lib/babel-polyfill.js', '', '', 'bsd-3-clause', '', '',

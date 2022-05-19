@@ -63,7 +63,24 @@ def write_yaml(output_file, sheet_list_origin, separate_yaml=False):
 
 
 def convert_sheet_to_yaml(sheet_contents, output_file):
-    sheet_contents = [list(t) for t in set(tuple(e) for e in sheet_contents)]
+    sheet_contents = [list(t) for t in set(tuple(e) for e in sorted(sheet_contents))]
+    try:
+        find_val = [list(t) for t in set(tuple(e[1:8]) for e in sheet_contents)]
+        find_idx = []
+        for find_val_i in find_val:
+            idx = 0
+            find = False
+            for e in sheet_contents:
+                if find_val_i == e[1:8]:
+                    if find:
+                        find_idx.append(idx)
+                    find = True
+                idx += 1
+
+        for index in sorted(find_idx, reverse=True):
+            del sheet_contents[index]
+    except Exception as e:
+        _logger.debug(f"Fail to merge duplicated sheet: {e}")
 
     yaml_dict = {}
     for sheet_item in sheet_contents:
