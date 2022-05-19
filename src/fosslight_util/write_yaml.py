@@ -64,33 +64,36 @@ def write_yaml(output_file, sheet_list_origin, separate_yaml=False):
 
 def convert_sheet_to_yaml(sheet_contents, output_file):
     sheet_contents = [list(t) for t in set(tuple(e) for e in sorted(sheet_contents))]
-    try:
-        find_val = [list(t) for t in set(tuple(e[1:8]) for e in sheet_contents)]
-        find_idx = []
-        for find_val_i in find_val:
-            idx = 0
-            find = False
-            for e in sheet_contents:
-                if find_val_i == e[1:8]:
-                    if find:
-                        find_idx.append(idx)
-                    find = True
-                idx += 1
-
-        for index in sorted(find_idx, reverse=True):
-            del sheet_contents[index]
-    except Exception as e:
-        _logger.debug(f"Fail to merge duplicated sheet: {e}")
 
     yaml_dict = {}
     for sheet_item in sheet_contents:
         item = OssItem('')
         item.set_sheet_item(sheet_item)
-        item_json = copy.deepcopy(item.get_print_json())
-        item_name = item_json.pop("name")
-        if item_name not in yaml_dict.keys():
-            yaml_dict[item_name] = []
-        yaml_dict[item_name].append(item_json)
+        create_yaml_with_ossitem(item, yaml_dict)
 
     with open(output_file, 'w') as f:
         yaml.dump(yaml_dict, f, default_flow_style=False, sort_keys=False)
+
+
+def create_yaml_with_ossitem(item, yaml_dict):
+    item_json = item.get_print_json()
+
+    item_name = item_json.pop("name")
+    if item_name not in yaml_dict.keys():
+        yaml_dict[item_name] = []
+    merged = False
+    for oss_info in yaml_dict[item_name]:
+        if oss_info.get('version', '') == item.version and \
+           oss_info.get('license', []) == item.license and \
+           oss_info.get('copyright text', '') == item.copyright and \
+           oss_info.get('homepage', '') == item.homepage and \
+           oss_info.get('download location', '') == item.download_location and \
+           oss_info.get('exclude', False) == item.exclude:
+            oss_info.get('source name or path', []).extend(item.source_name_or_path)
+            merged = True
+            break
+
+    if not merged:
+        yaml_dict[item_name].append(item_json)
+
+    return yaml_dict
