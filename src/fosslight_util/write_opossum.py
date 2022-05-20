@@ -16,13 +16,8 @@ from typing import Dict, Optional
 import fosslight_util.constant as constant
 from fosslight_util.write_excel import remove_empty_sheet
 
-FL_SOURCE = 'FL_Source'
-FL_DEPENDENCY = 'FL_Dependency'
-FL_BINARY = 'FL_Binary'
-supported_sheet_and_scanner = {'SRC': FL_SOURCE, 'BIN': FL_BINARY}
-supported_sheet_name = ['SRC_' + FL_SOURCE, 'SRC_' + FL_DEPENDENCY, 'BIN_' + FL_BINARY]
 
-PACKAE = {
+PACKAGE = {
     'requirements.txt': 'pypi',
     'package.json': 'npm',
     'pom.xml': 'maven',
@@ -30,7 +25,8 @@ PACKAE = {
     'pubspec.yaml': 'pub',
     'Podfile.lock': 'cocoapods',
     'Package.resolved': 'swift',
-    'Cartfile.resolved': 'carthage'
+    'Cartfile.resolved': 'carthage',
+    'go.mod': 'Go'
 }
 
 _attributionConfidence = 80
@@ -55,7 +51,7 @@ class AttributionItem():
             self.excludeFromNotice = False
 
         self.source_name = source_name
-        if source_name == FL_DEPENDENCY:
+        if source_name == constant.FL_DEPENDENCY:
             self.preSelected = True
         else:
             self.preSelected = False
@@ -117,12 +113,12 @@ class Attribution(AttributionItem):
         dict[licenseName] = self.licenseName
         dict[preSelected] = self.preSelected
 
-        if self.source_name == FL_SOURCE or FL_BINARY:
+        if self.source_name == constant.FL_SOURCE or constant.FL_BINARY:
             dict[copyright] = self.copyright
             dict[packageName] = self.packageName
             dict[packageVersion] = self.packageVersion
             dict[url] = self.url
-        elif self.source_name == FL_DEPENDENCY:
+        elif self.source_name == constant.FL_DEPENDENCY:
             dict[copyright] = self.copyright
             dict[packageName] = self.packageName
             dict[packageVersion] = self.packageVersion
@@ -196,10 +192,8 @@ def write_opossum(filename, sheet_list):
         attributionBreakpoints_list = []
         try:
             for sheet_name, sheet_contents in sheet_list.items():
-                if sheet_name in supported_sheet_and_scanner:
-                    scanner = supported_sheet_and_scanner.get(sheet_name)
-                elif sheet_name in supported_sheet_name:
-                    scanner = '_'.join(sheet_name.split('_')[1:])
+                if sheet_name in constant.supported_sheet_and_scanner.keys():
+                    scanner = constant.supported_sheet_and_scanner.get(sheet_name)
                 else:
                     logger.warning("Not supported scanner(sheet_name):" + sheet_name)
                     continue
@@ -263,15 +257,15 @@ def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
             items = items[0:9]
             path, oss_name, oss_version, license, url, homepage, copyright, exclude, comment = items
 
-            if scanner == FL_SOURCE:
+            if scanner == constant.FL_SOURCE:
                 if (os.path.join(os.sep, path) + os.sep) not in fc_list:
                     resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
-            elif scanner == FL_BINARY:
+            elif scanner == constant.FL_BINARY:
                 resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
-            elif scanner == FL_DEPENDENCY:
-                packageType = PACKAE[path]
+            elif scanner == constant.FL_DEPENDENCY:
+                packageType = PACKAGE[path]
                 if (os.path.join(os.sep, path) + os.sep) not in fc_list:
                     fc_list.append(os.path.join(os.sep, path) + os.sep)
                     ab_list.append(os.path.join(os.sep, path, packageType) + os.sep)

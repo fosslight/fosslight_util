@@ -10,109 +10,138 @@ _logger = logging.getLogger(LOGGER_NAME)
 
 
 class OssItem:
-    name = "-"
-    version = ""
-    licenses = []
-    source = ""
-    files = []
-    copyright = ""
-    comment = ""
-    exclude = ""
-    homepage = ""
-    relative_path = ""
-
     def __init__(self, value):
-        self.name = "-"
-        self.version = ""
-        self.licenses = []
-        self.source = ""
-        self.files = []
-        self.copyright = ""
+        self._name = "-"
+        self._version = ""
+        self._license = []
+        self._copyright = ""
         self.comment = ""
-        self.exclude = ""
+        self._exclude = False
         self.homepage = ""
         self.relative_path = value
+        self._source_name_or_path = []
+        self.download_location = ""
 
     def __del__(self):
         pass
 
-    def set_homepage(self, value):
-        self.homepage = value
+    @property
+    def copyright(self):
+        return self._copyright
 
-    def set_comment(self, value):
-        self.comment = value
-
-    def set_copyright(self, value):
+    @copyright.setter
+    def copyright(self, value):
         if value != "":
             if isinstance(value, list):
                 value = "\n".join(value)
             value = value.strip()
-        self.copyright = value
+        self._copyright = value
 
-    def set_exclude(self, value):
+    @property
+    def exclude(self):
+        return self._exclude
+
+    @exclude.setter
+    def exclude(self, value):
         if value:
-            self.exclude = "Exclude"
+            self._exclude = True
         else:
-            self.exclude = ""
+            self._exclude = False
 
-    def set_name(self, value):
-        self.name = value
+    @property
+    def name(self):
+        return self._name
 
-    def set_version(self, value):
-        self.version = str(value)
+    @name.setter
+    def name(self, value):
+        if value != "":
+            self._name = value
 
-    def set_licenses(self, value):
+    @property
+    def version(self):
+        return self._version
+
+    @version.setter
+    def version(self, value):
+        if value:
+            self._version = str(value)
+        else:
+            self._version = ""
+
+    @property
+    def license(self):
+        return self._license
+
+    @license.setter
+    def license(self, value):
         if not isinstance(value, list):
             value = value.split(",")
-        self.licenses.extend(value)
-        self.licenses = [item.strip() for item in self.licenses]
-        self.licenses = list(set(self.licenses))
+        self._license.extend(value)
+        self._license = [item.strip() for item in self._license]
+        self._license = list(set(self._license))
 
-    def set_files(self, value):
-        if isinstance(value, list):
-            self.files.extend(value)
-        else:
-            self.files.append(value)
-        self.files = list(set(self.files))
+    @property
+    def source_name_or_path(self):
+        return self._source_name_or_path
 
-    def set_source(self, value):
-        self.source = value
+    @source_name_or_path.setter
+    def source_name_or_path(self, value):
+        if not isinstance(value, list):
+            value = value.split(",")
+        self._source_name_or_path.extend(value)
+        self._source_name_or_path = [item.strip() for item in self._source_name_or_path]
+        self._source_name_or_path = list(set(self._source_name_or_path))
+
+    def set_sheet_item(self, item):
+        if len(item) < 9:
+            _logger.warning(f"sheet list is too short ({len(item)}): {item}")
+            return
+        self.source_name_or_path = item[0]
+        self.name = item[1]
+        self.version = item[2]
+        self.license = item[3]
+        self.download_location = item[4]
+        self.homepage = item[5]
+        self.copyright = item[6]
+        self.exclude = item[7]
+        self.comment = item[8]
 
     def get_print_array(self):
         items = []
-        if len(self.files) == 0:
-            self.files.append("")
-        if len(self.licenses) == 0:
-            self.licenses.append("")
-        for file in self.files:
-            lic = ",".join(self.licenses)
+        if len(self.source_name_or_path) == 0:
+            self.source_name_or_path.append("")
+        if len(self.license) == 0:
+            self.license.append("")
+
+        exclude = "Exclude" if self.exclude else ""
+
+        for source_name_or_path in self.source_name_or_path.split(","):
+            lic = ",".join(self.license)
             if self.relative_path != "" and not str(self.relative_path).endswith("/"):
                 self.relative_path += "/"
-            items.append([self.relative_path + file, self.name, self.version, lic, self.source, self.homepage,
-                          self.copyright, "", self.exclude, self.comment])
+            items.append([self.relative_path + source_name_or_path, self.name, self.version, lic,
+                          self.download_location, self.homepage, self.copyright, exclude, self.comment])
         return items
 
     def get_print_json(self):
         json_item = {}
         json_item["name"] = self.name
 
-        if self.version != "":
-            json_item["version"] = self.version
-        if self.source != "":
-            json_item["source"] = self.source
+        json_item["version"] = self.version
+        if len(self.source_name_or_path) > 0:
+            json_item["source name or path"] = self.source_name_or_path
+        if len(self.license) > 0:
+            json_item["license"] = self.license
+        if self.download_location != "":
+            json_item["download location"] = self.download_location
+        if self.homepage != "":
+            json_item["homepage"] = self.homepage
         if self.copyright != "":
-            json_item["copyright"] = self.copyright
-        if self.exclude != "":
+            json_item["copyright text"] = self.copyright
+        if self.exclude:
             json_item["exclude"] = self.exclude
         if self.comment != "":
             json_item["comment"] = self.comment
-        if self.homepage != "":
-            json_item["homepage"] = self.homepage
-
-        if len(self.files) > 0:
-            json_item["file"] = self.files
-        if len(self.licenses) > 0:
-            json_item["license"] = self.licenses
 
         return json_item
 
