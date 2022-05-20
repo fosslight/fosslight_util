@@ -90,6 +90,7 @@ def create_yaml_with_ossitem(item, yaml_dict):
            oss_info.get('download location', '') == item.download_location and \
            oss_info.get('exclude', False) == item.exclude:
             oss_info.get('source name or path', []).extend(item.source_name_or_path)
+            oss_info.pop('comment', None)
             merged = True
             break
 

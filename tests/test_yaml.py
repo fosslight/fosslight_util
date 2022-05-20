@@ -16,7 +16,7 @@ def main():
                   ['test/lib/babel-polyfill.js', '', '', 'bsd-3-clause,facebook-patent-rights-2', '', '',
                    'Copyright (c) 2014, Facebook, Inc.', 'Exclude', ''],
                   ['test/lib/babel-polyfill2.js', '', '', 'bsd-3-clause,facebook-patent-rights-2', '', '',
-                   'Copyright (c) 2014, Facebook, Inc.', 'Exclude', ''],
+                   'Copyright (c) 2014, Facebook, Inc.', 'Exclude', 'test_commend'],
                   ['test/lib/babel-polyfill.js', '', '', 'bsd-3-clause,facebook-patent-rights-2', '', '',
                    'Copyright (c) 2014, Facebook, Inc.', 'Exclude', ''],
                   ['lib/babel-polyfill.js', '', '', 'bsd-3-clause', '', '',
