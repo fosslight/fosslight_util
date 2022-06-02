@@ -39,14 +39,13 @@ def parsing_yml(yaml_file, base_path):
             if oss_items:
                 for oss in oss_items:
                     item = OssItem(relative_path)
-                    if is_old_format:
+                    if not is_old_format:
                         item.name = root_element
                     for key, value in oss.items():
                         if key:
                             key = key.lower().strip()
                         set_value_switch(item, key, value)
-                    items_to_print = item.get_print_array()
-                    oss_list.extend(items_to_print)
+                    oss_list.append(item)
                     license_list.extend(item.license)
                     idx += 1
     except yaml.YAMLError as ex:
