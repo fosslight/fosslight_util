@@ -9,7 +9,7 @@ import codecs
 import os
 import sys
 from .constant import LOGGER_NAME
-from .oss_item import OssItem, invalid
+from .oss_item import OssItem
 
 _logger = logging.getLogger(LOGGER_NAME)
 
@@ -18,6 +18,9 @@ def parsing_yml(yaml_file, base_path):
     oss_list = []
     license_list = []
     idx = 1
+    OLD_YAML_ROOT_ELEMENT = ['Open Source Software Package',
+                             'Open Source Package']
+
     try:
         path_of_yml = os.path.normpath(os.path.dirname(yaml_file))
         base_path = os.path.normpath(base_path)
@@ -29,23 +32,26 @@ def parsing_yml(yaml_file, base_path):
             relative_path = base_path
 
         doc = yaml.safe_load(codecs.open(yaml_file, "r", "utf-8"))
+        is_old_format = any(x in doc for x in OLD_YAML_ROOT_ELEMENT)
+
         for root_element in doc:
             oss_items = doc[root_element]
             if oss_items:
                 for oss in oss_items:
                     item = OssItem(relative_path)
+                    if is_old_format:
+                        item.name = root_element
                     for key, value in oss.items():
+                        if key:
+                            key = key.lower().strip()
                         set_value_switch(item, key, value)
                     items_to_print = item.get_print_array()
-                    for item_to_print in items_to_print:
-                        item_to_print.insert(0, str(idx))
                     oss_list.extend(items_to_print)
-                    license_list.extend(item.licenses)
+                    license_list.extend(item.license)
                     idx += 1
     except yaml.YAMLError as ex:
-        _logger.error('Parsing yaml :' + str(ex))
-    license_list = set(license_list)
-    return oss_list, license_list
+        _logger.error(f"Parsing yaml: {ex}")
+    return oss_list, set(license_list)
 
 
 def find_all_oss_pkg_files(path_to_find, file_to_find):
@@ -71,16 +77,21 @@ def find_all_oss_pkg_files(path_to_find, file_to_find):
 
 
 def set_value_switch(oss, key, value):
-    switcher = {
-        'name': oss.set_name,
-        'version': oss.set_version,
-        'source': oss.set_source,
-        'license': oss.set_licenses,
-        'file': oss.set_files,
-        'copyright': oss.set_copyright,
-        'exclude': oss.set_exclude,
-        'comment': oss.set_comment,
-        'homepage': oss.set_homepage
-    }
-    func = switcher.get(key, lambda key: invalid(key))
-    func(value)
+    if key in ['oss name', 'name']:
+        oss.name = value
+    elif key in ['oss version', 'version']:
+        oss.version = value
+    elif key in ['download location', 'source']:
+        oss.download_location = value
+    elif key in ['license', 'license text']:
+        oss.license = value
+    elif key in ['file name or path', 'source name or path']:
+        oss.source_name_or_path = value
+    elif key in ['copyright text', 'copyright']:
+        oss.copyright = value
+    elif key == 'exclude':
+        oss.exclude = value
+    elif key == 'comment':
+        oss.comment = value
+    elif key == 'homepage':
+        oss.homepage = value

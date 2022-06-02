@@ -115,7 +115,7 @@ class OssItem:
 
         exclude = "Exclude" if self.exclude else ""
 
-        for source_name_or_path in self.source_name_or_path.split(","):
+        for source_name_or_path in self.source_name_or_path:
             lic = ",".join(self.license)
             if self.relative_path != "" and not str(self.relative_path).endswith("/"):
                 self.relative_path += "/"
