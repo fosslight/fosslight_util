@@ -23,13 +23,15 @@ def parsing_yml(yaml_file, base_path):
 
     try:
         path_of_yml = os.path.normpath(os.path.dirname(yaml_file))
-        base_path = os.path.normpath(base_path)
+        base_normpath = os.path.normpath(base_path)
         relative_path = ""
 
-        if path_of_yml != base_path:
-            relative_path = os.path.relpath(path_of_yml, base_path)
+        if path_of_yml != base_normpath:
+            relative_path = os.path.relpath(path_of_yml, base_normpath)
         else:
-            relative_path = base_path
+            if base_normpath == ".":
+                base_normpath = ""
+            relative_path = base_normpath if base_path else base_path
 
         doc = yaml.safe_load(codecs.open(yaml_file, "r", "utf-8"))
         is_old_format = any(x in doc for x in OLD_YAML_ROOT_ELEMENT)
