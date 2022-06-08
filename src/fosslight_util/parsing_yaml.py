@@ -29,7 +29,9 @@ def parsing_yml(yaml_file, base_path):
         if path_of_yml != base_normpath:
             relative_path = os.path.relpath(path_of_yml, base_normpath)
         else:
-            relative_path = base_path
+            if base_normpath == ".":
+                base_normpath = ""
+            relative_path = base_normpath if base_path else base_path
 
         doc = yaml.safe_load(codecs.open(yaml_file, "r", "utf-8"))
         is_old_format = any(x in doc for x in OLD_YAML_ROOT_ELEMENT)
@@ -84,7 +86,7 @@ def set_value_switch(oss, key, value):
         oss.download_location = value
     elif key in ['license', 'license text']:
         oss.license = value
-    elif key in ['file name or path', 'source name or path', 'file']:
+    elif key in ['file name or path', 'source name or path', 'file', 'binary name']:
         oss.source_name_or_path = value
     elif key in ['copyright text', 'copyright']:
         oss.copyright = value
