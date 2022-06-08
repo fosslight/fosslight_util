@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import os
 from fosslight_util.constant import LOGGER_NAME
 
 _logger = logging.getLogger(LOGGER_NAME)
@@ -117,9 +118,7 @@ class OssItem:
 
         for source_name_or_path in self.source_name_or_path:
             lic = ",".join(self.license)
-            if self.relative_path != "" and not str(self.relative_path).endswith("/"):
-                self.relative_path += "/"
-            items.append([self.relative_path + source_name_or_path, self.name, self.version, lic,
+            items.append([os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
                           self.download_location, self.homepage, self.copyright, exclude, self.comment])
         return items
 
