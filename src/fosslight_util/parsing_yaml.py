@@ -84,7 +84,7 @@ def set_value_switch(oss, key, value):
         oss.download_location = value
     elif key in ['license', 'license text']:
         oss.license = value
-    elif key in ['file name or path', 'source name or path']:
+    elif key in ['file name or path', 'source name or path', 'file']:
         oss.source_name_or_path = value
     elif key in ['copyright text', 'copyright']:
         oss.copyright = value
