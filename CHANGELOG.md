@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.4.0 (16/06/2022)
+## Changes
+## 🚀 Features
+
+- Add to write yaml @dd-jy (#68)
+
+## 🐛 Hotfixes
+
+- Add field for FOSSLight Report's BIN (*) Sheet @soimkim (#73)
+- Fix the bug with ./ for path @soimkim (#72)
+
+## 🔧 Maintenance
+
+- Add a yaml field for file @soimkim (#71)
+- Change parsing_yaml return value @bjk7119 (#70)
+- Apply parsing new yaml format @bjk7119 (#69)
+
+---
+
 ## v1.3.20 (11/05/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -283,9 +302,3 @@
 ## v1.0.8 (15/05/2021)
 ## Changes
 - Change default log level @soimkim (#10)
-
----
-
-## v1.0.7 (13/05/2021)
-## Changes
-- Add exit option for Print Help Msg @bjk7119 (#9)
