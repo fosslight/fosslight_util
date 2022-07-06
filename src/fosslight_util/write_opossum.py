@@ -19,6 +19,7 @@ from fosslight_util.write_excel import remove_empty_sheet
 
 PACKAGE = {
     'requirements.txt': 'pypi',
+    'setup.py': 'pypi',
     'package.json': 'npm',
     'pom.xml': 'maven',
     'build.gradle': 'gradle',
@@ -265,7 +266,12 @@ def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
                 resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
             elif scanner == constant.FL_DEPENDENCY:
-                packageType = PACKAGE[path]
+                if path != '':
+                    packageType = PACKAGE[path]
+                else:
+                    packageType = ''
+                    if oss_name.split(':')[0] in PACKAGE.items():
+                        packageType = oss_name.split(':')[0]
                 if (os.path.join(os.sep, path) + os.sep) not in fc_list:
                     fc_list.append(os.path.join(os.sep, path) + os.sep)
                     ab_list.append(os.path.join(os.sep, path, packageType) + os.sep)
