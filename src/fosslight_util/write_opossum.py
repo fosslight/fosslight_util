@@ -266,12 +266,17 @@ def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
                 resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
             elif scanner == constant.FL_DEPENDENCY:
-                if path != '':
+                try:
                     packageType = PACKAGE[path]
-                else:
+                except Exception:
                     packageType = ''
-                    if oss_name.split(':')[0] in PACKAGE.items():
-                        packageType = oss_name.split(':')[0]
+                    if path == '':
+                        try_package_type = oss_name.split(':')[0]
+                    else:
+                        try_package_type = path.split(',')[0]
+                    if try_package_type in PACKAGE.items():
+                        packageType = try_package_type
+
                 if (os.path.join(os.sep, path) + os.sep) not in fc_list:
                     fc_list.append(os.path.join(os.sep, path) + os.sep)
                     ab_list.append(os.path.join(os.sep, path, packageType) + os.sep)
