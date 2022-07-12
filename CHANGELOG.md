@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4.1 (12/07/2022)
+## Changes
+## 🚀 Features
+
+- Add the function to compare yaml @dd-jy (#74)
+
+## 🐛 Hotfixes
+
+- Fix the error to write opossum @dd-jy (#75)
+
+---
+
 ## v1.4.0 (16/06/2022)
 ## Changes
 ## 🚀 Features
@@ -296,9 +308,3 @@
 - Change OSS report name to FOSSLight report @dd-jy (#14)
 - Add lastversion to check the latest version of the package @bjk7119 (#13)
 - Add files for reuse compliance @soimkim (#12)
-
----
-
-## v1.0.8 (15/05/2021)
-## Changes
-- Change default log level @soimkim (#10)
