@@ -50,8 +50,8 @@ def parsing_yml(yaml_file, base_path):
                     oss_list.append(item)
                     license_list.extend(item.license)
                     idx += 1
-    except yaml.YAMLError as ex:
-        _logger.error(f"Parsing yaml: {ex}")
+    except yaml.YAMLError:
+        _logger.warning(f"Can't parse yaml - skip to parse yaml file: {yaml_file}")
     return oss_list, set(license_list)
 
 
@@ -59,7 +59,7 @@ def find_all_oss_pkg_files(path_to_find, file_to_find):
     oss_pkg_files = []
 
     if not os.path.isdir(path_to_find):
-        _logger.error("Can't find a path :" + path_to_find)
+        _logger.error(f"Can't find a path: {path_to_find}")
         sys.exit(os.EX_DATAERR)
 
     try:
@@ -72,7 +72,7 @@ def find_all_oss_pkg_files(path_to_find, file_to_find):
                         and file_name.startswith("oss-pkg-info")):
                     oss_pkg_files.append(os.path.join(p, file))
     except Exception as ex:
-        _logger.debug("Error, find all oss-pkg-info files:" + str(ex))
+        _logger.error(f"Error, find all oss-pkg-info files: {ex}")
 
     return oss_pkg_files
 
