@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import threading
 import time
-from progress.bar import ChargingBar
+from progress.spinner import Spinner
 
 
 class TimerThread(threading.Thread):
@@ -12,7 +12,7 @@ class TimerThread(threading.Thread):
         threading.Thread.__init__(self, name=' Thread')
 
     def run(self):
-        bar = ChargingBar('')
+        spinner = Spinner('')
         while True:
             time.sleep(1)
-            bar.next()
+            spinner.next()
