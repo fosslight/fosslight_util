@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4.2 (15/07/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Fix bug where relpath is printed differently in yaml @soimkim (#77)
+
+## 🔧 Maintenance
+
+- Change error msg of parsing yaml error @bjk7119 (#76)
+
+---
+
 ## v1.4.1 (12/07/2022)
 ## Changes
 ## 🚀 Features
@@ -290,21 +302,3 @@
 
 - Bump up to v1.0.10 @bjk7119 (#19)
 - Remove '.' for version logging @bjk7119 (#18)
-
----
-
-## v1.0.9 (24/06/2021)
-## Changes
-- Apply Flake8 to check PEP8 @bjk7119 (#11)
-
-## 🐛 Hotfixes
-
-- Fix coloredlogs initial usage error @bjk7119 (#16)
-
-## 🔧 Maintenance
-
-- Delete unnecessary lines at tox.ini @bjk7119 (#17)
-- Modify Color log code using coloredlogs @bjk7119 (#15)
-- Change OSS report name to FOSSLight report @dd-jy (#14)
-- Add lastversion to check the latest version of the package @bjk7119 (#13)
-- Add files for reuse compliance @soimkim (#12)
