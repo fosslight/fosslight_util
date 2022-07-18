@@ -16,29 +16,47 @@ IDX_CANNOT_FOUND = -1
 def read_oss_report(excel_file, sheet_names=""):
     _oss_report_items = []
     _xl_sheets = []
+    all_sheet_to_read = []
+    not_matched_sheet = []
+    any_sheet_matched = False
     SHEET_PREFIX_TO_READ = ["bin", "bom", "src"]
     if sheet_names:
-        sheet_name_prefix_math = False
+        sheet_name_prefix_match = False
         sheet_name_to_read = sheet_names.split(",")
     else:
-        sheet_name_prefix_math = True
+        sheet_name_prefix_match = True
         sheet_name_to_read = SHEET_PREFIX_TO_READ
 
     try:
         logger.info(f"Read data from : {excel_file}")
         xl_workbook = xlrd.open_workbook(excel_file)
-        for sheet_name in xl_workbook.sheet_names():
+        all_sheet_in_excel = xl_workbook.sheet_names()
+
+        for sheet_to_read in sheet_name_to_read:
             try:
-                sheet_name_lower = sheet_name.lower()
-                if any(((sheet_name_prefix_math and sheet_name_lower.startswith(sheet_to_read.lower()))
-                       or sheet_name_lower == sheet_to_read.lower())
-                       for sheet_to_read in sheet_name_to_read):
-                    sheet = xl_workbook.sheet_by_name(sheet_name)
-                    if sheet:
-                        logger.info(f"Load a sheet: {sheet_name}")
-                        _xl_sheets.append(sheet)
+                any_sheet_matched = False
+                sheet_to_read_lower = sheet_to_read.lower()
+                all_sheet_to_read.append(sheet_to_read_lower)
+                for sheet_name in all_sheet_in_excel:
+                    sheet_name_lower = sheet_name.lower()
+                    if (sheet_name_prefix_match and sheet_name_lower.startswith(sheet_to_read_lower)) \
+                       or sheet_to_read_lower == sheet_name_lower:
+                        sheet = xl_workbook.sheet_by_name(sheet_name)
+                        if sheet:
+                            logger.info(f"Load a matched sheet: {sheet_name}")
+                            _xl_sheets.append(sheet)
+                            any_sheet_matched = True
+                if not any_sheet_matched:
+                    not_matched_sheet.append(sheet_to_read)
             except Exception as error:
                 logger.debug(f"Failed to load sheet: {sheet_name} {error}")
+
+        # Not matched any sheet
+        if len(sheet_name_to_read) == len(not_matched_sheet):
+            logger.warning("No sheet names are matched.")
+        # Partially matched
+        elif (not sheet_name_prefix_match) and not_matched_sheet:
+            logger.warning(f"Not matched sheet name: {not_matched_sheet}")
 
         for xl_sheet in _xl_sheets:
             _item_idx = {
