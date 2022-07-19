@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.3 (19/07/2022)
+## Changes
+## 🔧 Maintenance
+
+- Print warning msg when there is no matched sheet @bjk7119 (#79)
+- Add read_excel.py file @bjk7119 (#78)
+
+---
+
 ## v1.4.2 (15/07/2022)
 ## Changes
 ## 🐛 Hotfixes
@@ -293,12 +302,3 @@
 ## 🔧 Maintenance
 
 - Update version in setup.py when released @bjk7119 (#21)
-
----
-
-## v1.0.10 (15/07/2021)
-## Changes
-## 🔧 Maintenance
-
-- Bump up to v1.0.10 @bjk7119 (#19)
-- Remove '.' for version logging @bjk7119 (#18)
