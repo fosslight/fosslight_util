@@ -196,7 +196,7 @@ def create_worksheet(workbook, sheet_name, header_row):
     return worksheet
 
 
-def merge_excels(find_excel_dir, final_out, csv=True):
+def merge_excels(find_excel_dir, final_out):
     success = True
     msg = ""
     output_files = []
@@ -204,7 +204,6 @@ def merge_excels(find_excel_dir, final_out, csv=True):
     added_sheet_names = []
     try:
         files = os.listdir(find_excel_dir)
-        out_dir = os.path.dirname(final_out)
 
         if len([name for name in files if name.endswith(FIND_EXTENSION)]) > 0:
             writer = pd.ExcelWriter(final_out)
@@ -220,10 +219,6 @@ def merge_excels(find_excel_dir, final_out, csv=True):
                         sheet_name_to_copy = f"{f_short_name}_{sheet_name}"
                         df_excel = pd.read_excel(
                             file, sheet_name=sheet_name, engine='openpyxl')
-                        if csv:
-                            csv_file = os.path.join(out_dir, f"{sheet_name_to_copy}.csv")
-                            df_excel.to_csv(csv_file, index=False)
-                            output_files.append(csv_file)
                         if sheet_name not in added_sheet_names:
                             sheet_name_to_copy = sheet_name
                         df_excel.to_excel(writer, sheet_name_to_copy,
