@@ -3,7 +3,7 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import os
-from fosslight_util.write_excel import write_result_to_excel, write_excel_and_csv, write_result_to_csv
+from fosslight_util.write_excel import write_result_to_excel, write_result_to_csv
 from fosslight_util.write_opossum import write_opossum
 from fosslight_util.write_yaml import write_yaml
 
@@ -62,11 +62,11 @@ def check_output_format(output='', format='', customized_format={}):
 def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}):
     success = True
     msg = ''
+    if file_extension == '':
+        file_extension = '.xlsx'
     result_file = output_file_without_ext + file_extension
 
-    if file_extension == '':
-        success, msg, result_file = write_excel_and_csv(output_file_without_ext, sheet_list, False, extended_header)
-    elif file_extension == '.xlsx':
+    if file_extension == '.xlsx':
         success, msg = write_result_to_excel(result_file, sheet_list, extended_header)
     elif file_extension == '.csv':
         success, msg, result_file = write_result_to_csv(result_file, sheet_list)
