@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.4 (22/07/2022)
+## Changes
+## 🔧 Maintenance
+
+- Fix not to create csv if format is empty @dd-jy (#80)
+
+---
+
 ## v1.4.3 (19/07/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -290,15 +298,3 @@
 ## 🔧 Maintenance
 
 - Add a header row for BIN_Android sheet @soimkim (#24)
-
----
-
-## v1.0.11 (29/07/2021)
-## Changes
-## 🐛 Hotfixes
-
-- Bug fix to checkout new version @bjk7119 (#22)
-
-## 🔧 Maintenance
-
-- Update version in setup.py when released @bjk7119 (#21)
