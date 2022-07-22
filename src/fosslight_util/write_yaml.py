@@ -96,5 +96,3 @@ def create_yaml_with_ossitem(item, yaml_dict):
 
     if not merged:
         yaml_dict[item_name].append(item_json)
-
-    return yaml_dict
