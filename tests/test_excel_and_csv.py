@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
-from fosslight_util.write_excel import write_excel_and_csv, write_result_to_csv, write_result_to_excel
+from fosslight_util.write_excel import write_excel_and_csv
+from fosslight_util.output_format import write_output_file
 from fosslight_util.set_log import init_log
+from copy import deepcopy
 
 
 def main():
@@ -53,23 +55,17 @@ def main():
 
     logger.warning("TESTING - Writing an excel and csv")
     success, msg, result_file = write_excel_and_csv(
-        'test_result/excel_and_csv/FOSSLight-Report', sheet_contents)
-    logger.warning(f"Result:{success}, error_msg:{msg}, result:{result_file}")
+        'test_result/excel_and_csv/FOSSLight-Report', deepcopy(sheet_contents))
+    logger.warning(f"|-- Result:{success}, file:{result_file}, error_msg:{msg}")
 
     logger.warning("TESTING - Writing an excel")
-    success, msg = write_result_to_excel(
-        'test_result/excel_and_csv/excel/Test_Excel.xlsx', sheet_contents)
-    logger.warning(f"Result:{success}, error_msg:{msg}")
+    success, msg, result_file = write_output_file('test_result/excel_and_csv/excel/Test_Excel', '.xlsx', deepcopy(sheet_contents))
+    logger.warning(f"|-- Result:{success}, file:{result_file}, error_msg:{msg}")
 
-    logger.warning("TESTING - Writing an csv (separate sheet)")
-    success, msg, result_file = write_result_to_csv(
-        'test_result/excel_and_csv/csv/Test_Csv.csv', sheet_contents, True)
-    logger.warning(f"Result:{success}, error_msg:{msg}, result:{result_file}")
-
-    logger.warning("TESTING - Writing an csv (merge one sheet)")
-    success, msg, result_file = write_result_to_csv(
-        'test_result/excel_and_csv/csv/Test_Csv.csv', sheet_contents)
-    logger.warning(f"Result:{success}, error_msg:{msg}, result:{result_file}")
+    logger.warning("TESTING - Writing an csv")
+    success, msg, result_file = write_output_file(
+        'test_result/excel_and_csv/csv/Test_Csv', '.csv', deepcopy(sheet_contents))
+    logger.warning(f"|-- Result:{success}, file:{result_file}, error_msg:{msg}")
 
 
 if __name__ == '__main__':
