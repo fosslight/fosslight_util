@@ -62,20 +62,25 @@ def check_output_format(output='', format='', customized_format={}):
 def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}):
     success = True
     msg = ''
-    if file_extension == '':
-        file_extension = '.xlsx'
-    result_file = output_file_without_ext + file_extension
 
-    if file_extension == '.xlsx':
-        success, msg = write_result_to_excel(result_file, sheet_list, extended_header)
-    elif file_extension == '.csv':
-        success, msg, result_file = write_result_to_csv(result_file, sheet_list)
-    elif file_extension == '.json':
-        success, msg = write_opossum(result_file, sheet_list)
-    elif file_extension == '.yaml':
-        success, msg, result_file = write_yaml(result_file, sheet_list, False)
+    if sheet_list:
+        if file_extension == '':
+            file_extension = '.xlsx'
+        result_file = output_file_without_ext + file_extension
+
+        if file_extension == '.xlsx':
+            success, msg = write_result_to_excel(result_file, sheet_list, extended_header)
+        elif file_extension == '.csv':
+            success, msg, result_file = write_result_to_csv(result_file, sheet_list)
+        elif file_extension == '.json':
+            success, msg = write_opossum(result_file, sheet_list)
+        elif file_extension == '.yaml':
+            success, msg, result_file = write_yaml(result_file, sheet_list, False)
+        else:
+            success = False
+            msg = f'Not supported file extension({file_extension})'
     else:
-        success = False
-        msg = f'Not supported file extension({file_extension})'
+        result_file = ""
+        msg = "Nothing is detected from the scanner so output file is not generated."
 
     return success, msg, result_file
