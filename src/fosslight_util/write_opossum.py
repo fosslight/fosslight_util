@@ -14,7 +14,6 @@ import traceback
 from typing import Dict, Optional
 
 import fosslight_util.constant as constant
-from fosslight_util.write_excel import remove_empty_sheet
 
 
 PACKAGE = {
@@ -177,9 +176,7 @@ def write_opossum(filename, sheet_list):
     _filesWithChildren_key = 'filesWithChildren'
     _attributionBreakpoints_key = 'attributionBreakpoints'
 
-    is_not_null, sheet_list = remove_empty_sheet(sheet_list)
-
-    if is_not_null:
+    if sheet_list:
         output_dir = os.path.dirname(filename)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
