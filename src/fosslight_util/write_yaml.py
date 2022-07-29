@@ -10,7 +10,7 @@ import copy
 from pathlib import Path
 import fosslight_util.constant as constant
 from fosslight_util.oss_item import OssItem
-from fosslight_util.write_excel import remove_empty_sheet, _EMPTY_ITEM_MSG
+from fosslight_util.write_excel import _EMPTY_ITEM_MSG
 
 _logger = logging.getLogger(constant.LOGGER_NAME)
 
@@ -22,8 +22,7 @@ def write_yaml(output_file, sheet_list_origin, separate_yaml=False):
 
     try:
         sheet_list = copy.deepcopy(sheet_list_origin)
-        is_not_null, sheet_list = remove_empty_sheet(sheet_list)
-        if is_not_null:
+        if sheet_list:
             output_files = []
             output_dir = os.path.dirname(output_file)
 

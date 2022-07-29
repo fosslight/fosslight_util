@@ -3,7 +3,7 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import os
-from fosslight_util.write_excel import write_result_to_excel, write_result_to_csv
+from fosslight_util.write_excel import write_result_to_excel, write_result_to_csv, remove_empty_sheet
 from fosslight_util.write_opossum import write_opossum
 from fosslight_util.write_yaml import write_yaml
 
@@ -63,7 +63,8 @@ def write_output_file(output_file_without_ext, file_extension, sheet_list, exten
     success = True
     msg = ''
 
-    if sheet_list:
+    is_not_null, sheet_list = remove_empty_sheet(sheet_list)
+    if is_not_null:
         if file_extension == '':
             file_extension = '.xlsx'
         result_file = output_file_without_ext + file_extension

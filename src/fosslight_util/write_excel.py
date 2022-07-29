@@ -115,8 +115,7 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
 
     try:
         sheet_list = copy.deepcopy(sheet_list_origin)
-        is_not_null, sheet_list = remove_empty_sheet(sheet_list)
-        if is_not_null:
+        if sheet_list:
             output_files = []
             output_dir = os.path.dirname(output_file)
             Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -160,8 +159,7 @@ def write_result_to_excel(out_file_name, sheet_list, extended_header={}):
     error_msg = ""
 
     try:
-        is_not_null, sheet_list = remove_empty_sheet(sheet_list)
-        if is_not_null:
+        if sheet_list:
             output_dir = os.path.dirname(out_file_name)
             Path(output_dir).mkdir(parents=True, exist_ok=True)
 
