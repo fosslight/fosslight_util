@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.4.5 (01/08/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Fix a bug that returns even if there is no result file. @soimkim (#82)
+
+## 🔧 Maintenance
+
+- Check null after removing empty sheet @soimkim (#83)
+- Remove unnecessary return variables @soimkim (#81)
+
+---
+
 ## v1.4.4 (22/07/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -290,11 +303,3 @@
 ## 🔧 Maintenance
 
 - Merge init_log & init_log_item fct @bjk7119 (#23)
-
----
-
-## v1.0.12 (09/08/2021)
-## Changes
-## 🔧 Maintenance
-
-- Add a header row for BIN_Android sheet @soimkim (#24)
