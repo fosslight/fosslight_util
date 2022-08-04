@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.4.6 (04/08/2022)
+## Changes
+- Set xlrd==1.2.0 to read .xlsx file @bjk7119 (#84)
+
+---
+
 ## v1.4.5 (01/08/2022)
 ## Changes
 ## 🐛 Hotfixes
@@ -293,13 +299,3 @@
 ## 🔧 Maintenance
 
 - Modify user guide to setup logger @bjk7119 (#26)
-
----
-
-## v1.0.13 (12/08/2021)
-## Changes
-- Separate the csv file by sheet @soimkim (#25)
-
-## 🔧 Maintenance
-
-- Merge init_log & init_log_item fct @bjk7119 (#23)
