@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
-
 import yaml
 import logging
 import codecs
@@ -13,7 +12,8 @@ from .constant import LOGGER_NAME
 from .oss_item import OssItem
 
 _logger = logging.getLogger(LOGGER_NAME)
-SUPPORT_OSS_INFO_FILES = ["oss-pkg-info.yaml", "sbom-info.yaml"] #include "fosslight-sbom-info.yaml"
+SUPPORT_OSS_INFO_FILES = [r"oss-pkg-info[\s\S]*.yaml", r"sbom-info[\s\S]*.yaml"]
+EXAMPLE_OSS_PKG_INFO_LINK = "https://github.com/fosslight/fosslight_prechecker/blob/main/tests/convert/sbom-info.yaml"
 
 
 def parsing_yml(yaml_file, base_path):
@@ -37,8 +37,8 @@ def parsing_yml(yaml_file, base_path):
         for root_element in doc:
             oss_items = doc[root_element]
             if oss_items:
-                if not 'version' in oss_items[0]:
-                    raise Exception("Not supported yaml file format - https://github.com/fosslight/fosslight_prechecker/blob/main/tests/convert/oss-pkg-info.yaml")
+                if 'version' not in oss_items[0]:
+                    raise AttributeError(f"- Ref. {EXAMPLE_OSS_PKG_INFO_LINK}")
                 for oss in oss_items:
                     item = OssItem(relative_path)
                     if not is_old_format:
@@ -50,6 +50,8 @@ def parsing_yml(yaml_file, base_path):
                     oss_list.append(item)
                     license_list.extend(item.license)
                     idx += 1
+    except AttributeError as ex:
+        _logger.error(f"Not supported yaml file format {ex}")
     except yaml.YAMLError:
         _logger.warning(f"Can't parse yaml - skip to parse yaml file: {yaml_file}")
     return oss_list, set(license_list)
