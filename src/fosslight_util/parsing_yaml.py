@@ -37,7 +37,7 @@ def parsing_yml(yaml_file, base_path):
         for root_element in doc:
             oss_items = doc[root_element]
             if oss_items:
-                if 'version' not in oss_items[0]:
+                if not isinstance(oss_items, list) or 'version' not in oss_items[0]:
                     raise AttributeError(f"- Ref. {EXAMPLE_OSS_PKG_INFO_LINK}")
                 for oss in oss_items:
                     item = OssItem(relative_path)
