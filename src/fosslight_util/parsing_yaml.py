@@ -12,7 +12,7 @@ from .constant import LOGGER_NAME
 from .oss_item import OssItem
 
 _logger = logging.getLogger(LOGGER_NAME)
-SUPPORT_OSS_INFO_FILES = [r"oss-pkg-info[\s\S]*.yaml", r"sbom-info[\s\S]*.yaml"]
+SUPPORT_OSS_INFO_FILES = [r"oss-pkg-info[\s\S]*.ya?ml", r"sbom-info[\s\S]*.ya?ml"]
 EXAMPLE_OSS_PKG_INFO_LINK = "https://github.com/fosslight/fosslight_prechecker/blob/main/tests/convert/sbom-info.yaml"
 
 
