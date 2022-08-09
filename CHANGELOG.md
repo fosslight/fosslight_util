@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.7 (09/08/2022)
+## Changes
+## 🔧 Maintenance
+
+- Modify to be available .yml file for yaml parsing @bjk7119 (#86)
+- Modify to convert `*sbom-info*.yaml` @bjk7119 (#85)
+
+---
+
 ## v1.4.6 (04/08/2022)
 ## Changes
 - Set xlrd==1.2.0 to read .xlsx file @bjk7119 (#84)
@@ -287,15 +296,3 @@
 ## 🐛 Hotfixes
 
 - Add exception for checking version @soimkim (#29)
-
----
-
-## v1.1.0 (16/08/2021)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the bug where BIN (Android) cannot be printed @soimkim (#28)
-
-## 🔧 Maintenance
-
-- Modify user guide to setup logger @bjk7119 (#26)
