@@ -2,16 +2,18 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
-
 import yaml
 import logging
 import codecs
 import os
+import re
 import sys
 from .constant import LOGGER_NAME
 from .oss_item import OssItem
 
 _logger = logging.getLogger(LOGGER_NAME)
+SUPPORT_OSS_INFO_FILES = [r"oss-pkg-info[\s\S]*.yaml", r"sbom-info[\s\S]*.yaml"]
+EXAMPLE_OSS_PKG_INFO_LINK = "https://github.com/fosslight/fosslight_prechecker/blob/main/tests/convert/sbom-info.yaml"
 
 
 def parsing_yml(yaml_file, base_path):
@@ -35,6 +37,8 @@ def parsing_yml(yaml_file, base_path):
         for root_element in doc:
             oss_items = doc[root_element]
             if oss_items:
+                if 'version' not in oss_items[0]:
+                    raise AttributeError(f"- Ref. {EXAMPLE_OSS_PKG_INFO_LINK}")
                 for oss in oss_items:
                     item = OssItem(relative_path)
                     if not is_old_format:
@@ -46,12 +50,14 @@ def parsing_yml(yaml_file, base_path):
                     oss_list.append(item)
                     license_list.extend(item.license)
                     idx += 1
+    except AttributeError as ex:
+        _logger.error(f"Not supported yaml file format {ex}")
     except yaml.YAMLError:
         _logger.warning(f"Can't parse yaml - skip to parse yaml file: {yaml_file}")
     return oss_list, set(license_list)
 
 
-def find_all_oss_pkg_files(path_to_find, file_to_find):
+def find_sbom_yaml_files(path_to_find):
     oss_pkg_files = []
 
     if not os.path.isdir(path_to_find):
@@ -59,14 +65,13 @@ def find_all_oss_pkg_files(path_to_find, file_to_find):
         sys.exit(os.EX_DATAERR)
 
     try:
-        # oss_pkg_files.extend(glob.glob(path_to_find + '/**/'+file, recursive=True)) #glib is too slow
-        for p, d, f in os.walk(path_to_find):
-            for file in f:
+        for root, dirs, files in os.walk(path_to_find):
+            for file in files:
                 file_name = file.lower()
-                if file_name in file_to_find or (
-                        (file_name.endswith("yml") or file_name.endswith("yaml"))
-                        and file_name.startswith("oss-pkg-info")):
-                    oss_pkg_files.append(os.path.join(p, file))
+                for oss_info in SUPPORT_OSS_INFO_FILES:
+                    p = re.compile(oss_info, re.I)
+                    if p.search(file_name):
+                        oss_pkg_files.append(os.path.join(root, file))
     except Exception as ex:
         _logger.error(f"Error, find all oss-pkg-info files: {ex}")
 
