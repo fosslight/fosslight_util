@@ -33,3 +33,7 @@ License: CC-BY-3.0
 Files: tests/*.yaml
 Copyright: 2022 LG Electronics
 License: Apache-2.0
+
+Files: tests/*.xlsx
+Copyright: 2022 LG Electronics
+License: Apache-2.0
