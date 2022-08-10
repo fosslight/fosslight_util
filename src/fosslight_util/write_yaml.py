@@ -76,8 +76,8 @@ def convert_sheet_to_yaml(sheet_contents, output_file):
 
 def create_yaml_with_ossitem(item, yaml_dict):
     item_json = item.get_print_json()
-
     item_name = item_json.pop("name")
+
     if item_name not in yaml_dict.keys():
         yaml_dict[item_name] = []
     merged = False
