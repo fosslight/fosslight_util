@@ -97,3 +97,7 @@ def set_value_switch(oss, key, value):
         oss.comment = value
     elif key == 'homepage':
         oss.homepage = value
+    elif key == 'yocto_package':
+        oss.yocto_package = value
+    elif key == 'yocto_recipe':
+        oss.yocto_recipe = value

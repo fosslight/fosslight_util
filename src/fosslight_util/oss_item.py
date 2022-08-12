@@ -22,6 +22,8 @@ class OssItem:
         self.relative_path = value
         self._source_name_or_path = []
         self.download_location = ""
+        self._yocto_recipe = []
+        self._yocto_package = []
 
     def __del__(self):
         pass
@@ -92,6 +94,30 @@ class OssItem:
         self._source_name_or_path.extend(value)
         self._source_name_or_path = [item.strip() for item in self._source_name_or_path]
         self._source_name_or_path = list(set(self._source_name_or_path))
+
+    @property
+    def yocto_recipe(self):
+        return self._yocto_recipe
+
+    @yocto_recipe.setter
+    def yocto_recipe(self, value):
+        if not isinstance(value, list):
+            value = value.split(",")
+        self._yocto_recipe.extend(value)
+        self._yocto_recipe = [item.strip() for item in self._yocto_recipe]
+        self._yocto_recipe = list(set(self._yocto_recipe))
+
+    @property
+    def yocto_package(self):
+        return self._yocto_package
+
+    @yocto_package.setter
+    def yocto_package(self, value):
+        if not isinstance(value, list):
+            value = value.split(",")
+        self._yocto_package.extend(value)
+        self._yocto_package = [item.strip() for item in self._yocto_package]
+        self._yocto_package = list(set(self._yocto_package))
 
     def set_sheet_item(self, item):
         if len(item) < 9:
