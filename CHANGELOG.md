@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.8 (12/08/2022)
+## Changes
+## 🔧 Maintenance
+
+- Add function to convert excel to yaml @bjk7119 (#89)
+- Check if the type of item in yaml is list @soimkim (#87)
+
+---
+
 ## v1.4.7 (09/08/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -288,11 +297,3 @@
 ## v1.3.0 (15/09/2021)
 ## Changes
 - Add function for downloading source @soimkim (#30)
-
----
-
-## v1.2.0 (24/08/2021)
-## Changes
-## 🐛 Hotfixes
-
-- Add exception for checking version @soimkim (#29)
