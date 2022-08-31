@@ -16,7 +16,7 @@ _HELP_MESSAGE_COMMON = """
                                                                |  |
                                                            ____|  |
                                                           |_______|
-        """
+"""
 
 
 class PrintHelpMsg():

@@ -18,10 +18,25 @@ from ._get_downloadable_url import get_downloadable_url
 import fosslight_util.constant as constant
 from fosslight_util.set_log import init_log
 import signal
+import time
+import threading
+import platform
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip", ".jar", ".bz2"}
 SIGNAL_TIMEOUT = 600
+
+
+class Alarm(threading.Thread):
+    def __init__(self, timeout):
+        threading.Thread.__init__(self)
+        self.timeout = timeout
+        self.setDaemon(True)
+
+    def run(self):
+        time.sleep(self.timeout)
+        logger.error("download timeout! (%d sec)", SIGNAL_TIMEOUT)
+        os._exit(1)
 
 
 class TimeOutException(Exception):
@@ -29,7 +44,7 @@ class TimeOutException(Exception):
 
 
 def alarm_handler(signum, frame):
-    logger.warning("git clone timeout! (%d sec)", SIGNAL_TIMEOUT)
+    logger.warning("download timeout! (%d sec)", SIGNAL_TIMEOUT)
     raise TimeOutException()
 
 
@@ -37,7 +52,7 @@ def print_help_msg():
     print("* Required : -s link_to_download")
     print("* Optional : -t target_directory")
     print("* Optional : -d log_file_directory")
-    sys.exit()
+    sys.exit(0)
 
 
 def main():
@@ -121,14 +136,21 @@ def get_ref_to_checkout(checkout_to, ref_list):
 
 
 def download_git_clone(git_url, target_dir, checkout_to=""):
-    signal.signal(signal.SIGALRM, alarm_handler)
-    signal.alarm(SIGNAL_TIMEOUT)
+    if platform.system() != "Windows":
+        signal.signal(signal.SIGALRM, alarm_handler)
+        signal.alarm(SIGNAL_TIMEOUT)
+    else:
+        alarm = Alarm(SIGNAL_TIMEOUT)
+        alarm.start()
     try:
         Path(target_dir).mkdir(parents=True, exist_ok=True)
         repo = git.clone_repository(git_url, target_dir,
                                     bare=False, repository=None,
                                     remote=None, callbacks=None)
-        signal.alarm(0)
+        if platform.system() == "Windows":
+            signal.alarm(0)
+        else:
+            del alarm
     except Exception as error:
         logger.warning("git clone - failed:"+str(error))
         return False
@@ -148,9 +170,12 @@ def download_git_clone(git_url, target_dir, checkout_to=""):
 def download_wget(link, target_dir, compressed_only):
     success = False
     downloaded_file = ""
-
-    signal.signal(signal.SIGALRM, alarm_handler)
-    signal.alarm(SIGNAL_TIMEOUT)
+    if platform.system() == "Windows":
+        signal.signal(signal.SIGALRM, alarm_handler)
+        signal.alarm(SIGNAL_TIMEOUT)
+    else:
+        alarm = Alarm(SIGNAL_TIMEOUT)
+        alarm.start()
     try:
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -171,7 +196,10 @@ def download_wget(link, target_dir, compressed_only):
 
         logger.info("wget:"+link)
         downloaded_file = wget.download(link)
-        signal.alarm(0)
+        if platform.system() == "Windows":
+            signal.alarm(0)
+        else:
+            del alarm
 
         shutil.move(downloaded_file, target_dir)
         downloaded_file = os.path.join(target_dir, downloaded_file)
