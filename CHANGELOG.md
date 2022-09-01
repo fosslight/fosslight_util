@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.4.9 (01/09/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Fix to sigalrm error for windows @dd-jy (#93)
+
+## 🔧 Maintenance
+
+- Add a variable for yocto that loads from yaml @soimkim (#91)
+- Change FOSSLIGHT -> FOSSLight in help msg @bjk7119 (#90)
+
+---
+
 ## v1.4.8 (12/08/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -291,9 +304,3 @@
 ## 🔧 Maintenance
 
 - Change sheet name format when merging excel @soimkim (#31)
-
----
-
-## v1.3.0 (15/09/2021)
-## Changes
-- Add function for downloading source @soimkim (#30)
