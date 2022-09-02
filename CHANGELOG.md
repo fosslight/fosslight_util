@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.10 (02/09/2022)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the error for signal @dd-jy (#94)
+
+---
+
 ## v1.4.9 (01/09/2022)
 ## Changes
 ## 🐛 Hotfixes
@@ -296,11 +304,3 @@
 ## 🔧 Maintenance
 
 - Update version of pygit2 to 1.6.1 @soimkim (#32)
-
----
-
-## v1.3.1 (24/09/2021)
-## Changes
-## 🔧 Maintenance
-
-- Change sheet name format when merging excel @soimkim (#31)
