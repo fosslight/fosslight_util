@@ -147,7 +147,7 @@ def download_git_clone(git_url, target_dir, checkout_to=""):
         repo = git.clone_repository(git_url, target_dir,
                                     bare=False, repository=None,
                                     remote=None, callbacks=None)
-        if platform.system() == "Windows":
+        if platform.system() != "Windows":
             signal.alarm(0)
         else:
             del alarm
@@ -170,7 +170,7 @@ def download_git_clone(git_url, target_dir, checkout_to=""):
 def download_wget(link, target_dir, compressed_only):
     success = False
     downloaded_file = ""
-    if platform.system() == "Windows":
+    if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
         signal.alarm(SIGNAL_TIMEOUT)
     else:
@@ -196,7 +196,7 @@ def download_wget(link, target_dir, compressed_only):
 
         logger.info("wget:"+link)
         downloaded_file = wget.download(link)
-        if platform.system() == "Windows":
+        if platform.system() != "Windows":
             signal.alarm(0)
         else:
             del alarm
