@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.11 (10/11/2022)
+## Changes
+## 🔧 Maintenance
+
+- Fix the pygit2 error @dd-jy (#95)
+
+---
+
 ## v1.4.10 (02/09/2022)
 ## Changes
 ## 🐛 Hotfixes
@@ -296,11 +304,3 @@
 
 - Add the function to write output with format @dd-jy (#34)
 - Add the function to write opossum format result file and modify the function write result file. @dd-jy (#33)
-
----
-
-## v1.3.2 (12/10/2021)
-## Changes
-## 🔧 Maintenance
-
-- Update version of pygit2 to 1.6.1 @soimkim (#32)
