@@ -89,11 +89,14 @@ class OssItem:
 
     @source_name_or_path.setter
     def source_name_or_path(self, value):
-        if not isinstance(value, list):
-            value = value.split(",")
-        self._source_name_or_path.extend(value)
-        self._source_name_or_path = [item.strip() for item in self._source_name_or_path]
-        self._source_name_or_path = list(set(self._source_name_or_path))
+        if not value:
+            self._source_name_or_path = []
+        else:
+            if not isinstance(value, list):
+                value = value.split(",")
+            self._source_name_or_path.extend(value)
+            self._source_name_or_path = [item.strip() for item in self._source_name_or_path]
+            self._source_name_or_path = list(set(self._source_name_or_path))
 
     @property
     def yocto_recipe(self):
