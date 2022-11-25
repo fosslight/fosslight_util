@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.13 (25/11/2022)
+## Changes
+## 🔧 Maintenance
+
+- Add options when parsing yaml @soimkim (#98)
+
+---
+
 ## v1.4.12 (23/11/2022)
 ## 🔧 Maintenance
 - Initialize the variable of the OSS Item @soimkim (#97)
@@ -286,15 +294,3 @@
 ## 🔧 Maintenance
 
 - Add function to get spdx licenses @dd-jy (#36)
-
----
-
-## v1.3.4 (21/10/2021)
-## Changes
-## 🚀 Features
-
-- Modify the function to write opossum result @dd-jy (#35)
-
-## 🔧 Maintenance
-
-- Modify the function to write opossum result @dd-jy (#35)
