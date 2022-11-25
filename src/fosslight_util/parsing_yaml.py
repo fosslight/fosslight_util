@@ -16,7 +16,7 @@ SUPPORT_OSS_INFO_FILES = [r"oss-pkg-info[\s\S]*.ya?ml", r"sbom-info[\s\S]*.ya?ml
 EXAMPLE_OSS_PKG_INFO_LINK = "https://github.com/fosslight/fosslight_prechecker/blob/main/tests/convert/sbom-info.yaml"
 
 
-def parsing_yml(yaml_file, base_path):
+def parsing_yml(yaml_file, base_path, print_log=True):
     oss_list = []
     license_list = []
     idx = 1
@@ -51,9 +51,13 @@ def parsing_yml(yaml_file, base_path):
                     license_list.extend(item.license)
                     idx += 1
     except AttributeError as ex:
-        _logger.error(f"Not supported yaml file format {ex}")
+        if print_log:
+            _logger.error(f"Not supported yaml file format {ex}")
+        oss_list = []
     except yaml.YAMLError:
-        _logger.warning(f"Can't parse yaml - skip to parse yaml file: {yaml_file}")
+        if print_log:
+            _logger.warning(f"Can't parse yaml - skip to parse yaml file: {yaml_file}")
+        oss_list = []
     return oss_list, set(license_list)
 
 
