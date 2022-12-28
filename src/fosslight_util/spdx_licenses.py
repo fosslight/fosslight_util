@@ -12,6 +12,26 @@ import traceback
 _resources_dir = 'resources'
 _licenses_json_file = 'licenses.json'
 _frequentLicenselist_file = 'frequentLicenselist.json'
+_frequent_lic_nick_json_file = 'frequent_license_nick_list.json'
+
+
+def get_license_from_nick():
+    licenses = {}
+    licenses_file = os.path.join(_resources_dir, _frequent_lic_nick_json_file)
+
+    try:
+        base_dir = sys._MEIPASS
+    except Exception:
+        base_dir = os.path.dirname(__file__)
+
+    file_withpath = os.path.join(base_dir, licenses_file)
+    try:
+        with open(file_withpath, 'r') as f:
+            licenses = json.load(f)
+    except Exception as ex:
+        print(f"Error to get license from json file : {ex}")
+
+    return licenses
 
 
 def get_spdx_licenses_json():

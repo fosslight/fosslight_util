@@ -26,6 +26,10 @@ Files: src/fosslight_util/resources/frequentLicenselist.json
 Copyright: 2021 LG Electronics
 License: Apache-2.0
 
+Files: src/fosslight_util/resources/frequent_license_nick_list.json
+Copyright: 2022 LG Electronics
+License: Apache-2.0
+
 Files: src/fosslight_util/resources/licenses.json
 Copyright: SPDX
 License: CC-BY-3.0
