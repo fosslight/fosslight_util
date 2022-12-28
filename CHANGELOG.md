@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.14 (28/12/2022)
+## Changes
+## 🔧 Maintenance
+
+- Add frequent license nick list file @bjk7119 (#100)
+- Add *sbom_info*.yaml pattern to find oss pkg info file @bjk7119 (#99)
+
+---
+
 ## v1.4.13 (25/11/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -286,11 +295,3 @@
 - Modify the tox issue @dd-jy (#41)
 - Update spdx license list data v3.15 @dd-jy (#39)
 - Exclude null fields from opossum export @nicarl (#38)
-
----
-
-## v1.3.5 (28/10/2021)
-## Changes
-## 🔧 Maintenance
-
-- Add function to get spdx licenses @dd-jy (#36)
