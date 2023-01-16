@@ -35,7 +35,7 @@ class PrintHelpMsg():
 
 def print_package_version(pkg_name, msg="", exitopt=True):
     if msg == "":
-        msg = f"{pkg_name} Version :"
+        msg = f"{pkg_name} Version:"
     cur_version = pkg_resources.get_distribution(pkg_name).version
     print(f'{msg} {cur_version}')
 
