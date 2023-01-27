@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.4.15 (27/01/2023)
+## Changes
+## 🔧 Maintenance
+
+- Unify version output format if  msg is none @bjk7119 (#103)
+- Change package to get release package @bjk7119 (#102)
+- Update version of package for actions @bjk7119 (#101)
+
+---
+
 ## v1.4.14 (28/12/2022)
 ## Changes
 ## 🔧 Maintenance
@@ -281,17 +291,3 @@
 ## 🚀 Features
 
 - Add extended header feature for additional information on excel @JustinWonjaePark (#43)
-
----
-
-## v1.3.6 (18/11/2021)
-## Changes
-## 🐛 Hotfixes
-
-- Fix bug in opossum exporter @nicarl (#37)
-
-## 🔧 Maintenance
-
-- Modify the tox issue @dd-jy (#41)
-- Update spdx license list data v3.15 @dd-jy (#39)
-- Exclude null fields from opossum export @nicarl (#38)
