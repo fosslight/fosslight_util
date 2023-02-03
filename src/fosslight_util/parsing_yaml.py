@@ -20,6 +20,7 @@ def parsing_yml(yaml_file, base_path, print_log=True):
     oss_list = []
     license_list = []
     idx = 1
+    err_reason = ""
     OLD_YAML_ROOT_ELEMENT = ['Open Source Software Package',
                              'Open Source Package']
 
@@ -32,6 +33,11 @@ def parsing_yml(yaml_file, base_path, print_log=True):
         else:
             relative_path = ""
         doc = yaml.safe_load(codecs.open(yaml_file, "r", "utf-8"))
+        # If yaml file is empty, return immediately
+        if doc is None:
+            err_reason = "empty"
+            return oss_list, license_list, err_reason
+
         is_old_format = any(x in doc for x in OLD_YAML_ROOT_ELEMENT)
 
         for root_element in doc:
@@ -46,19 +52,21 @@ def parsing_yml(yaml_file, base_path, print_log=True):
                     for key, value in oss.items():
                         if key:
                             key = key.lower().strip()
-                        set_value_switch(item, key, value)
+                        set_value_switch(item, key, value, yaml_file)
                     oss_list.append(item)
                     license_list.extend(item.license)
                     idx += 1
     except AttributeError as ex:
         if print_log:
-            _logger.error(f"Not supported yaml file format {ex}")
+            _logger.warning(f"Not supported yaml file format: {yaml_file} {ex}")
         oss_list = []
+        err_reason = "not_supported"
     except yaml.YAMLError:
         if print_log:
-            _logger.warning(f"Can't parse yaml - skip to parse yaml file: {yaml_file}")
+            _logger.warning(f"Error to parse yaml - skip to parse yaml file: {yaml_file}")
         oss_list = []
-    return oss_list, set(license_list)
+        err_reason = "yaml_error"
+    return oss_list, set(license_list), err_reason
 
 
 def find_sbom_yaml_files(path_to_find):
@@ -82,7 +90,7 @@ def find_sbom_yaml_files(path_to_find):
     return oss_pkg_files
 
 
-def set_value_switch(oss, key, value):
+def set_value_switch(oss, key, value, yaml_file):
     if key in ['oss name', 'name']:
         oss.name = value
     elif key in ['oss version', 'version']:
@@ -105,3 +113,5 @@ def set_value_switch(oss, key, value):
         oss.yocto_package = value
     elif key == 'yocto_recipe':
         oss.yocto_recipe = value
+    else:
+        _logger.info(f"file:{yaml_file} - key:{key} cannot be parsed")
