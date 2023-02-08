@@ -36,6 +36,7 @@ def parsing_yml(yaml_file, base_path, print_log=True):
         # If yaml file is empty, return immediately
         if doc is None:
             err_reason = "empty"
+            _logger.debug(f"The yaml file is empty file: {yaml_file}")
             return oss_list, license_list, err_reason
 
         is_old_format = any(x in doc for x in OLD_YAML_ROOT_ELEMENT)
@@ -58,12 +59,12 @@ def parsing_yml(yaml_file, base_path, print_log=True):
                     idx += 1
     except AttributeError as ex:
         if print_log:
-            _logger.warning(f"Not supported yaml file format: {yaml_file} {ex}")
+            _logger.debug(f"Not supported yaml file format: {yaml_file} {ex}")
         oss_list = []
         err_reason = "not_supported"
     except yaml.YAMLError:
         if print_log:
-            _logger.warning(f"Error to parse yaml - skip to parse yaml file: {yaml_file}")
+            _logger.debug(f"Error to parse yaml - skip to parse yaml file: {yaml_file}")
         oss_list = []
         err_reason = "yaml_error"
     return oss_list, set(license_list), err_reason
@@ -114,4 +115,4 @@ def set_value_switch(oss, key, value, yaml_file):
     elif key == 'yocto_recipe':
         oss.yocto_recipe = value
     else:
-        _logger.info(f"file:{yaml_file} - key:{key} cannot be parsed")
+        _logger.debug(f"file:{yaml_file} - key:{key} cannot be parsed")
