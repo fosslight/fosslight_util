@@ -15,8 +15,8 @@ NAME = 'name'
 
 
 def compare_yaml(before_file, after_file):
-    before_oss_items, _ = parsing_yml(before_file, os.path.dirname(before_file))
-    after_oss_items, _ = parsing_yml(after_file, os.path.dirname(after_file))
+    before_oss_items, _, _ = parsing_yml(before_file, os.path.dirname(before_file))
+    after_oss_items, _, _ = parsing_yml(after_file, os.path.dirname(after_file))
 
     before_items = get_merged_item(before_oss_items)
     after_items = get_merged_item(after_oss_items)
