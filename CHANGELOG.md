@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.16 (10/02/2023)
+## Changes
+## 🔧 Maintenance
+
+- Add handling for parsing yaml error @bjk7119 (#104)
+
+---
+
 ## v1.4.15 (27/01/2023)
 ## Changes
 ## 🔧 Maintenance
@@ -281,13 +289,3 @@
 ## 🔧 Maintenance
 
 - Add function for print package version @soimkim (#45)
-
----
-
-## v1.3.7 (30/12/2021)
-## Changes
-- Add extended header feature for additional information on excel @soimkim (#44)
-
-## 🚀 Features
-
-- Add extended header feature for additional information on excel @JustinWonjaePark (#43)
