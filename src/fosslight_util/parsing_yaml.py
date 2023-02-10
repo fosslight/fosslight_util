@@ -92,7 +92,7 @@ def find_sbom_yaml_files(path_to_find):
     return oss_pkg_files
 
 
-def set_value_switch(oss, key, value, yaml_file):
+def set_value_switch(oss, key, value, yaml_file=""):
     if key in ['oss name', 'name']:
         oss.name = value
     elif key in ['oss version', 'version']:
@@ -116,4 +116,5 @@ def set_value_switch(oss, key, value, yaml_file):
     elif key == 'yocto_recipe':
         oss.yocto_recipe = value
     else:
-        _logger.debug(f"file:{yaml_file} - key:{key} cannot be parsed")
+        if yaml_file != "":
+            _logger.debug(f"file:{yaml_file} - key:{key} cannot be parsed")
