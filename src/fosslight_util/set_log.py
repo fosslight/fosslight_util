@@ -32,6 +32,15 @@ def init_check_latest_version(pkg_version="", main_package_name=""):
         logger.debug('Cannot check the latest version:' + str(error))
 
 
+class CustomAdapter(logging.LoggerAdapter):
+    def __init__(self, logger, extra):
+        super(CustomAdapter, self).__init__(logger, {})
+        self.extra = extra
+
+    def process(self, msg, kwargs):
+        return '[%s] %s' % (self.extra, msg), kwargs
+
+
 def init_log(log_file, create_file=True, stream_log_level=logging.INFO,
              file_log_level=logging.DEBUG, main_package_name="", path_to_analyze=""):
 
@@ -55,6 +64,7 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO,
             logger.addHandler(file_handlder)
 
         logger.propagate = False
+    logger = CustomAdapter(logger, main_package_name.upper())
 
     _PYTHON_VERSION = sys.version_info[0]
     _result_log = {
