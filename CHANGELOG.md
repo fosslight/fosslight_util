@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.18 (23/02/2023)
+## Changes
+## 🚀 Features
+
+- Be available to download yocto url @bjk7119 (#105)
+
+---
+
 ## v1.4.17 (23/02/2023)
 ## Changes
 ## 🔧 Maintenance
@@ -277,16 +285,3 @@
 ## 🔧 Maintenance
 
 - Support to output SRC and BIN sheets as opossum. @soimkim (#49)
-
----
-
-## v1.3.9 (13/01/2022)
-## Changes
-## 🐛 Hotfixes
-
-- Add scanoss info on opossum @JustinWonjaePark (#46)
-
-## 🔧 Maintenance
-
-- Modify to run github action for all branches when PR is created. @bjk7119 (#48)
-- Change the upgrade message @soimkim (#47)
