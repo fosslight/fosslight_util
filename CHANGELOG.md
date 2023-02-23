@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.17 (23/02/2023)
+## Changes
+## 🔧 Maintenance
+
+- Update the spdx-license-list-data v3.20 @dd-jy (#107)
+- Add package name to log @dd-jy (#106)
+
+---
+
 ## v1.4.16 (10/02/2023)
 ## Changes
 ## 🔧 Maintenance
@@ -281,11 +290,3 @@
 
 - Modify to run github action for all branches when PR is created. @bjk7119 (#48)
 - Change the upgrade message @soimkim (#47)
-
----
-
-## v1.3.8 (04/01/2022)
-## Changes
-## 🔧 Maintenance
-
-- Add function for print package version @soimkim (#45)
