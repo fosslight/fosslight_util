@@ -19,6 +19,21 @@ _HELP_MESSAGE_COMMON = """
 """
 
 
+_HELP_MESSAGE_DOWNLOAD = """
+    FOSSLight Downloader is a tool to download the package via input URL
+
+    Usage: fosslight_download [option1] <arg1> [options2] <arg2>
+     ex) fosslight_download -s http://github.com/fosslight/fosslight -t output_dir -d log_dir
+
+    Required:
+        -s\t\t      URL of the package to be downloaded
+
+    Optional:
+        -h\t\t      Print help message
+        -t\t\t      Output path name
+        -d\t\t      Directory name to save the log file"""
+
+
 class PrintHelpMsg():
     message_suffix = ""
 
@@ -41,3 +56,8 @@ def print_package_version(pkg_name, msg="", exitopt=True):
 
     if exitopt:
         sys.exit(0)
+
+
+def print_help_msg_download(exitOpt=True):
+    helpMsg = PrintHelpMsg(_HELP_MESSAGE_DOWNLOAD)
+    helpMsg.print_help_msg(exitOpt)
