@@ -22,6 +22,7 @@ import signal
 import time
 import threading
 import platform
+import subprocess
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip", ".jar", ".bz2"}
@@ -64,6 +65,8 @@ def parse_src_link(src_link):
         if src_link.startswith("git://github.com/"):
             src_link_changed = change_src_link_to_https(src_link_split[0])
         else:
+            if "rubygems.org" in src_link:
+                src_info["rubygems"] = True
             src_link_changed = src_link_split[0]
 
         branch_info = [s for s in src_link_split if s.startswith('branch')]
@@ -127,14 +130,19 @@ def cli_download_and_extract(link, target_dir, log_dir, checkout_to="", compress
             link = src_info.get("url", "")
             tag = ''.join(src_info.get("tag",  "")).split('=')[-1]
             branch = ''.join(src_info.get("branch", "")).split('=')[-1]
+            is_rubygems = src_info.get("rubygems", False)
 
-            if not download_git_clone(link, target_dir, checkout_to, tag, branch):
+            # General download (git clone, wget)
+            if (is_rubygems is False) and (not download_git_clone(link, target_dir, checkout_to, tag, branch)):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
 
                 success, downloaded_file = download_wget(link, target_dir, compressed_only)
                 if success:
                     success = extract_compressed_file(downloaded_file, target_dir, True)
+            # Download from rubygems.org
+            elif is_rubygems and shutil.which("gem"):
+                success = gem_download(link, target_dir, checkout_to)
     except Exception as error:
         success = False
         msg = str(error)
@@ -320,6 +328,48 @@ def unzip(source_file, dest_path):
         logger.error(f"Unzip - failed: {error}")
         return False
     return True
+
+
+def get_gem_version(checkout_to, ver_in_url=""):
+    gem_ver = ""
+    ver_found = False
+    if checkout_to != "":
+        ver_found = True
+        gem_ver = checkout_to
+    elif ver_in_url != "":
+        ver_found = True
+        gem_ver = ver_in_url
+    return gem_ver, ver_found
+
+
+def gem_download(link, target_dir, checkout_to):
+    ver_in_url = ""
+    success = True
+    try:
+        # EX) https://rubygems.org/gems/json/versions/2.6.2 -> get 'json'
+        gem_name = link.split("rubygems.org/gems/")[-1].split('/')[0]
+        # Ex) if version info. is included in url, json/versions/2.6.2 -> get '2.6.2'
+        if 'versions/' in link:
+            ver_in_url = link.split('versions/')[-1]
+        gem_ver, ver_found = get_gem_version(checkout_to, ver_in_url)
+
+        # gem fetch
+        if ver_found:
+            fetch_cmd = ['gem', 'fetch', gem_name, '-v', gem_ver]
+        else:
+            fetch_cmd = ['gem', 'fetch', gem_name]
+        fetch_result = subprocess.check_output(fetch_cmd, universal_newlines=True)
+        fetch_result = fetch_result.replace('\n', '').split(' ')[-1]
+        downloaded_gem = f"{fetch_result}.gem"
+
+        # gem unpack
+        subprocess.check_output(['gem', 'unpack', downloaded_gem], universal_newlines=True)
+        # move unpacked file to target directory
+        shutil.move(fetch_result, target_dir)
+    except Exception as error:
+        success = False
+        logger.warning(f"gem download - failed: {error}")
+    return success
 
 
 if __name__ == '__main__':
