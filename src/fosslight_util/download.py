@@ -271,6 +271,7 @@ def extract_compressed_dir(src_dir, target_dir, remove_after_extract=True):
 
 
 def extract_compressed_file(fname, extract_path, remove_after_extract=True):
+    success = True
     try:
         is_compressed_file = True
         if os.path.isfile(fname):
@@ -293,6 +294,7 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True):
                 decompress_bz2(fname, extract_path)
             else:
                 is_compressed_file = False
+                success = False
                 logger.warning(f"Unsupported file extension: {fname}")
 
             if remove_after_extract and is_compressed_file:
@@ -303,7 +305,7 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True):
     except Exception as error:
         logger.error(f"Extract - failed: {error}")
         return False
-    return True
+    return success
 
 
 def decompress_bz2(source_file, dest_path):
