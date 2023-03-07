@@ -103,7 +103,7 @@ def main():
     if args.log_dir:
         log_dir = args.log_dir
 
-    if src_link == "":
+    if not src_link:
         print_help_msg_download()
     else:
         cli_download_and_extract(src_link, target_dir, log_dir)
@@ -117,9 +117,10 @@ def cli_download_and_extract(link, target_dir, log_dir, checkout_to="", compress
     log_file_name = "fosslight_download_" + \
         datetime.now().strftime('%Y%m%d_%H-%M-%S')+".txt"
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
+    link = link.strip()
 
     try:
-        if link == "":
+        if not link:
             success = False
             msg = "Need a link to download."
         elif os.path.isfile(target_dir):
@@ -133,7 +134,7 @@ def cli_download_and_extract(link, target_dir, log_dir, checkout_to="", compress
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            if (is_rubygems is False) and (not download_git_clone(link, target_dir, checkout_to, tag, branch)):
+            if (not is_rubygems) and (not download_git_clone(link, target_dir, checkout_to, tag, branch)):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
 
@@ -172,10 +173,10 @@ def get_ref_to_checkout(checkout_to, ref_list):
 
 
 def decide_checkout(checkout_to="", tag="", branch=""):
-    if checkout_to != "":
+    if checkout_to:
         ref_to_checkout = checkout_to
     else:
-        if branch != "":
+        if branch:
             ref_to_checkout = branch
         else:
             ref_to_checkout = tag
@@ -227,7 +228,7 @@ def download_wget(link, target_dir, compressed_only):
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
         ret, new_link = get_downloadable_url(link)
-        if ret and new_link != "":
+        if ret and new_link:
             link = new_link
 
         if compressed_only:
@@ -248,7 +249,7 @@ def download_wget(link, target_dir, compressed_only):
         else:
             del alarm
 
-        if downloaded_file != "":
+        if downloaded_file:
             success = True
             logger.debug(f"wget - downloaded: {downloaded_file}")
     except Exception as error:
@@ -304,7 +305,7 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True):
             logger.warning(f"Not a file: {fname}")
     except Exception as error:
         logger.error(f"Extract - failed: {error}")
-        return False
+        success = False
     return success
 
 
@@ -335,10 +336,10 @@ def unzip(source_file, dest_path):
 def get_gem_version(checkout_to, ver_in_url=""):
     gem_ver = ""
     ver_found = False
-    if checkout_to != "":
+    if checkout_to:
         ver_found = True
         gem_ver = checkout_to
-    elif ver_in_url != "":
+    elif ver_in_url:
         ver_found = True
         gem_ver = ver_in_url
     return gem_ver, ver_found
