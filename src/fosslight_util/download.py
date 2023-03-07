@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from fosslight_util._get_downloadable_url import get_downloadable_url
 from fosslight_util.help import print_help_msg_download
+from fosslight_util.download_ftp_tree import download_ftp_tree
 import fosslight_util.constant as constant
 from fosslight_util.set_log import init_log
 import signal
@@ -23,6 +24,7 @@ import time
 import threading
 import platform
 import subprocess
+import ftplib
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip", ".jar", ".bz2"}
@@ -109,6 +111,23 @@ def main():
         cli_download_and_extract(src_link, target_dir, log_dir)
 
 
+def ftp_download(link, target_dir):
+    main_url = link.replace('ftp://', '', 1).split('/', 1)[0]
+    sub_url = link.replace('ftp://', '', 1).split('/', 1)[1]
+    logger.warning(f"main_url: {main_url}")
+    logger.warning(f"sub_url: {sub_url}")
+    success = False
+    try:
+        ftp = ftplib.FTP(main_url)
+        ftp.login()
+
+        logger.warning('cccccccccccccccccccccccc')
+        success = download_ftp_tree(ftp, f"{sub_url}", target_dir, pattern=None, overwrite=False, guess_by_extension=True)
+    except Exception as e:
+        logger.error(e)
+    return success
+
+
 def cli_download_and_extract(link, target_dir, log_dir, checkout_to="", compressed_only=False):
     global logger
 
@@ -127,23 +146,26 @@ def cli_download_and_extract(link, target_dir, log_dir, checkout_to="", compress
             success = False
             msg = f"The target directory exists as a file.: {target_dir}"
         else:
-            src_info = parse_src_link(link)
-            link = src_info.get("url", "")
-            tag = ''.join(src_info.get("tag",  "")).split('=')[-1]
-            branch = ''.join(src_info.get("branch", "")).split('=')[-1]
-            is_rubygems = src_info.get("rubygems", False)
+            if link.startswith("ftp://"):
+                success = ftp_download(link, target_dir)
+            else:
+                src_info = parse_src_link(link)
+                link = src_info.get("url", "")
+                tag = ''.join(src_info.get("tag",  "")).split('=')[-1]
+                branch = ''.join(src_info.get("branch", "")).split('=')[-1]
+                is_rubygems = src_info.get("rubygems", False)
 
-            # General download (git clone, wget)
-            if (not is_rubygems) and (not download_git_clone(link, target_dir, checkout_to, tag, branch)):
-                if os.path.isfile(target_dir):
-                    shutil.rmtree(target_dir)
+                # General download (git clone, wget)
+                if (not is_rubygems) and (not download_git_clone(link, target_dir, checkout_to, tag, branch)):
+                    if os.path.isfile(target_dir):
+                        shutil.rmtree(target_dir)
 
-                success, downloaded_file = download_wget(link, target_dir, compressed_only)
-                if success:
-                    success = extract_compressed_file(downloaded_file, target_dir, True)
-            # Download from rubygems.org
-            elif is_rubygems and shutil.which("gem"):
-                success = gem_download(link, target_dir, checkout_to)
+                    success, downloaded_file = download_wget(link, target_dir, compressed_only)
+                    if success:
+                        success = extract_compressed_file(downloaded_file, target_dir, True)
+                # Download from rubygems.org
+                elif is_rubygems and shutil.which("gem"):
+                    success = gem_download(link, target_dir, checkout_to)
     except Exception as error:
         success = False
         msg = str(error)
