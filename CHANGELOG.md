@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.19 (07/03/2023)
+## Changes
+## 🚀 Features
+
+- Be available to download src from rubygem @bjk7119 (#108)
+
+---
+
 ## v1.4.18 (23/02/2023)
 ## Changes
 ## 🚀 Features
@@ -277,11 +285,3 @@
 ## 🔧 Maintenance
 
 - When outputting opossum format, cut as many columns as necessary. @bjk7119 (#51)
-
----
-
-## v1.3.10 (14/01/2022)
-## Changes
-## 🔧 Maintenance
-
-- Support to output SRC and BIN sheets as opossum. @soimkim (#49)
