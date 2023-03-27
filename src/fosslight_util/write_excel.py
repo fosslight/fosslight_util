@@ -180,7 +180,7 @@ def write_result_to_sheet(worksheet, sheet_contents):
     for row_item in sheet_contents:
         worksheet.write(row, 0, row)
         for col_num, value in enumerate(row_item):
-            worksheet.write(row, col_num + 1, value)
+            worksheet.write(row, col_num + 1, str(value))
         row += 1
 
 
