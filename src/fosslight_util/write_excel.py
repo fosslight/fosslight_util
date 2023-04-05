@@ -220,7 +220,7 @@ def merge_excels(find_excel_dir, final_out):
                             sheet_name_to_copy = sheet_name
                         df_excel.to_excel(writer, sheet_name_to_copy,
                                           index=False)
-            writer.save()
+            writer.close()
     except Exception as ex:
         msg = str(ex)
         success = False
