@@ -4,6 +4,7 @@
 ## Changes
 ## 🐛 Hotfixes
 
+- Update deploy gh action version @dd-jy (#112)
 - Fix the xlsxwriter save issue @dd-jy (#111)
 - Fix the bug that can't print excel @soimkim (#110)
 
