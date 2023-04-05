@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.20 (05/04/2023)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the xlsxwriter save issue @dd-jy (#111)
+- Fix the bug that can't print excel @soimkim (#110)
+
+---
+
 ## v1.4.19 (07/03/2023)
 ## Changes
 ## 🚀 Features
@@ -277,11 +286,3 @@
 
 - Update spdx license list data v3.16 @dd-jy (#53)
 - Print output file(s) list @bjk7119 (#52)
-
----
-
-## v1.3.11 (20/01/2022)
-## Changes
-## 🔧 Maintenance
-
-- When outputting opossum format, cut as many columns as necessary. @bjk7119 (#51)
