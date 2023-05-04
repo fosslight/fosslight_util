@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.21 (04/05/2023)
+## Changes
+## 🚀 Features
+
+- Add to generate spdx format result @dd-jy (#113)
+
+---
+
 ## v1.4.20 (05/04/2023)
 ## Changes
 ## 🐛 Hotfixes
@@ -274,16 +282,3 @@
 ## 🔧 Maintenance
 
 - When merging excel, add the option to create a csv file @soimkim (#55)
-
----
-
-## v1.3.12 (10/02/2022)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the opossum result to print the multiple resourcesToAttribution @dd-jy (#54)
-
-## 🔧 Maintenance
-
-- Update spdx license list data v3.16 @dd-jy (#53)
-- Print output file(s) list @bjk7119 (#52)
