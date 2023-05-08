@@ -20,7 +20,7 @@ def get_license_from_nick():
     licenses_file = os.path.join(_resources_dir, _frequent_lic_nick_json_file)
 
     try:
-        base_dir = sys._MEIPASS
+        base_dir = os.path.join(sys._MEIPASS, vars(sys.modules[__name__])['__package__'])
     except Exception:
         base_dir = os.path.dirname(__file__)
 
@@ -42,7 +42,7 @@ def get_spdx_licenses_json():
     licenses_file = os.path.join(_resources_dir, _licenses_json_file)
 
     try:
-        base_dir = sys._MEIPASS
+        base_dir = os.path.join(sys._MEIPASS, vars(sys.modules[__name__])['__package__'])
     except Exception:
         base_dir = os.path.dirname(__file__)
 
