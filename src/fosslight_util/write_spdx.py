@@ -12,7 +12,7 @@ from spdx.creationinfo import Tool
 from spdx.document import Document
 from spdx.package import Package
 from spdx.relationship import Relationship
-from spdx.license import License
+from spdx.document import License
 from spdx.utils import SPDXNone
 from spdx.utils import NoAssert
 from spdx.version import Version
