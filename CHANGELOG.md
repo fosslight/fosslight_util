@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.22 (09/05/2023)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the spdx-tools conflict issue @dd-jy (#115)
+
+---
+
 ## v1.4.21 (04/05/2023)
 ## Changes
 ## 🚀 Features
@@ -274,11 +282,3 @@
 
 - Comment out some sentences in the PR template @soimkim (#58)
 - Install pygit2 according to python version @soimkim (#56)
-
----
-
-## v1.3.13 (17/02/2022)
-## Changes
-## 🔧 Maintenance
-
-- When merging excel, add the option to create a csv file @soimkim (#55)
