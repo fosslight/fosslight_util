@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.23 (11/05/2023)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the windows path for license resource @dd-jy (#114)
+
+---
+
 ## v1.4.22 (09/05/2023)
 ## Changes
 ## 🐛 Hotfixes
@@ -269,16 +277,3 @@
 ## 🔧 Maintenance
 
 - Add a commit message checker @soimkim (#59)
-
----
-
-## v1.3.14 (24/02/2022)
-## Changes
-## 🐛 Hotfixes
-
-- Modify to get the source url for pypi @dd-jy (#57)
-
-## 🔧 Maintenance
-
-- Comment out some sentences in the PR template @soimkim (#58)
-- Install pygit2 according to python version @soimkim (#56)
