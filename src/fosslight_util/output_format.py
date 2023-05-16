@@ -26,7 +26,7 @@ def check_output_format(output='', format='', customized_format={}):
         format = format.lower()
         if format not in list(support_format.keys()):
             success = False
-            msg = 'Add the supported format with -f option: ' + ', '.join(list(support_format.keys()))
+            msg = 'Enter the supported format with -f option: ' + ', '.join(list(support_format.keys()))
         else:
             output_extension = support_format[format]
 
@@ -39,18 +39,18 @@ def check_output_format(output='', format='', customized_format={}):
                 basename = os.path.basename(output)
                 basename_file, basename_extension = os.path.splitext(basename)
             if basename_extension:
-                find_ext = False
+                find_format = False
                 for _format, _ext in support_format.items():
-                    if basename_extension == _ext:
-                        find_ext = True
-                        if format:
-                            if _format != format:
-                                success = False
-                                msg = 'Enter the same extension of output file(-o:' + output + ') with format(-f:' + format + ').'
+                    if format == _format:
+                        find_format = True
+                        if basename_extension != _ext:
+                            success = False
+                            msg = f"Enter the matched extension with output file(-o:{output}) with format(-f:{format})."
+
                         if success:
                             output_file = basename_file
                             output_extension = _ext
-                if not find_ext:
+                if not find_format:
                     success = False
                     msg = 'Enter the supported file extension: ' + ', '.join(list(support_format.values()))
             else:
