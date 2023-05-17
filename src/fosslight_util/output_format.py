@@ -7,9 +7,7 @@ from fosslight_util.write_excel import write_result_to_excel, write_result_to_cs
 from fosslight_util.write_opossum import write_opossum
 from fosslight_util.write_yaml import write_yaml
 
-SUPPORT_FORMAT = {'excel': '.xlsx', 'csv': '.csv', 'opossum': '.json', 'yaml': '.yaml',
-                  'spdx-yaml': '.yaml', 'spdx-json': '.json', 'spdx-xml': '.xml',
-                  'spdx-tag': '.tag'}
+SUPPORT_FORMAT = {'excel': '.xlsx', 'csv': '.csv', 'opossum': '.json', 'yaml': '.yaml'}
 
 
 def check_output_format(output='', format='', customized_format={}):
