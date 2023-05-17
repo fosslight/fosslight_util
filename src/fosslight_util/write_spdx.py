@@ -16,7 +16,10 @@ from spdx.document import License
 from spdx.utils import SPDXNone
 from spdx.utils import NoAssert
 from spdx.version import Version
-from spdx.writers.write_anything import write_file
+from spdx.writers import json
+from spdx.writers import yaml
+from spdx.writers import xml
+from spdx.writers import tagvalue
 from fosslight_util.spdx_licenses import get_spdx_licenses_json, get_license_from_nick
 import fosslight_util.constant as constant
 import traceback
@@ -111,7 +114,7 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
                         if 'root package' in comment.split(','):
                             root_package = True
                             relationship = Relationship(f"{doc.spdx_id} DESCRIBES {package.spdx_id}")
-                            doc.add_relationship(relationship)
+                            doc.add_relationships(relationship)
                         if len(oss_item) > 9:
                             deps = oss_item[9]
                             relation_tree[package.name]['dep'].extend([di.strip().split('(')[0] for di in deps.split(',')])
@@ -126,7 +129,7 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
                                     continue
                                 rel_pkg_spdx_id = ans[1]
                                 relationship = Relationship(f'{pkg_spdx_id} DEPENDS_ON {rel_pkg_spdx_id}')
-                                doc.add_relationship(relationship)
+                                doc.add_relationships(relationship)
                 if not root_package:
                     root_package = Package(spdx_id='SPDXRef-ROOT-PACKAGE')
                     root_package.name = 'root package'
@@ -136,7 +139,7 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
                     root_package.license_declared = NoAssert()
                     doc.add_package(root_package)
                     relationship = Relationship(f"{doc.spdx_id} DESCRIBES {root_package.spdx_id}")
-                    doc.add_relationship(relationship)
+                    doc.add_relationships(relationship)
         except Exception as e:
             success = False
             error_msg = f'Failed to create spdx document object:{e}, {traceback.format_exc()}'
@@ -148,7 +151,20 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
     if success:
         result_file = output_file_without_ext + output_extension
         try:
-            write_file(doc, result_file, validate=False, encoding='utf-8')
+            out_mode = "w"
+            if result_file.endswith(".tag"):
+                writer_module = tagvalue
+            elif result_file.endswith(".json"):
+                writer_module = json
+            elif result_file.endswith(".xml"):
+                writer_module = xml
+            elif result_file.endswith(".yaml"):
+                writer_module = yaml
+            else:
+                raise Exception("FileType Not Supported")
+
+            with open(result_file, out_mode) as out:
+                writer_module.write_document(doc, out, False)
         except Exception as e:
             success = False
             error_msg = f'Failed to write spdx document: {e}'
