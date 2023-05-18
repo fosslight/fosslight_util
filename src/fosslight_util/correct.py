@@ -43,6 +43,7 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                 continue
             oss_item = OssItem('')
             oss_item.set_sheet_item(oss_raw_item)
+
             matched_yi = []
             oss_rel_path = os.path.join(rel_path, oss_item.source_name_or_path[0])
             for yi in yaml_oss_list:
@@ -52,7 +53,8 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                     find_match = True
                     matched_yi.append(yi)
                     continue
-                filtered_contain = next(filter(lambda ys: os.path.normpath(oss_rel_path).startswith(os.path.normpath(ys)),
+                filtered_contain = next(filter(lambda ys:
+                                        os.path.normpath(oss_rel_path).startswith(os.path.normpath(ys.rstrip('*'))),
                                         yi.source_name_or_path), None)
                 if filtered_contain:
                     find_match = True
@@ -61,7 +63,8 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                 correct_contents.remove(oss_raw_item)
                 for mi in matched_yi:
                     if ','.join(sorted(mi.license)).casefold() != ','.join(sorted(oss_item.license)).casefold():
-                        mi.comment = f'scanner license:{"".join(oss_item.license)}'
+                        if len(oss_item.license) > 0 and oss_item.license != ['']:
+                            mi.comment = f'scanner license: {",".join(oss_item.license)}'
                     matched_yaml_item = mi.get_print_array()[0]
                     matched_yaml_item[0] = oss_item.source_name_or_path[0]
                     correct_contents.append(matched_yaml_item)
