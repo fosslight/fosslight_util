@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.4.24 (19/05/2023)
+## Changes
+## 🚀 Features
+
+- Add the correction with sbom-info.yaml @dd-jy (#119)
+
+## 🐛 Hotfixes
+
+- Fix the support default output format @dd-jy (#118)
+- Modify condition to check output format @bjk7119 (#116)
+- Fix the write_spdx bug @dd-jy (#117)
+
+---
+
 ## v1.4.23 (11/05/2023)
 ## Changes
 ## 🐛 Hotfixes
@@ -264,16 +278,3 @@
 ## 🐛 Hotfixes
 
 - Fix the unbound error (write_excel.py) @dd-jy (#63)
-
----
-
-## v1.3.15 (14/04/2022)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the bug where csv name is output differently @soimkim (#62)
-- Fix formatting errors that occur when dir is input @soimkim (#60)
-
-## 🔧 Maintenance
-
-- Add a commit message checker @soimkim (#59)
