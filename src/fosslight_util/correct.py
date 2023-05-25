@@ -6,25 +6,30 @@
 import logging
 import os
 import copy
+import re
 from fosslight_util.constant import LOGGER_NAME
 from fosslight_util.parsing_yaml import parsing_yml
 import fosslight_util.constant as constant
 from fosslight_util.oss_item import OssItem
 
 logger = logging.getLogger(LOGGER_NAME)
-SBOM_INFO_YAML = 'sbom-info.yaml'
+SBOM_INFO_YAML = r"sbom(-|_)info[\s\S]*.ya?ml"
 
 
 def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
     success = True
     msg = ""
     correct_list = {}
+    correct_yaml = ""
     if correct_filepath == "":
         correct_filepath = os.getcwd()
 
-    correct_yaml = os.path.join(correct_filepath, SBOM_INFO_YAML)
-    if not os.path.exists(correct_yaml):
-        msg = f"Cannot find {SBOM_INFO_YAML} in {correct_filepath}."
+    for filename in os.listdir(correct_filepath):
+        if re.search(SBOM_INFO_YAML, filename, re.IGNORECASE):
+            correct_yaml = os.path.join(correct_filepath, filename)
+            break
+    if not correct_yaml:
+        msg = f"Cannot find sbom-info.yaml in {correct_filepath}."
         success = False
         return success, msg, correct_list
 
