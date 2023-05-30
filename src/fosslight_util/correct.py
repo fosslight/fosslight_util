@@ -42,7 +42,7 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
         if sheet_name not in constant.supported_sheet_and_scanner.keys():
             continue
         correct_contents = copy.deepcopy(sheet_contents)
-        for oss_raw_item in sheet_contents:
+        for idx, oss_raw_item in enumerate(sheet_contents):
             if len(oss_raw_item) < 9:
                 logger.warning(f"sheet list is too short ({len(oss_raw_item)}): {oss_raw_item}")
                 continue
@@ -65,19 +65,27 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                     find_match = True
                     matched_yi.append(yi)
             if len(matched_yi) > 0:
-                correct_contents.remove(oss_raw_item)
                 for mi in matched_yi:
-                    if ','.join(sorted(mi.license)).casefold() != ','.join(sorted(oss_item.license)).casefold():
-                        if len(oss_item.license) > 0 and oss_item.license != ['']:
-                            mi.comment = f'scanner license: {",".join(oss_item.license)}'
-                    matched_yaml_item = mi.get_print_array()[0]
-                    matched_yaml_item[0] = oss_item.source_name_or_path[0]
-                    correct_contents.append(matched_yaml_item)
+                    matched_oss_item = copy.deepcopy(mi)
+                    if oss_item.exclude:
+                        matched_oss_item.exclude = oss_item.exclude
+                    if matched_oss_item.comment:
+                        matched_oss_item.comment += '/'
+                    matched_oss_item.comment += 'Loaded from sbom-info.yaml'
+                    matched_oss_item.source_name_or_path = []
+                    matched_oss_item.source_name_or_path = oss_item.source_name_or_path[0]
+                    matched_oss_array = matched_oss_item.get_print_array()[0]
+                    correct_contents.append(matched_oss_array)
+                oss_item.exclude = True
+                if oss_item.comment:
+                    oss_item.comment += '/'
+                oss_item.comment += 'Excluded by sbom-info.yaml'
+                correct_contents[idx] = oss_item.get_print_array()[0]
         correct_list[sheet_name] = correct_contents
 
     if not find_match:
         success = False
-        err_msg = f'No match items in {SBOM_INFO_YAML}'
+        err_msg = 'No match items in sbom-info.yaml'
         return success, err_msg, yaml_oss_list
 
     return success, msg, correct_list
