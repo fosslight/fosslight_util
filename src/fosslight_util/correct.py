@@ -107,7 +107,6 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                     correct_contents.append(y_item_i.get_print_array()[0])
         correct_list[sheet_name] = correct_contents
 
-
     if not find_match:
         success = False
         err_msg = 'No match items in sbom-info.yaml'
