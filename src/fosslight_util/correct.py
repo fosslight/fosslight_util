@@ -24,6 +24,8 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
     if correct_filepath == "":
         correct_filepath = path_to_scan
 
+    path_to_scan = os.path.normpath(path_to_scan)
+    correct_filepath = os.path.normpath(correct_filepath)
     for filename in os.listdir(correct_filepath):
         if re.search(SBOM_INFO_YAML, filename, re.IGNORECASE):
             correct_yaml = os.path.join(correct_filepath, filename)
@@ -39,7 +41,10 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
     yaml_oss_list, _, err_msg = parsing_yml(correct_yaml, os.path.dirname(correct_yaml), print_log=True)
 
     find_match = False
-    matched_yaml = [[0]]*len(yaml_oss_list)
+    matched_yaml = []
+    for yitem in yaml_oss_list:
+        matched_yaml.append([0]*len(yitem.source_name_or_path))
+
     for sheet_name, sheet_contents in scanner_oss_list.items():
         if sheet_name not in constant.supported_sheet_and_scanner.keys():
             continue
@@ -64,8 +69,7 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                         yi_item.source_name_or_path = []
                         yi_item.source_name_or_path = oss_item.source_name_or_path[0]
                         matched_yi.append(yi_item)
-                        matched_yaml[y_idx].append(ys_idx + 1)
-                matched_yaml[y_idx] = list(set(matched_yaml[y_idx]))
+                        matched_yaml[y_idx][ys_idx] = 1
             if len(matched_yi) > 0:
                 for matched_yi_item in matched_yi:
                     matched_oss_item = copy.deepcopy(matched_yi_item)
@@ -86,12 +90,12 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
             for n_idx, ni in enumerate(matched_yaml):
                 y_item = copy.deepcopy(yaml_oss_list[n_idx])
                 if sum(ni) != 0:
-                    ni = list(set(ni))
-                    if len(ni[1:]) == len(y_item.source_name_or_path):
-                        continue
-                    id = [j-1 for j in ni if j]
-                    for iid in sorted(id, reverse=True):
-                        y_item.source_name_or_path.pop(iid)
+                    not_matched_path = []
+                    for idx, id in enumerate(ni):
+                        if not id:
+                            not_matched_path.append(y_item.source_name_or_path[idx])
+                    y_item.source_name_or_path = []
+                    y_item.source_name_or_path = not_matched_path
                 if y_item.comment:
                     y_item.comment += '/'
                 y_item.comment += 'Added by sbom-info.yaml'
