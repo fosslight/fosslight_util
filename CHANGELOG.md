@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.4.25 (02/06/2023)
+## Changes
+## 🚀 Features
+
+- Add result if path not found in scanner @dd-jy (#122)
+
+## 🔧 Maintenance
+
+- Fix to check exclude for correcting oss info @dd-jy (#121)
+- Fix to find the sbom-info.yaml file with pattern @dd-jy (#120)
+
+---
+
 ## v1.4.24 (19/05/2023)
 ## Changes
 ## 🚀 Features
@@ -270,11 +283,3 @@
 ## 🔧 Maintenance
 
 - Add yaml parsing code @bjk7119 (#64)
-
----
-
-## v1.3.16 (22/04/2022)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the unbound error (write_excel.py) @dd-jy (#63)
