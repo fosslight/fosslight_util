@@ -73,8 +73,6 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
             if len(matched_yi) > 0:
                 for matched_yi_item in matched_yi:
                     matched_oss_item = copy.deepcopy(matched_yi_item)
-                    if oss_item.exclude:
-                        matched_oss_item.exclude = oss_item.exclude
                     if matched_oss_item.comment:
                         matched_oss_item.comment += '/'
                     matched_oss_item.comment += 'Loaded from sbom-info.yaml'
