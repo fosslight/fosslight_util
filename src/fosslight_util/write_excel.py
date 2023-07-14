@@ -28,6 +28,8 @@ _HEADER = {'BIN (': ['ID', 'Binary Name', 'Source Code Path',
 _OUTPUT_FILE_PREFIX = "FOSSLight-Report_"
 _EMPTY_ITEM_MSG = "* There is no item"\
                     " to print in FOSSLight-Report.\n"
+IDX_FILE = 0
+IDX_EXCLUDE = 7
 logger = logging.getLogger(constant.LOGGER_NAME)
 
 
@@ -137,7 +139,8 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
                 else:
                     output_file = separate_output_file + "_" + sheet_name + file_extension
 
-                sheet_content_without_header = sorted(sheet_content_without_header, key=lambda x: (x[7], x[0] == "", x[0]))
+                sheet_content_without_header = sorted(sheet_content_without_header,
+                                                      key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
                 with open(output_file, 'w', newline='') as file:
                     writer = csv.writer(file, delimiter='\t')
                     writer.writerow(header_row)
@@ -167,7 +170,8 @@ def write_result_to_excel(out_file_name, sheet_list, extended_header={}):
             workbook = xlsxwriter.Workbook(out_file_name)
             for sheet_name, sheet_contents in sheet_list.items():
                 selected_header, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:], extended_header)
-                sheet_content_without_header = sorted(sheet_content_without_header, key=lambda x: (x[7], x[0] == "", x[0]))
+                sheet_content_without_header = sorted(sheet_content_without_header,
+                                                      key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
                 worksheet = create_worksheet(workbook, sheet_name, selected_header)
                 write_result_to_sheet(worksheet, sheet_content_without_header)
             workbook.close()
