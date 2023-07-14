@@ -36,7 +36,6 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
         return success, msg, correct_list
 
     rel_path = os.path.relpath(path_to_scan, correct_filepath)
-    rel_correct_path = os.path.relpath(correct_filepath, path_to_scan)
 
     yaml_oss_list, _, err_msg = parsing_yml(correct_yaml, os.path.dirname(correct_yaml), print_log=True)
 
@@ -73,8 +72,6 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
             if len(matched_yi) > 0:
                 for matched_yi_item in matched_yi:
                     matched_oss_item = copy.deepcopy(matched_yi_item)
-                    if oss_item.exclude:
-                        matched_oss_item.exclude = oss_item.exclude
                     if matched_oss_item.comment:
                         matched_oss_item.comment += '/'
                     matched_oss_item.comment += 'Loaded from sbom-info.yaml'
@@ -89,6 +86,7 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
         if sheet_name == 'SRC_FL_Source':
             for n_idx, ni in enumerate(matched_yaml):
                 y_item = copy.deepcopy(yaml_oss_list[n_idx])
+                all_matched = False
                 if sum(ni) != 0:
                     not_matched_path = []
                     for idx, id in enumerate(ni):
@@ -96,10 +94,12 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                             not_matched_path.append(y_item.source_name_or_path[idx])
                     y_item.source_name_or_path = []
                     y_item.source_name_or_path = not_matched_path
+                    if len(not_matched_path) == 0:
+                        all_matched = True
                 if y_item.comment:
                     y_item.comment += '/'
                 y_item.comment += 'Added by sbom-info.yaml'
-                if not y_item.source_name_or_path:
+                if not (y_item.source_name_or_path or all_matched):
                     correct_contents.append(y_item.get_print_array()[0])
                     continue
                 for y_path in y_item.source_name_or_path:
@@ -107,7 +107,7 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                     if not os.path.exists(os.path.normpath(os.path.join(correct_filepath, y_path))):
                         y_item_i.exclude = True
                     y_item_i.source_name_or_path = []
-                    y_item_i.source_name_or_path = os.path.join(rel_correct_path, y_path)
+                    y_item_i.source_name_or_path = y_path
                     correct_contents.append(y_item_i.get_print_array()[0])
         correct_list[sheet_name] = correct_contents
 
