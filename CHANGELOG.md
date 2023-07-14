@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.26 (14/07/2023)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the issue for correct mode @dd-jy (#123)
+
+---
+
 ## v1.4.25 (02/06/2023)
 ## Changes
 ## 🚀 Features
@@ -275,11 +283,3 @@
 ## 🔧 Maintenance
 
 - Modify relative path in parsing yaml function @bjk7119 (#65)
-
----
-
-## v1.3.17 (29/04/2022)
-## Changes
-## 🔧 Maintenance
-
-- Add yaml parsing code @bjk7119 (#64)
