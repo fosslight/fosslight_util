@@ -9,4 +9,4 @@ coloredlogs
 python3-wget
 beautifulsoup4
 jsonmerge
-spdx-tools==0.7.0a3
+spdx-tools==0.7.0rc0

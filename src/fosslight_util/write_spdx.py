@@ -12,7 +12,7 @@ from spdx.creationinfo import Tool
 from spdx.document import Document
 from spdx.package import Package
 from spdx.relationship import Relationship
-from spdx.document import License
+from spdx.license import License, LicenseConjunction
 from spdx.utils import SPDXNone
 from spdx.utils import NoAssert
 from spdx.version import Version
@@ -98,7 +98,12 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
                         package.cr_text = SPDXNone()
                     if oss_item[3] != '':
                         lic_list = [check_input_license_format(lic.strip()) for lic in oss_item[3].split(',')]
-                        package.license_declared = ','.join(lic_list)
+                        first_lic = License.from_identifier(lic_list.pop(0))
+                        while lic_list:
+                            next_lic = License.from_identifier(lic_list.pop(0))
+                            license_conjunction = LicenseConjunction(first_lic, next_lic)
+                            first_lic = license_conjunction
+                        package.license_declared = first_lic
                     else:
                         package.license_declared = NoAssert()  # required
 
@@ -114,7 +119,7 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
                         if 'root package' in comment.split(','):
                             root_package = True
                             relationship = Relationship(f"{doc.spdx_id} DESCRIBES {package.spdx_id}")
-                            doc.add_relationships(relationship)
+                            doc.add_relationship(relationship)
                         if len(oss_item) > 9:
                             deps = oss_item[9]
                             relation_tree[package.name]['dep'].extend([di.strip().split('(')[0] for di in deps.split(',')])
@@ -129,7 +134,7 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
                                     continue
                                 rel_pkg_spdx_id = ans[1]
                                 relationship = Relationship(f'{pkg_spdx_id} DEPENDS_ON {rel_pkg_spdx_id}')
-                                doc.add_relationships(relationship)
+                                doc.add_relationship(relationship)
                 if not root_package:
                     root_package = Package(spdx_id='SPDXRef-ROOT-PACKAGE')
                     root_package.name = 'root package'
@@ -139,7 +144,7 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
                     root_package.license_declared = NoAssert()
                     doc.add_package(root_package)
                     relationship = Relationship(f"{doc.spdx_id} DESCRIBES {root_package.spdx_id}")
-                    doc.add_relationships(relationship)
+                    doc.add_relationship(relationship)
         except Exception as e:
             success = False
             error_msg = f'Failed to create spdx document object:{e}, {traceback.format_exc()}'
@@ -164,7 +169,7 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
                 raise Exception("FileType Not Supported")
 
             with open(result_file, out_mode) as out:
-                writer_module.write_document(doc, out, False)
+                writer_module.write_document(doc, out, True)
         except Exception as e:
             success = False
             error_msg = f'Failed to write spdx document: {e}'
