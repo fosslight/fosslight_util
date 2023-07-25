@@ -138,9 +138,11 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
                         continue
                 else:
                     output_file = separate_output_file + "_" + sheet_name + file_extension
-
-                sheet_content_without_header = sorted(sheet_content_without_header,
-                                                      key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
+                try:
+                    sheet_content_without_header = sorted(sheet_content_without_header,
+                                                          key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
+                except Exception:
+                    pass
                 with open(output_file, 'w', newline='') as file:
                     writer = csv.writer(file, delimiter='\t')
                     writer.writerow(header_row)
@@ -170,8 +172,11 @@ def write_result_to_excel(out_file_name, sheet_list, extended_header={}):
             workbook = xlsxwriter.Workbook(out_file_name)
             for sheet_name, sheet_contents in sheet_list.items():
                 selected_header, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:], extended_header)
-                sheet_content_without_header = sorted(sheet_content_without_header,
-                                                      key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
+                try:
+                    sheet_content_without_header = sorted(sheet_content_without_header,
+                                                          key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
+                except Exception:
+                    pass
                 worksheet = create_worksheet(workbook, sheet_name, selected_header)
                 write_result_to_sheet(worksheet, sheet_content_without_header)
             workbook.close()
