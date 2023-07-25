@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.28 (25/07/2023)
+## Changes
+## 🔧 Maintenance
+
+- Fix the spdx to validate @dd-jy (#125)
+
+---
+
 ## v1.4.27 (25/07/2023)
 ## Changes
 ## 🐛 Hotfixes
@@ -275,11 +283,3 @@
 ## 🔧 Maintenance
 
 - Add resue output format for check_output_format fct. @bjk7119 (#67)
-
----
-
-## v1.3.19 (10/05/2022)
-## Changes
-## 🔧 Maintenance
-
-- Update SPDX lcense list data v3.17 @dd-jy (#66)
