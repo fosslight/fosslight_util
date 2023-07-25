@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.27 (25/07/2023)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the index out of range bug @soimkim (#124)
+
+---
+
 ## v1.4.26 (14/07/2023)
 ## Changes
 ## 🐛 Hotfixes
@@ -275,11 +283,3 @@
 ## 🔧 Maintenance
 
 - Update SPDX lcense list data v3.17 @dd-jy (#66)
-
----
-
-## v1.3.18 (02/05/2022)
-## Changes
-## 🔧 Maintenance
-
-- Modify relative path in parsing yaml function @bjk7119 (#65)
