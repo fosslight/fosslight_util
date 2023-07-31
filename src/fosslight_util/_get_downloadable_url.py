@@ -7,6 +7,7 @@ import re
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 import fosslight_util.constant as constant
+from npm.bindings import npm_run
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 
@@ -113,30 +114,39 @@ def get_download_location_for_npm(link):
     # url format : registry.npmjs.org/packagename/-/packagename-version.tgz
     ret = False
     new_link = ''
+    oss_version = ""
+    oss_name_npm = ""
+    tar_name = ""
 
-    try:
-        if link.startswith('www.npmjs.com/') or link.startswith('registry.npmjs.org'):
+    if link.startswith('www.npmjs.com/') or link.startswith('registry.npmjs.org'):
+        try:
             dn_loc_split = link.split('/')
-
             if dn_loc_split[1] == 'package':
                 idx = 2
             else:
                 idx = 1
-
             if dn_loc_split[idx].startswith('@'):
                 oss_name_npm = dn_loc_split[idx]+'/'+dn_loc_split[idx+1]
-                tar_name = dn_loc_split[idx+1] + '-' + dn_loc_split[idx+3]
+                tar_name = dn_loc_split[idx+1]
+                oss_version = dn_loc_split[idx+3]
             else:
                 oss_name_npm = dn_loc_split[idx]
-                tar_name = oss_name_npm + '-' + dn_loc_split[idx+2]
+                tar_name = oss_name_npm
+                oss_version = dn_loc_split[idx+2]
+        except Exception:
+            pass
 
+        try:
+            if not oss_version:
+                stderr, stdout = npm_run('view', oss_name_npm, 'version')
+                if stdout:
+                    oss_version = stdout.strip()
+            tar_name = f"{tar_name}-{oss_version}"
             new_link = 'https://registry.npmjs.org/' + oss_name_npm + '/-/' + tar_name + '.tgz'
             ret = True
-
-    except Exception as error:
-        ret = False
-        logger.warning('Cannot find the link for npm (url:'+link+') '+str(error))
-
+        except Exception as error:
+            ret = False
+            logger.warning('Cannot find the link for npm (url:'+link+') '+str(error))
     return ret, new_link
 
 
