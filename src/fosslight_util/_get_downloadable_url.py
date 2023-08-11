@@ -155,18 +155,14 @@ def get_download_location_for_pub(link):
     new_link = ''
 
     # url format : https://pub.dev/packages/(oss_name)/versions/(oss_version)
-    # download url format : https://storage.googleapis.com/pub-packages/packages/(oss_name)-(oss_version).tar.gz
+    # download url format : https://pub.dev/packages/(oss_name)/versions/(oss_version).tar.gz
     try:
         if link.startswith('pub.dev/packages'):
-            dn_loc_split = link.split('/')
-            oss_name_pub = dn_loc_split[2]
-            oss_version_pub = dn_loc_split[4]
-
-            new_link = 'https://storage.googleapis.com/pub-packages/packages/' + oss_name_pub + '-' + oss_version_pub + '.tar.gz'
+            new_link = 'https://{link}.tar.gz'
             ret = True
 
     except Exception as error:
         ret = False
-        logger.warning('Cannot find the link for npm (url:'+link+') '+str(error))
+        logger.warning('Cannot find the link for pub (url:'+link+') '+str(error))
 
     return ret, new_link
