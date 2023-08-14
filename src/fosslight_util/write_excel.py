@@ -205,7 +205,7 @@ def create_worksheet(workbook, sheet_name, header_row):
     return worksheet
 
 
-def merge_excels(find_excel_dir, final_out):
+def merge_excels(find_excel_dir, final_out, merge_files=''):
     success = True
     msg = ""
     FIND_EXTENSION = '.xlsx'
@@ -217,6 +217,9 @@ def merge_excels(find_excel_dir, final_out):
             writer = pd.ExcelWriter(final_out)
 
             for file in files:
+                if merge_files:
+                    if file not in merge_files:
+                        continue
                 if file.endswith(FIND_EXTENSION):
                     f_short_name = os.path.splitext(
                         file)[0].replace(_OUTPUT_FILE_PREFIX, "")
