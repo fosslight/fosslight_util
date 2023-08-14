@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.4.29 (14/08/2023)
+## Changes
+## 🚀 Features
+
+- Generate ScanCode json result file @dd-jy (#129)
+- Download the latest version of npm @soimkim (#126)
+
+## 🐛 Hotfixes
+
+- Fix the default oss name in oss list @dd-jy (#130)
+- Fix the excel merge bug @dd-jy (#128)
+- Fix the pub download url @dd-jy (#127)
+
+---
+
 ## v1.4.28 (25/07/2023)
 ## Changes
 ## 🔧 Maintenance
@@ -275,11 +290,3 @@
 - Add a yaml field for file @soimkim (#71)
 - Change parsing_yaml return value @bjk7119 (#70)
 - Apply parsing new yaml format @bjk7119 (#69)
-
----
-
-## v1.3.20 (11/05/2022)
-## Changes
-## 🔧 Maintenance
-
-- Add resue output format for check_output_format fct. @bjk7119 (#67)
