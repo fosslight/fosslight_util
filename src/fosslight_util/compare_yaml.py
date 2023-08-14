@@ -72,6 +72,8 @@ def compare_yaml(before_file, after_file):
 def get_merged_item(oss_items):
     item_list = []
     for oi in oss_items:
+        if oi.exclude:
+            continue
         item_info = {NAME: oi.name, VERSION: oi.version, LICENSE: oi.license}
 
         filtered = next(filter(lambda oss_dict: oss_dict[NAME] == oi.name and oss_dict[VERSION] == oi.version, item_list), None)
