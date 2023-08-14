@@ -12,7 +12,7 @@ _logger = logging.getLogger(LOGGER_NAME)
 
 class OssItem:
     def __init__(self, value):
-        self._name = "-"
+        self._name = ""
         self._version = ""
         self._license = []
         self._copyright = ""
