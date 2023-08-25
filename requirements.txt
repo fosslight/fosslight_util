@@ -12,3 +12,4 @@ jsonmerge
 spdx-tools==0.7.0rc0
 npm
 setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
+numpy>=1.22.2

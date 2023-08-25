@@ -12,6 +12,7 @@ import argparse
 import shutil
 import pygit2 as git
 import bz2
+import contextlib
 from datetime import datetime
 from pathlib import Path
 from fosslight_util._get_downloadable_url import get_downloadable_url
@@ -282,13 +283,11 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True):
                 fname = os.path.splitext(fname)[0]
 
             if fname.endswith(".tar.gz") or fname.endswith(".tgz"):
-                tar = tarfile.open(fname, "r:gz")
-                tar.extractall(path=extract_path)
-                tar.close()
+                with contextlib.closing(tarfile.open(fname, "r:gz")) as t:
+                    t.extractall(path=extract_path)
             elif fname.endswith(".tar.xz") or fname.endswith(".tar"):
-                tar = tarfile.open(fname, "r:*")
-                tar.extractall(path=extract_path)
-                tar.close()
+                with contextlib.closing(tarfile.open(fname, "r:*")) as t:
+                    t.extractall(path=extract_path)
             elif fname.endswith(".zip") or fname.endswith(".jar"):
                 unzip(fname, extract_path)
             elif fname.endswith(".bz2"):
@@ -313,7 +312,8 @@ def decompress_bz2(source_file, dest_path):
     try:
         fzip = bz2.BZ2File(source_file)
         data = fzip.read()  # get the decompressed data
-        open(os.path.splitext(source_file)[0], 'wb').write(data)  # write a uncompressed file
+        with open(os.path.splitext(source_file)[0], 'wb') as f:
+            f.write(data)  # write a uncompressed file
 
     except Exception as error:
         logger.error(f"Decompress bz2 - failed: {error}")
