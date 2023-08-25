@@ -24,7 +24,7 @@ def get_downloadable_url(link):
         ret, new_link = get_download_location_for_pypi(link)
     elif link.startswith('mvnrepository.com/artifact/') or link.startswith('repo1.maven.org/'):
         ret, new_link = get_download_location_for_maven(link)
-    elif link.startswith('www.npmjs.com/') or link.startswith('registry.npmjs.org'):
+    elif link.startswith('www.npmjs.com/') or link.startswith('registry.npmjs.org/'):
         ret, new_link = get_download_location_for_npm(link)
     elif link.startswith('pub.dev/'):
         ret, new_link = get_download_location_for_pub(link)
@@ -118,7 +118,7 @@ def get_download_location_for_npm(link):
     oss_name_npm = ""
     tar_name = ""
 
-    if link.startswith('www.npmjs.com/') or link.startswith('registry.npmjs.org'):
+    if link.startswith('www.npmjs.com/') or link.startswith('registry.npmjs.org/'):
         try:
             dn_loc_split = link.split('/')
             if dn_loc_split[1] == 'package':
