@@ -11,11 +11,12 @@ from fosslight_util.parsing_yaml import set_value_switch
 
 logger = logging.getLogger(LOGGER_NAME)
 IDX_CANNOT_FOUND = -1
+PREFIX_BIN = "bin"
 
 
 def read_oss_report(excel_file, sheet_names=""):
     _oss_report_items = []
-    _xl_sheets = []
+    xl_sheets = {}
     all_sheet_to_read = []
     not_matched_sheet = []
     any_sheet_matched = False
@@ -44,7 +45,7 @@ def read_oss_report(excel_file, sheet_names=""):
                         sheet = xl_workbook.sheet_by_name(sheet_name)
                         if sheet:
                             logger.info(f"Load a matched sheet: {sheet_name}")
-                            _xl_sheets.append(sheet)
+                            xl_sheets[sheet_name] = sheet
                             any_sheet_matched = True
                 if not any_sheet_matched:
                     not_matched_sheet.append(sheet_to_read)
@@ -58,7 +59,7 @@ def read_oss_report(excel_file, sheet_names=""):
         elif (not sheet_name_prefix_match) and not_matched_sheet:
             logger.warning(f"Not matched sheet name: {not_matched_sheet}")
 
-        for xl_sheet in _xl_sheets:
+        for sheet_name, xl_sheet in xl_sheets.items():
             _item_idx = {
                 "ID": IDX_CANNOT_FOUND,
                 "Source Name or Path": IDX_CANNOT_FOUND,
@@ -90,8 +91,11 @@ def read_oss_report(excel_file, sheet_names=""):
             # Get all values, iterating through rows and columns
             column_keys = json.loads(json.dumps(_item_idx))
 
+            is_bin = True if sheet_name.lower().startswith(PREFIX_BIN) else False
+
             for row_idx in range(DATA_START_ROW_IDX, xl_sheet.nrows):
                 item = OssItem("")
+                item.is_binary = is_bin
                 valid_row = True
                 load_data_cnt = 0
 
