@@ -24,6 +24,7 @@ class OssItem:
         self.download_location = ""
         self._yocto_recipe = []
         self._yocto_package = []
+        self.is_binary = False
 
     def __del__(self):
         pass
