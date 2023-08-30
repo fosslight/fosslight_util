@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.31 (30/08/2023)
+## Changes
+## 🐛 Hotfixes
+
+- Update the requirements.txt @dd-jy (#135)
+
+---
+
 ## v1.4.30 (30/08/2023)
 ## Changes
 ## 🔧 Maintenance
@@ -270,15 +278,3 @@
 ## 🔧 Maintenance
 
 - Change error msg of parsing yaml error @bjk7119 (#76)
-
----
-
-## v1.4.1 (12/07/2022)
-## Changes
-## 🚀 Features
-
-- Add the function to compare yaml @dd-jy (#74)
-
-## 🐛 Hotfixes
-
-- Fix the error to write opossum @dd-jy (#75)
