@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.4.30 (30/08/2023)
+## Changes
+## 🔧 Maintenance
+
+- Add the is_binary variable when printing the ScanCode.json file. @soimkim (#134)
+- Fix the vulnerability @dd-jy (#133)
+- Fix the vulnerability @dd-jy (#132)
+- [Snyk] Security upgrade setuptools from 39.0.1 to 65.5.1 @dd-jy (#131)
+
+---
+
 ## v1.4.29 (14/08/2023)
 ## Changes
 ## 🚀 Features
@@ -271,22 +282,3 @@
 ## 🐛 Hotfixes
 
 - Fix the error to write opossum @dd-jy (#75)
-
----
-
-## v1.4.0 (16/06/2022)
-## Changes
-## 🚀 Features
-
-- Add to write yaml @dd-jy (#68)
-
-## 🐛 Hotfixes
-
-- Add field for FOSSLight Report's BIN (*) Sheet @soimkim (#73)
-- Fix the bug with ./ for path @soimkim (#72)
-
-## 🔧 Maintenance
-
-- Add a yaml field for file @soimkim (#71)
-- Change parsing_yaml return value @bjk7119 (#70)
-- Apply parsing new yaml format @bjk7119 (#69)
