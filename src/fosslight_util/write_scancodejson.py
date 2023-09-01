@@ -35,16 +35,17 @@ def write_scancodejson(output_dir, output_filename, oss_list):
 
 
 def append_oss_item_in_filesitem(item, files_item):
-    oss_item = {}
-    oss_item['name'] = item.name
-    oss_item['version'] = item.version
-    oss_item['license'] = item.license
-    oss_item['copyright'] = item.copyright
-    oss_item['download_location'] = item.download_location
-    oss_item['comment'] = item.comment
     if item.is_binary:
         files_item['is_binary'] = item.is_binary
-    files_item['oss'].append(oss_item)
+    if item.name or item.version or item.license or item.copyright or item.download_location or item.comment:
+        oss_item = {}
+        oss_item['name'] = item.name
+        oss_item['version'] = item.version
+        oss_item['license'] = item.license
+        oss_item['copyright'] = item.copyright
+        oss_item['download_location'] = item.download_location
+        oss_item['comment'] = item.comment
+        files_item['oss'].append(oss_item)
     return files_item
 
 
