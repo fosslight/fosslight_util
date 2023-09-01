@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.32 (01/09/2023)
+## Changes
+## 🔧 Maintenance
+
+- Do not add item if None @soimkim (#137)
+
+---
+
 ## v1.4.31 (30/08/2023)
 ## Changes
 ## 🐛 Hotfixes
@@ -266,15 +274,3 @@
 
 - Print warning msg when there is no matched sheet @bjk7119 (#79)
 - Add read_excel.py file @bjk7119 (#78)
-
----
-
-## v1.4.2 (15/07/2022)
-## Changes
-## 🐛 Hotfixes
-
-- Fix bug where relpath is printed differently in yaml @soimkim (#77)
-
-## 🔧 Maintenance
-
-- Change error msg of parsing yaml error @bjk7119 (#76)
