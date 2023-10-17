@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.33 (17/10/2023)
+## Changes
+## 🐛 Hotfixes
+
+- Fix pygit2 installation error on Windows @soimkim (#138)
+
+---
+
 ## v1.4.32 (01/09/2023)
 ## Changes
 ## 🔧 Maintenance
@@ -265,12 +273,3 @@
 ## 🔧 Maintenance
 
 - Fix not to create csv if format is empty @dd-jy (#80)
-
----
-
-## v1.4.3 (19/07/2022)
-## Changes
-## 🔧 Maintenance
-
-- Print warning msg when there is no matched sheet @bjk7119 (#79)
-- Add read_excel.py file @bjk7119 (#78)
