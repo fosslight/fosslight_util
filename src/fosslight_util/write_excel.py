@@ -76,7 +76,6 @@ def remove_empty_sheet(sheet_items):
     try:
         if sheet_items:
             for sheet_name, sheet_content in sheet_items.items():
-                logger.debug("ITEM COUNT:" + str(len(sheet_content)))
                 if len(sheet_content) > 0:
                     final_sheet_to_print[sheet_name] = sheet_content
                     cnt_sheet_to_print += 1
