@@ -12,6 +12,8 @@ from fosslight_util.parsing_yaml import set_value_switch
 logger = logging.getLogger(LOGGER_NAME)
 IDX_CANNOT_FOUND = -1
 PREFIX_BIN = "bin"
+xlrd.xlsx.ensure_elementtree_imported(False, None)
+xlrd.xlsx.Element_has_iter = True
 
 
 def read_oss_report(excel_file, sheet_names=""):
@@ -44,7 +46,6 @@ def read_oss_report(excel_file, sheet_names=""):
                        or sheet_to_read_lower == sheet_name_lower:
                         sheet = xl_workbook.sheet_by_name(sheet_name)
                         if sheet:
-                            logger.info(f"Load a matched sheet: {sheet_name}")
                             xl_sheets[sheet_name] = sheet
                             any_sheet_matched = True
                 if not any_sheet_matched:
