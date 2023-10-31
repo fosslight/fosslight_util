@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.4.34 (31/10/2023)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the xlrd issue for python3.11 @dd-jy (#141)
+
+## 🔧 Maintenance
+
+- Add the sheet name for dependency scanner @dd-jy (#140)
+- Remove unused log for debugging @soimkim (#139)
+
+---
+
 ## v1.4.33 (17/10/2023)
 ## Changes
 ## 🐛 Hotfixes
@@ -265,11 +278,3 @@
 
 - Check null after removing empty sheet @soimkim (#83)
 - Remove unnecessary return variables @soimkim (#81)
-
----
-
-## v1.4.4 (22/07/2022)
-## Changes
-## 🔧 Maintenance
-
-- Fix not to create csv if format is empty @dd-jy (#80)
