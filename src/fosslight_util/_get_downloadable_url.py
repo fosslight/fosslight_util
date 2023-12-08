@@ -118,6 +118,7 @@ def get_download_location_for_npm(link):
     oss_name_npm = ""
     tar_name = ""
 
+    link = link.replace('%40', '@')
     if link.startswith('www.npmjs.com/') or link.startswith('registry.npmjs.org/'):
         try:
             dn_loc_split = link.split('/')
