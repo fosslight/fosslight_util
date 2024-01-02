@@ -3,6 +3,7 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import logging
+from typing import List, Dict, Any
 import xlrd
 import json
 from fosslight_util.constant import LOGGER_NAME
@@ -12,17 +13,18 @@ from fosslight_util.parsing_yaml import set_value_switch
 logger = logging.getLogger(LOGGER_NAME)
 IDX_CANNOT_FOUND = -1
 PREFIX_BIN = "bin"
+SHEET_PREFIX_TO_READ = ["bin", "bom", "src"]
 xlrd.xlsx.ensure_elementtree_imported(False, None)
 xlrd.xlsx.Element_has_iter = True
 
 
-def read_oss_report(excel_file, sheet_names=""):
-    _oss_report_items = []
-    xl_sheets = {}
-    all_sheet_to_read = []
-    not_matched_sheet = []
+def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
+    oss_report_items: List[OssItem] = []
+    xl_sheets: Dict[str, Any] = {}
+    all_sheet_to_read: List[str] = []
+    not_matched_sheet: List[str] = []
     any_sheet_matched = False
-    SHEET_PREFIX_TO_READ = ["bin", "bom", "src"]
+
     if sheet_names:
         sheet_name_prefix_match = False
         sheet_name_to_read = sheet_names.split(",")
@@ -113,8 +115,8 @@ def read_oss_report(excel_file, sheet_names=""):
                             else:
                                 valid_row = False if cell_value == "-" else True
                 if valid_row and load_data_cnt > 0:
-                    _oss_report_items.append(item)
+                    oss_report_items.append(item)
 
     except Exception as error:
         logger.error(f"Parsing a OSS Report: {error}")
-    return _oss_report_items
+    return oss_report_items

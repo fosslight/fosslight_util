@@ -7,12 +7,14 @@ import logging
 import os
 import json
 import fosslight_util.constant as constant
+from fosslight_util.oss_item import OssItem
+from typing import List
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 EMPTY_FILE_PATH = '-'
 
 
-def write_scancodejson(output_dir, output_filename, oss_list):
+def write_scancodejson(output_dir: str, output_filename: str, oss_list: List[OssItem]):
     json_output = {}
     json_output['headers'] = []
     json_output['summary'] = {}
