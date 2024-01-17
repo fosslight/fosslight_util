@@ -129,6 +129,10 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
                 row_num = 1
                 header_row, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:], extended_header)
 
+                if 'Copyright Text' in header_row:
+                    idx = header_row.index('Copyright Text')-1
+                    for item in sheet_content_without_header:
+                        item[idx] = item[idx].replace('\n', ', ')
                 if not separate_sheet:
                     merge_sheet.extend(sheet_content_without_header)
                     if sheet_name == list(sheet_list.keys())[-1]:
