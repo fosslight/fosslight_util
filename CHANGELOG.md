@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.4.35 (19/01/2024)
+## Changes
+## 🔧 Maintenance
+
+- Replace copyright delimiter to comma for csv output @JustinWonjaePark (#145)
+- Add type annotation @soimkim (#144)
+- Change '%40' to '@' in npm url @dd-jy (#142)
+
+---
+
 ## v1.4.34 (31/10/2023)
 ## Changes
 ## 🐛 Hotfixes
@@ -265,16 +275,3 @@
 ## v1.4.6 (04/08/2022)
 ## Changes
 - Set xlrd==1.2.0 to read .xlsx file @bjk7119 (#84)
-
----
-
-## v1.4.5 (01/08/2022)
-## Changes
-## 🐛 Hotfixes
-
-- Fix a bug that returns even if there is no result file. @soimkim (#82)
-
-## 🔧 Maintenance
-
-- Check null after removing empty sheet @soimkim (#83)
-- Remove unnecessary return variables @soimkim (#81)
