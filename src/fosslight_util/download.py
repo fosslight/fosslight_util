@@ -135,21 +135,28 @@ def cli_download_and_extract(link, target_dir, log_dir, checkout_to="", compress
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            if (not is_rubygems) and (not download_git_clone(link, target_dir, checkout_to, tag, branch)):
+            success_git, msg = download_git_clone(link, target_dir, checkout_to, tag, branch)
+            if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
 
-                success, downloaded_file = download_wget(link, target_dir, compressed_only)
+                success, downloaded_file, msg_wget = download_wget(link, target_dir, compressed_only)
                 if success:
                     success = extract_compressed_file(downloaded_file, target_dir, True)
             # Download from rubygems.org
             elif is_rubygems and shutil.which("gem"):
                 success = gem_download(link, target_dir, checkout_to)
+        if msg:
+            msg = f'git fail: {msg}'
+            if msg_wget:
+                msg = f'{msg}, wget fail: {msg_wget}'
+            else:
+                msg = f'{msg}, wget success'
     except Exception as error:
         success = False
         msg = str(error)
 
-    logger.info(f"\n* FOSSLight Downloader - Result: {success}\n {msg}")
+    logger.info(f"\n* FOSSLight Downloader - Result: {success} ({msg})")
     return success, msg
 
 
@@ -186,6 +193,7 @@ def decide_checkout(checkout_to="", tag="", branch=""):
 
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     ref_to_checkout = decide_checkout(checkout_to, tag, branch)
+    msg = ""
 
     if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
@@ -204,7 +212,8 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
             del alarm
     except Exception as error:
         logger.warning(f"git clone - failed: {error}")
-        return False
+        msg = str(error)
+        return False, msg
     try:
         if ref_to_checkout != "":
             ref_list = [x for x in repo.references]
@@ -213,11 +222,12 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
             repo.checkout(ref_to_checkout)
     except Exception as error:
         logger.warning(f"git checkout to {ref_to_checkout} - failed: {error}")
-    return True
+    return True, msg
 
 
 def download_wget(link, target_dir, compressed_only):
     success = False
+    msg = ""
     downloaded_file = ""
     if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
@@ -255,9 +265,10 @@ def download_wget(link, target_dir, compressed_only):
             logger.debug(f"wget - downloaded: {downloaded_file}")
     except Exception as error:
         success = False
+        msg = str(error)
         logger.warning(f"wget - failed: {error}")
 
-    return success, downloaded_file
+    return success, downloaded_file, msg
 
 
 def extract_compressed_dir(src_dir, target_dir, remove_after_extract=True):

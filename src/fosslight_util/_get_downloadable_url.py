@@ -7,7 +7,6 @@ import re
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 import fosslight_util.constant as constant
-from npm.bindings import npm_run
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 
@@ -134,16 +133,9 @@ def get_download_location_for_npm(link):
                 oss_name_npm = dn_loc_split[idx]
                 tar_name = oss_name_npm
                 oss_version = dn_loc_split[idx+2]
-        except Exception:
-            pass
 
-        try:
-            if not oss_version:
-                stderr, stdout = npm_run('view', oss_name_npm, 'version')
-                if stdout:
-                    oss_version = stdout.strip()
-            tar_name = f"{tar_name}-{oss_version}"
-            new_link = 'https://registry.npmjs.org/' + oss_name_npm + '/-/' + tar_name + '.tgz'
+            tar_name = f'{tar_name}-{oss_version}'
+            new_link = f'https://registry.npmjs.org/{oss_name_npm}/-/{tar_name}.tgz'
             ret = True
         except Exception as error:
             ret = False
@@ -159,7 +151,7 @@ def get_download_location_for_pub(link):
     # download url format : https://pub.dev/packages/(oss_name)/versions/(oss_version).tar.gz
     try:
         if link.startswith('pub.dev/packages'):
-            new_link = 'https://{link}.tar.gz'
+            new_link = f'https://{link}.tar.gz'
             ret = True
 
     except Exception as error:
