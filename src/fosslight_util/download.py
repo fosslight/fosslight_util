@@ -25,6 +25,7 @@ import threading
 import platform
 import subprocess
 import re
+from typing import Tuple
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip", ".jar", ".bz2"}
@@ -111,7 +112,8 @@ def main():
         cli_download_and_extract(src_link, target_dir, log_dir)
 
 
-def cli_download_and_extract(link, target_dir, log_dir, checkout_to="", compressed_only=False):
+def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
+                             compressed_only: bool = False) -> Tuple[bool, str, str, str]:
     global logger
 
     success = True
