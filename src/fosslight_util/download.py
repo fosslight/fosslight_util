@@ -24,6 +24,7 @@ import time
 import threading
 import platform
 import subprocess
+import re
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip", ".jar", ".bz2"}
@@ -115,6 +116,8 @@ def cli_download_and_extract(link, target_dir, log_dir, checkout_to="", compress
 
     success = True
     msg = ""
+    oss_name = ""
+    oss_version = ""
     log_file_name = "fosslight_download_" + \
         datetime.now().strftime('%Y%m%d_%H-%M-%S')+".txt"
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
@@ -135,22 +138,29 @@ def cli_download_and_extract(link, target_dir, log_dir, checkout_to="", compress
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            if (not is_rubygems) and (not download_git_clone(link, target_dir, checkout_to, tag, branch)):
+            success_git, msg, oss_name = download_git_clone(link, target_dir, checkout_to, tag, branch)
+            if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
 
-                success, downloaded_file = download_wget(link, target_dir, compressed_only)
+                success, downloaded_file, msg_wget, oss_name, oss_version = download_wget(link, target_dir, compressed_only)
                 if success:
                     success = extract_compressed_file(downloaded_file, target_dir, True)
             # Download from rubygems.org
             elif is_rubygems and shutil.which("gem"):
                 success = gem_download(link, target_dir, checkout_to)
+        if msg:
+            msg = f'git fail: {msg}'
+            if msg_wget:
+                msg = f'{msg}, wget fail: {msg_wget}'
+            else:
+                msg = f'{msg}, wget success'
     except Exception as error:
         success = False
         msg = str(error)
 
-    logger.info(f"\n* FOSSLight Downloader - Result: {success}\n {msg}")
-    return success, msg
+    logger.info(f"\n* FOSSLight Downloader - Result: {success} ({msg})")
+    return success, msg, oss_name, oss_version
 
 
 def get_ref_to_checkout(checkout_to, ref_list):
@@ -184,8 +194,19 @@ def decide_checkout(checkout_to="", tag="", branch=""):
     return ref_to_checkout
 
 
+def get_github_ossname(link):
+    oss_name = ""
+    p = re.compile(r'https?:\/\/github.com\/([^\/]+)\/([^\/\.]+)(\.git)?')
+    match = p.match(link)
+    if match:
+        oss_name = f"{match.group(1)}-{match.group(2)}"
+    return oss_name
+
+
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     ref_to_checkout = decide_checkout(checkout_to, tag, branch)
+    msg = ""
+    oss_name = get_github_ossname(git_url)
 
     if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
@@ -204,7 +225,8 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
             del alarm
     except Exception as error:
         logger.warning(f"git clone - failed: {error}")
-        return False
+        msg = str(error)
+        return False, msg, oss_name
     try:
         if ref_to_checkout != "":
             ref_list = [x for x in repo.references]
@@ -213,11 +235,14 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
             repo.checkout(ref_to_checkout)
     except Exception as error:
         logger.warning(f"git checkout to {ref_to_checkout} - failed: {error}")
-    return True
+    return True, msg, oss_name
 
 
 def download_wget(link, target_dir, compressed_only):
     success = False
+    msg = ""
+    oss_name = ""
+    oss_version = ""
     downloaded_file = ""
     if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
@@ -228,7 +253,7 @@ def download_wget(link, target_dir, compressed_only):
     try:
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
-        ret, new_link = get_downloadable_url(link)
+        ret, new_link, oss_name, oss_version = get_downloadable_url(link)
         if ret and new_link:
             link = new_link
 
@@ -255,9 +280,10 @@ def download_wget(link, target_dir, compressed_only):
             logger.debug(f"wget - downloaded: {downloaded_file}")
     except Exception as error:
         success = False
+        msg = str(error)
         logger.warning(f"wget - failed: {error}")
 
-    return success, downloaded_file
+    return success, downloaded_file, msg, oss_name, oss_version
 
 
 def extract_compressed_dir(src_dir, target_dir, remove_after_extract=True):

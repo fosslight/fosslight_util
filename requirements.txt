@@ -10,7 +10,8 @@ python3-wget
 beautifulsoup4
 jsonmerge
 spdx-tools==0.7.0rc0
-npm
 setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
 numpy; python_version < '3.8'
 numpy>=1.22.2; python_version >= '3.8'
+npm
+requests
