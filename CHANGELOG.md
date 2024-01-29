@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4.36 (29/01/2024)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the pub download url bug @dd-jy (#147)
+
+## 🔧 Maintenance
+
+- Use common github actions @bjk7119 (#146)
+
+---
+
 ## v1.4.35 (19/01/2024)
 ## Changes
 ## 🔧 Maintenance
@@ -269,9 +281,3 @@
 
 - Modify to be available .yml file for yaml parsing @bjk7119 (#86)
 - Modify to convert `*sbom-info*.yaml` @bjk7119 (#85)
-
----
-
-## v1.4.6 (04/08/2022)
-## Changes
-- Set xlrd==1.2.0 to read .xlsx file @bjk7119 (#84)
