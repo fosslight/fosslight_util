@@ -29,6 +29,7 @@ from typing import Tuple
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip", ".jar", ".bz2"}
+prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 
 
@@ -140,7 +141,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            success_git, msg, oss_name = download_git_clone(link, target_dir, checkout_to, tag, branch)
+            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir, checkout_to, tag, branch)
             if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
@@ -172,7 +173,6 @@ def get_ref_to_checkout(checkout_to, ref_list):
         if checkout_to in ref_list:
             return checkout_to
 
-        prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
         for prefix in prefix_refs:
             ref_to_checkout = prefix+checkout_to
             if ref_to_checkout in ref_list:
@@ -209,6 +209,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     ref_to_checkout = decide_checkout(checkout_to, tag, branch)
     msg = ""
     oss_name = get_github_ossname(git_url)
+    oss_version = ""
 
     if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
@@ -228,16 +229,21 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     except Exception as error:
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
-        return False, msg, oss_name
+        return False, msg, oss_name, oss_version
     try:
         if ref_to_checkout != "":
             ref_list = [x for x in repo.references]
             ref_to_checkout = get_ref_to_checkout(ref_to_checkout, ref_list)
             logger.info(f"git checkout: {ref_to_checkout}")
             repo.checkout(ref_to_checkout)
+
+            for prefix_ref in prefix_refs:
+                if ref_to_checkout.startswith(prefix_ref):
+                    oss_version = ref_to_checkout[len(prefix_ref):]
+
     except Exception as error:
         logger.warning(f"git checkout to {ref_to_checkout} - failed: {error}")
-    return True, msg, oss_name
+    return True, msg, oss_name, oss_version
 
 
 def download_wget(link, target_dir, compressed_only):
