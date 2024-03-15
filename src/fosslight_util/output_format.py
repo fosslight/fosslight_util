@@ -56,7 +56,7 @@ def check_output_format(output='', format='', customized_format={}):
     return success, msg, output_path, output_file, output_extension
 
 
-def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}):
+def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}, hide_header={}):
     success = True
     msg = ''
 
@@ -67,7 +67,7 @@ def write_output_file(output_file_without_ext, file_extension, sheet_list, exten
         result_file = output_file_without_ext + file_extension
 
         if file_extension == '.xlsx':
-            success, msg = write_result_to_excel(result_file, sheet_list, extended_header)
+            success, msg = write_result_to_excel(result_file, sheet_list, extended_header, hide_header)
         elif file_extension == '.csv':
             success, msg, result_file = write_result_to_csv(result_file, sheet_list)
         elif file_extension == '.json':
