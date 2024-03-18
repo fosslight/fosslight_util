@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.4.37 (18/03/2024)
+## Changes
+- Hide specific column if writing excel @bjk7119 (#151)
+
+## 🔧 Maintenance
+
+- Add oss version when downloading with git clone @dd-jy (#149)
+- Check the return value when downloading @soimkim (#148)
+
+---
+
 ## v1.4.36 (29/01/2024)
 ## Changes
 ## 🐛 Hotfixes
@@ -272,12 +283,3 @@
 
 - Add function to convert excel to yaml @bjk7119 (#89)
 - Check if the type of item in yaml is list @soimkim (#87)
-
----
-
-## v1.4.7 (09/08/2022)
-## Changes
-## 🔧 Maintenance
-
-- Modify to be available .yml file for yaml parsing @bjk7119 (#86)
-- Modify to convert `*sbom-info*.yaml` @bjk7119 (#85)
