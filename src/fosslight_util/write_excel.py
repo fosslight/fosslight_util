@@ -33,7 +33,7 @@ IDX_EXCLUDE = 7
 logger = logging.getLogger(constant.LOGGER_NAME)
 
 
-def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False, extended_header={}):
+def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False, extended_header={}, hide_header={}):
     success = True
     error_msg = ""
     success_csv = True
@@ -47,7 +47,10 @@ def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False,
         output_dir = os.path.dirname(filename_without_extension)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-        success, error_msg = write_result_to_excel(f"{filename_without_extension}.xlsx", sheet_list, extended_header)
+        success, error_msg = write_result_to_excel(f"{filename_without_extension}.xlsx",
+                                                   sheet_list,
+                                                   extended_header,
+                                                   hide_header)
 
         if ignore_os or platform.system() != "Windows":
             success_csv, error_msg_csv, output_csv = write_result_to_csv(f"{filename_without_extension}.csv",
@@ -163,7 +166,7 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
     return success, error_msg, output
 
 
-def write_result_to_excel(out_file_name, sheet_list, extended_header={}):
+def write_result_to_excel(out_file_name, sheet_list, extended_header={}, hide_header={}):
     success = True
     error_msg = ""
 
@@ -182,6 +185,9 @@ def write_result_to_excel(out_file_name, sheet_list, extended_header={}):
                     pass
                 worksheet = create_worksheet(workbook, sheet_name, selected_header)
                 write_result_to_sheet(worksheet, sheet_content_without_header)
+
+                if hide_header:
+                    hide_column(worksheet, selected_header, hide_header)
             workbook.close()
     except Exception as ex:
         error_msg = str(ex)
@@ -196,6 +202,13 @@ def write_result_to_sheet(worksheet, sheet_contents):
         for col_num, value in enumerate(row_item):
             worksheet.write(row, col_num + 1, str(value))
         row += 1
+
+
+def hide_column(worksheet, selected_header, hide_header):
+    for col_idx, sel_hd in enumerate(selected_header):
+        for hide_hd in hide_header:
+            if sel_hd == hide_hd:
+                worksheet.set_column(col_idx, col_idx, None, None, {"hidden": True})
 
 
 def create_worksheet(workbook, sheet_name, header_row):
