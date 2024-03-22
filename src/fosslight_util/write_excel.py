@@ -207,7 +207,7 @@ def write_result_to_sheet(worksheet, sheet_contents):
 def hide_column(worksheet, selected_header, hide_header):
     for col_idx, sel_hd in enumerate(selected_header):
         for hide_hd in hide_header:
-            if sel_hd == hide_hd:
+            if str(sel_hd).lower() == str(hide_hd).lower():
                 worksheet.set_column(col_idx, col_idx, None, None, {"hidden": True})
 
 
