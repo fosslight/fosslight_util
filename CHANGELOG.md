@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.4.38 (25/03/2024)
+## Changes
+- Hide specific column if writing excel @bjk7119 (#151)
+
+## 🔧 Maintenance
+
+-  Compare col name with lower case @bjk7119 (#152)
+
+---
+
 ## v1.4.37 (18/03/2024)
 ## Changes
 - Hide specific column if writing excel @bjk7119 (#151)
@@ -274,12 +284,3 @@
 
 - Add a variable for yocto that loads from yaml @soimkim (#91)
 - Change FOSSLIGHT -> FOSSLight in help msg @bjk7119 (#90)
-
----
-
-## v1.4.8 (12/08/2022)
-## Changes
-## 🔧 Maintenance
-
-- Add function to convert excel to yaml @bjk7119 (#89)
-- Check if the type of item in yaml is list @soimkim (#87)
