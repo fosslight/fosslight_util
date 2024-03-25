@@ -138,7 +138,7 @@ def get_download_location_for_pypi(link):
 
         for card_file in card_file_list:
             file_code = card_file.find('code').text
-            if file_code == "source":
+            if file_code.lower() == "source":
                 new_link = card_file.find('a').attrs['href']
                 ret = True
                 break
