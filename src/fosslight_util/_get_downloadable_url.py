@@ -15,28 +15,11 @@ logger = logging.getLogger(constant.LOGGER_NAME)
 
 
 def extract_name_version_from_link(link):
-    # Github : https://github.com/(owner)/(repo)
-    # npm : https://www.npmjs.com/package/(package)/v/(version)
-    # npm2 : https://www.npmjs.com/package/@(group)/(package)/v/(version)
-    # pypi : https://pypi.org/project/(oss_name)/(version)
-    # pypi2 : https://files.pythonhosted.org/packages/source/(alphabet)/(oss_name)/(oss_name)-(version).tar.gz
-    # Maven: https://mvnrepository.com/artifact/(group)/(artifact)/(version)
-    # pub: https://pub.dev/packages/(package)/versions/(version)
-    # Cocoapods: https://cocoapods.org/(package)
-    pkg_pattern = {
-        "pypi": r'https?:\/\/pypi\.org\/project\/([^\/]+)[\/]?([^\/]*)',
-        "pypi2": r'https?:\/\/files\.pythonhosted\.org\/packages\/source\/[\w]\/([^\/]+)\/[\S]+-([^\-]+)\.tar\.gz',
-        "maven": r'https?:\/\/mvnrepository\.com\/artifact\/([^\/]+)\/([^\/]+)\/?([^\/]*)',
-        "npm": r'https?:\/\/www\.npmjs\.com\/package\/([^\/\@]+)(?:\/v\/)?([^\/]*)',
-        "npm2": r'https?:\/\/www\.npmjs\.com\/package\/(\@[^\/]+\/[^\/]+)(?:\/v\/)?([^\/]*)',
-        "pub": r'https?:\/\/pub\.dev\/packages\/([^\/]+)(?:\/versions\/)?([^\/]*)',
-        "pods": r'https?:\/\/cocoapods\.org\/pods\/([^\/]+)'
-    }
     oss_name = ""
     oss_version = ""
     if link.startswith("www."):
         link = link.replace("www.", "https://www.", 1)
-    for key, value in pkg_pattern.items():
+    for key, value in constant.PKG_PATTERN.items():
         p = re.compile(value)
         match = p.match(link)
         if match:
@@ -57,7 +40,7 @@ def extract_name_version_from_link(link):
                 elif key == "pub":
                     oss_name = f"pub:{origin_name}"
                     oss_version = match.group(2)
-                elif key == "pods":
+                elif key == "cocoapods":
                     oss_name = f"cocoapods:{origin_name}"
             except Exception as ex:
                 logger.info(f"extract_name_version_from_link {key}:{ex}")
