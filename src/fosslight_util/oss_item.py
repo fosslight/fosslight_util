@@ -25,6 +25,9 @@ class OssItem:
         self._yocto_recipe = []
         self._yocto_package = []
         self.is_binary = False
+        self._bin_vulnerability = ""
+        self._bin_tlsh = ""
+        self._bin_sha1 = ""
 
     def __del__(self):
         pass
@@ -137,6 +140,11 @@ class OssItem:
         self.exclude = item[7]
         self.comment = item[8]
 
+    def set_sheet_additional_item(self, item):
+        self._bin_vulnerability = item[9]
+        self._bin_tlsh = item[10]
+        self._bin_sha1 = item[11]
+
     def get_print_array(self):
         items = []
         if len(self.source_name_or_path) == 0:
@@ -149,7 +157,8 @@ class OssItem:
         for source_name_or_path in self.source_name_or_path:
             lic = ",".join(self.license)
             items.append([os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
-                          self.download_location, self.homepage, self.copyright, exclude, self.comment])
+                          self.download_location, self.homepage, self.copyright, exclude, self.comment,
+                          self._bin_vulnerability, self._bin_tlsh, self._bin_sha1])
         return items
 
     def get_print_json(self):
