@@ -53,7 +53,7 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                 logger.warning(f"sheet list is too short ({len(oss_raw_item)}): {oss_raw_item}")
                 continue
             oss_item = OssItem('')
-            oss_item.set_sheet_item(oss_raw_item)
+            oss_item.set_sheet_item(oss_raw_item, sheet_name)
 
             matched_yi = []
             oss_rel_path = os.path.normpath(os.path.join(rel_path, oss_item.source_name_or_path[0]))

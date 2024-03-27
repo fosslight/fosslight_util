@@ -75,7 +75,10 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
                 "Exclude": IDX_CANNOT_FOUND,
                 "Copyright Text": IDX_CANNOT_FOUND,
                 "Comment": IDX_CANNOT_FOUND,
-                "File Name or Path": IDX_CANNOT_FOUND
+                "File Name or Path": IDX_CANNOT_FOUND,
+                "Vulnerability Link": IDX_CANNOT_FOUND,
+                "TLSH": IDX_CANNOT_FOUND,
+                "SHA1": IDX_CANNOT_FOUND
             }
             num_cols = xl_sheet.ncols
             num_rows = xl_sheet.nrows
@@ -93,7 +96,6 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
 
             # Get all values, iterating through rows and columns
             column_keys = json.loads(json.dumps(_item_idx))
-
             is_bin = True if sheet_name.lower().startswith(PREFIX_BIN) else False
 
             for row_idx in range(DATA_START_ROW_IDX, xl_sheet.nrows):

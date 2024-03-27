@@ -25,6 +25,9 @@ class OssItem:
         self._yocto_recipe = []
         self._yocto_package = []
         self.is_binary = False
+        self.bin_vulnerability = ""
+        self.bin_tlsh = ""
+        self.bin_sha1 = ""
 
     def __del__(self):
         pass
@@ -123,8 +126,9 @@ class OssItem:
         self._yocto_package = [item.strip() for item in self._yocto_package]
         self._yocto_package = list(set(self._yocto_package))
 
-    def set_sheet_item(self, item):
-        if len(item) < 9:
+    def set_sheet_item(self, item, sheet_name=""):
+        col_len = len(item)
+        if col_len < 9:
             _logger.warning(f"sheet list is too short ({len(item)}): {item}")
             return
         self.source_name_or_path = item[0]
@@ -136,6 +140,12 @@ class OssItem:
         self.copyright = item[6]
         self.exclude = item[7]
         self.comment = item[8]
+
+        if col_len > 9 and sheet_name == 'BIN_FL_Binary':
+            self.bin_vulnerability = item[9]
+            if col_len > 11:
+                self.bin_tlsh = item[10]
+                self.bin_sha1 = item[11]
 
     def get_print_array(self):
         items = []
@@ -149,7 +159,8 @@ class OssItem:
         for source_name_or_path in self.source_name_or_path:
             lic = ",".join(self.license)
             items.append([os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
-                          self.download_location, self.homepage, self.copyright, exclude, self.comment])
+                          self.download_location, self.homepage, self.copyright, exclude, self.comment,
+                          self.bin_vulnerability, self.bin_tlsh, self.bin_sha1])
         return items
 
     def get_print_json(self):
