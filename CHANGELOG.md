@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.39 (27/03/2024)
+## Changes
+## 🔧 Maintenance
+
+- Add package url pattern in const @dd-jy (#153)
+
+---
+
 ## v1.4.38 (25/03/2024)
 ## Changes
 - Hide specific column if writing excel @bjk7119 (#151)
@@ -271,16 +279,3 @@
 ## 🐛 Hotfixes
 
 - Fix the error for signal @dd-jy (#94)
-
----
-
-## v1.4.9 (01/09/2022)
-## Changes
-## 🐛 Hotfixes
-
-- Fix to sigalrm error for windows @dd-jy (#93)
-
-## 🔧 Maintenance
-
-- Add a variable for yocto that loads from yaml @soimkim (#91)
-- Change FOSSLIGHT -> FOSSLight in help msg @bjk7119 (#90)
