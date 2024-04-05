@@ -35,11 +35,16 @@ def write_yaml(output_file, sheet_list_origin, separate_yaml=False):
             for sheet_name, sheet_contents in sheet_list.items():
                 if sheet_name not in constant.supported_sheet_and_scanner.keys():
                     continue
+                scanner_name = constant.supported_sheet_and_scanner[sheet_name]
+                sheet_contents_with_scanner = []
+                for i in sheet_contents:
+                    i.insert(0, scanner_name)
+                    sheet_contents_with_scanner.append(i)
                 if not separate_yaml:
-                    merge_sheet.extend(sheet_contents)
+                    merge_sheet.extend(sheet_contents_with_scanner)
                 else:
                     output_file = f'{separate_output_file}_{sheet_name}.yaml'
-                    convert_sheet_to_yaml(sheet_contents, output_file)
+                    convert_sheet_to_yaml(sheet_contents_with_scanner, output_file)
                     output_files.append(output_file)
 
             if not separate_yaml:
@@ -61,13 +66,13 @@ def write_yaml(output_file, sheet_list_origin, separate_yaml=False):
     return success, error_msg, output
 
 
-def convert_sheet_to_yaml(sheet_contents, output_file):
-    sheet_contents = [list(t) for t in set(tuple(e) for e in sorted(sheet_contents))]
+def convert_sheet_to_yaml(sheet_contents_with_scanner, output_file):
+    sheet_contents_with_scanner = [list(t) for t in set(tuple(e) for e in sorted(sheet_contents_with_scanner))]
 
     yaml_dict = {}
-    for sheet_item in sheet_contents:
+    for sheet_item in sheet_contents_with_scanner:
         item = OssItem('')
-        item.set_sheet_item(sheet_item)
+        item.set_sheet_item(sheet_item[1:], sheet_item[0])
         create_yaml_with_ossitem(item, yaml_dict)
 
     with open(output_file, 'w') as f:
