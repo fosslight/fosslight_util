@@ -3,7 +3,7 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import os
-from fosslight_util.write_excel import write_result_to_excel, write_result_to_csv, remove_empty_sheet
+from fosslight_util.write_excel import write_result_to_excel, write_result_to_csv
 from fosslight_util.write_opossum import write_opossum
 from fosslight_util.write_yaml import write_yaml
 
@@ -56,29 +56,24 @@ def check_output_format(output='', format='', customized_format={}):
     return success, msg, output_path, output_file, output_extension
 
 
-def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}, hide_header={}):
+def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}, hide_header={}, cover=""):
     success = True
     msg = ''
 
-    is_not_null, sheet_list = remove_empty_sheet(sheet_list)
-    if is_not_null:
-        if file_extension == '':
-            file_extension = '.xlsx'
-        result_file = output_file_without_ext + file_extension
+    if file_extension == '':
+        file_extension = '.xlsx'
+    result_file = output_file_without_ext + file_extension
 
-        if file_extension == '.xlsx':
-            success, msg = write_result_to_excel(result_file, sheet_list, extended_header, hide_header)
-        elif file_extension == '.csv':
-            success, msg, result_file = write_result_to_csv(result_file, sheet_list)
-        elif file_extension == '.json':
-            success, msg = write_opossum(result_file, sheet_list)
-        elif file_extension == '.yaml':
-            success, msg, result_file = write_yaml(result_file, sheet_list, False)
-        else:
-            success = False
-            msg = f'Not supported file extension({file_extension})'
+    if file_extension == '.xlsx':
+        success, msg = write_result_to_excel(result_file, sheet_list, extended_header, hide_header, cover)
+    elif file_extension == '.csv':
+        success, msg, result_file = write_result_to_csv(result_file, sheet_list)
+    elif file_extension == '.json':
+        success, msg = write_opossum(result_file, sheet_list)
+    elif file_extension == '.yaml':
+        success, msg, result_file = write_yaml(result_file, sheet_list, False)
     else:
-        result_file = ""
-        msg = "Nothing is detected from the scanner so output file is not generated."
+        success = False
+        msg = f'Not supported file extension({file_extension})'
 
     return success, msg, result_file
