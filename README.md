@@ -127,7 +127,11 @@ If you give a link, the source is downloaded to the target directory through git
 
 #### How to run
 ```
-$ fosslight_download  -s "https://github.com/LGE-OSS/example" -t target_dir/
+$ fosslight_download -s "https://github.com/LGE-OSS/example" -t target_dir/
+```
+If you want to try with private repository, set your github token like below.
+```
+$ fosslight_download -s "https://my_github_token@github.com/Foo/private_repo -t target_dir/"
 ```
 
 ## 👏 How to report issue

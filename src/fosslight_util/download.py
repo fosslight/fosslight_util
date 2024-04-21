@@ -205,11 +205,24 @@ def get_github_ossname(link):
     return oss_name
 
 
+def get_github_token(git_url):
+    github_token = ""
+    pattern = r'https://(.*?)@'
+    search = re.search(pattern, git_url)
+    if search:
+        github_token = search.group(1)
+    return github_token
+
+
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     ref_to_checkout = decide_checkout(checkout_to, tag, branch)
     msg = ""
     oss_name = get_github_ossname(git_url)
     oss_version = ""
+    github_token = get_github_token(git_url)
+    callbacks = None
+    if github_token != "":
+        callbacks = git.RemoteCallbacks(credentials=git.UserPass("foo", github_token))  # username is not used, so set to dummy
 
     if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
@@ -221,7 +234,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
         Path(target_dir).mkdir(parents=True, exist_ok=True)
         repo = git.clone_repository(git_url, target_dir,
                                     bare=False, repository=None,
-                                    remote=None, callbacks=None)
+                                    remote=None, callbacks=callbacks)
         if platform.system() != "Windows":
             signal.alarm(0)
         else:
