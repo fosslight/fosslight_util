@@ -88,10 +88,12 @@ def main():
     parser.add_argument('-s', '--source', help='Source link to download', type=str, dest='source')
     parser.add_argument('-t', '--target_dir', help='Target directory', type=str, dest='target_dir', default="")
     parser.add_argument('-d', '--log_dir', help='Directory to save log file', type=str, dest='log_dir', default="")
+    parser.add_argument('-g', '--token', help='Github Private Access Token', type=str, dest='token', default="")
 
     src_link = ""
     target_dir = os.getcwd()
     log_dir = os.getcwd()
+    git_token = ""
 
     try:
         args = parser.parse_args()
@@ -106,15 +108,17 @@ def main():
         target_dir = args.target_dir
     if args.log_dir:
         log_dir = args.log_dir
+    if args.token:
+        git_token = args.token
 
     if not src_link:
         print_help_msg_download()
     else:
-        cli_download_and_extract(src_link, target_dir, log_dir)
+        cli_download_and_extract(src_link, target_dir, log_dir, git_token)
 
 
 def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
-                             compressed_only: bool = False) -> Tuple[bool, str, str, str]:
+                             compressed_only: bool = False, git_token: str = "") -> Tuple[bool, str, str, str]:
     global logger
 
     success = True
@@ -141,7 +145,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir, checkout_to, tag, branch)
+            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir, checkout_to, tag, branch, git_token)
             if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
@@ -205,11 +209,21 @@ def get_github_ossname(link):
     return oss_name
 
 
-def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
+def get_git_config_username():
+    git_global_config = git.Config.get_global_config()
+    user_name = git_global_config['user.name']
+    return user_name
+
+
+def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="", git_token=""):
     ref_to_checkout = decide_checkout(checkout_to, tag, branch)
     msg = ""
     oss_name = get_github_ossname(git_url)
     oss_version = ""
+    callbacks = None
+    if git_token != "":
+        user_name = get_git_config_username()
+        callbacks = git.RemoteCallbacks(credentials=git.UserPass(user_name, git_token))
 
     if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
@@ -221,7 +235,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
         Path(target_dir).mkdir(parents=True, exist_ok=True)
         repo = git.clone_repository(git_url, target_dir,
                                     bare=False, repository=None,
-                                    remote=None, callbacks=None)
+                                    remote=None, callbacks=callbacks)
         if platform.system() != "Windows":
             signal.alarm(0)
         else:
