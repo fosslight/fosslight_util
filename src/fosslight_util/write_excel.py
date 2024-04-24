@@ -13,6 +13,7 @@ import copy
 from pathlib import Path
 import fosslight_util.constant as constant
 from jsonmerge import merge
+from fosslight_util.cover import CoverItem
 
 _HEADER = {'BIN (': ['ID', 'Binary Name', 'Source Code Path',
                      'NOTICE.html', 'OSS Name', 'OSS Version',
@@ -31,6 +32,7 @@ _EMPTY_ITEM_MSG = "* There is no item"\
 IDX_FILE = 0
 IDX_EXCLUDE = 7
 logger = logging.getLogger(constant.LOGGER_NAME)
+COVER_SHEET_NAME = 'Scanner Info'
 
 
 def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False, extended_header={}, hide_header={}):
@@ -105,9 +107,9 @@ def get_header_row(sheet_name, sheet_content, extended_header={}):
             if sheet_name.startswith(header_key):
                 selected_header = merged_headers[header_key]
                 break
-
-    if not selected_header:
-        selected_header = sheet_content.pop(0)
+    if len(sheet_content) > 0:
+        if not selected_header:
+            selected_header = sheet_content.pop(0)
     return selected_header, sheet_content
 
 
@@ -166,16 +168,18 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
     return success, error_msg, output
 
 
-def write_result_to_excel(out_file_name, sheet_list, extended_header={}, hide_header={}):
+def write_result_to_excel(out_file_name, sheet_list, extended_header={}, hide_header={}, cover=""):
     success = True
     error_msg = ""
 
     try:
-        if sheet_list:
-            output_dir = os.path.dirname(out_file_name)
-            Path(output_dir).mkdir(parents=True, exist_ok=True)
+        output_dir = os.path.dirname(out_file_name)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-            workbook = xlsxwriter.Workbook(out_file_name)
+        workbook = xlsxwriter.Workbook(out_file_name)
+        if cover:
+            write_cover_sheet(workbook, cover)
+        if sheet_list:
             for sheet_name, sheet_contents in sheet_list.items():
                 selected_header, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:], extended_header)
                 try:
@@ -188,11 +192,31 @@ def write_result_to_excel(out_file_name, sheet_list, extended_header={}, hide_he
 
                 if hide_header:
                     hide_column(worksheet, selected_header, hide_header)
-            workbook.close()
+        workbook.close()
     except Exception as ex:
         error_msg = str(ex)
         success = False
     return success, error_msg
+
+
+def write_cover_sheet(workbook, cover):
+    worksheet = workbook.add_worksheet(COVER_SHEET_NAME)
+
+    format_bold = workbook.add_format({'bold': True})
+    worksheet.merge_range('A1:B1', 'About the scanner', format_bold)
+
+    key_format = workbook.add_format({'bold': True, 'font_color': 'white', 'bg_color': 'navy'})
+    item_format = workbook.add_format()
+    item_format.set_text_wrap()
+
+    cover_json = cover.get_print_json()
+    row = 1
+    for item in cover_json:
+        worksheet.write(row, 0, item, key_format)
+        worksheet.write(row, 1, cover_json[item], item_format)
+        row += 1
+    worksheet.set_column(0, 0, 30)
+    worksheet.set_column(1, 1, 100)
 
 
 def write_result_to_sheet(worksheet, sheet_contents):
@@ -221,7 +245,33 @@ def create_worksheet(workbook, sheet_name, header_row):
     return worksheet
 
 
-def merge_excels(find_excel_dir, final_out, merge_files=''):
+def merge_cover_comment(find_excel_dir, merge_files=''):
+    FIND_EXTENSION = '.xlsx'
+    merge_comment = []
+    cover_comment = ''
+    try:
+        files = os.listdir(find_excel_dir)
+
+        if len([name for name in files if name.endswith(FIND_EXTENSION)]) > 0:
+            for file in files:
+                if merge_files:
+                    if file not in merge_files:
+                        continue
+                if file.endswith(FIND_EXTENSION):
+                    file = os.path.join(find_excel_dir, file)
+                    df_excel = pd.read_excel(file, sheet_name=COVER_SHEET_NAME, index_col=0, engine='openpyxl')
+                    if not df_excel.empty:
+                        tool_name = df_excel.loc[CoverItem.tool_name_key].values[0]
+                        comment = df_excel.loc[CoverItem.comment_key].values[0]
+                        merge_comment.append(str(f"[{tool_name}] {comment}"))
+            cover_comment = '\n'.join(merge_comment)
+    except Exception as ex:
+        logger.warning(f'Fail to merge comment of Scanner info: {str(ex)}')
+
+    return cover_comment
+
+
+def merge_excels(find_excel_dir, final_out, merge_files='', cover=''):
     success = True
     msg = ""
     FIND_EXTENSION = '.xlsx'
@@ -231,7 +281,7 @@ def merge_excels(find_excel_dir, final_out, merge_files=''):
 
         if len([name for name in files if name.endswith(FIND_EXTENSION)]) > 0:
             writer = pd.ExcelWriter(final_out)
-
+            write_cover_sheet(writer.book, cover)
             for file in files:
                 if merge_files:
                     if file not in merge_files:
@@ -243,13 +293,14 @@ def merge_excels(find_excel_dir, final_out, merge_files=''):
                     excel_file = pd.ExcelFile(file, engine='openpyxl')
 
                     for sheet_name in excel_file.sheet_names:
-                        sheet_name_to_copy = f"{f_short_name}_{sheet_name}"
+                        if sheet_name == COVER_SHEET_NAME:
+                            continue
                         df_excel = pd.read_excel(
                             file, sheet_name=sheet_name, engine='openpyxl')
-                        if sheet_name not in added_sheet_names:
-                            sheet_name_to_copy = sheet_name
-                        df_excel.to_excel(writer, sheet_name_to_copy,
-                                          index=False)
+                        if sheet_name in added_sheet_names:
+                            sheet_name = f"{f_short_name}_{sheet_name}"
+                        df_excel.to_excel(writer, sheet_name, index=False)
+                        added_sheet_names.append(sheet_name)
             writer.close()
     except Exception as ex:
         msg = str(ex)

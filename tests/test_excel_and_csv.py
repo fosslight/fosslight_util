@@ -50,7 +50,6 @@ def main():
     sheet_contents['SRC'] = src_sheet_items
     sheet_contents['BIN_TEST'] = bin_sheet_items
     sheet_contents['SRC_NULL'] = []
-    sheet_contents['NULL_SHEET'] = []
     sheet_contents['CUSTOM_HEADER_SHEET'] = sheet_items
 
     logger.warning("TESTING - Writing an excel and csv")

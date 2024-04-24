@@ -52,10 +52,12 @@ def print_package_version(pkg_name, msg="", exitopt=True):
     if msg == "":
         msg = f"{pkg_name} Version:"
     cur_version = pkg_resources.get_distribution(pkg_name).version
-    print(f'{msg} {cur_version}')
 
     if exitopt:
+        print(f'{msg} {cur_version}')
         sys.exit(0)
+    else:
+        return cur_version
 
 
 def print_help_msg_download(exitOpt=True):
