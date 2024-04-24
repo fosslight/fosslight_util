@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.40 (24/04/2024)
+## Changes
+## 🚀 Features
+
+- Add Scanner info cover sheet into xlsx @dd-jy (#156)
+
+---
+
 ## v1.4.39 (27/03/2024)
 ## Changes
 ## 🔧 Maintenance
@@ -271,11 +279,3 @@
 ## 🔧 Maintenance
 
 - Fix the pygit2 error @dd-jy (#95)
-
----
-
-## v1.4.10 (02/09/2022)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the error for signal @dd-jy (#94)
