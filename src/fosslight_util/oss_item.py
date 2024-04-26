@@ -5,7 +5,7 @@
 
 import logging
 import os
-from fosslight_util.constant import LOGGER_NAME
+from fosslight_util.constant import LOGGER_NAME, FL_DEPENDENCY
 
 _logger = logging.getLogger(LOGGER_NAME)
 
@@ -25,6 +25,8 @@ class OssItem:
         self._yocto_recipe = []
         self._yocto_package = []
         self.is_binary = False
+        self._depends_on = []
+        self.purl = ""
 
     def __del__(self):
         pass
@@ -123,11 +125,29 @@ class OssItem:
         self._yocto_package = [item.strip() for item in self._yocto_package]
         self._yocto_package = list(set(self._yocto_package))
 
-    def set_sheet_item(self, item):
+    @property
+    def depends_on(self):
+        return self._depends_on
+
+    @depends_on.setter
+    def depends_on(self, value):
+        if not value:
+            self._depends_on = []
+        else:
+            if not isinstance(value, list):
+                value = value.split(",")
+            self._depends_on.extend(value)
+            self._depends_on = [item.strip() for item in self._depends_on]
+            self._depends_on = list(set(self._depends_on))
+
+    def set_sheet_item(self, item, scanner_name=''):
         if len(item) < 9:
             _logger.warning(f"sheet list is too short ({len(item)}): {item}")
             return
-        self.source_name_or_path = item[0]
+        if scanner_name == FL_DEPENDENCY:
+            self.purl = item[0]
+        else:
+            self.source_name_or_path = item[0]
         self.name = item[1]
         self.version = item[2]
         self.license = item[3]
@@ -137,19 +157,29 @@ class OssItem:
         self.exclude = item[7]
         self.comment = item[8]
 
-    def get_print_array(self):
+        if len(item) >= 10 and scanner_name == FL_DEPENDENCY:
+            self.depends_on = item[9]
+
+    def get_print_array(self, scanner_name=''):
         items = []
-        if len(self.source_name_or_path) == 0:
-            self.source_name_or_path.append("")
+        if scanner_name != FL_DEPENDENCY:
+            if len(self.source_name_or_path) == 0:
+                self.source_name_or_path.append("")
         if len(self.license) == 0:
             self.license.append("")
 
         exclude = "Exclude" if self.exclude else ""
-
-        for source_name_or_path in self.source_name_or_path:
-            lic = ",".join(self.license)
-            items.append([os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
-                          self.download_location, self.homepage, self.copyright, exclude, self.comment])
+        lic = ",".join(self.license)
+        if scanner_name == FL_DEPENDENCY:
+            items = [self.purl, self.name, self.version, lic,
+                     self.download_location, self.homepage, self.copyright, exclude, self.comment]
+            if len(self.depends_on) > 0:
+                items.append(",".join(self.depends_on))
+        else:
+            for source_name_or_path in self.source_name_or_path:
+                oss_item = [os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
+                            self.download_location, self.homepage, self.copyright, exclude, self.comment]
+                items.append(oss_item)
         return items
 
     def get_print_json(self):
@@ -171,6 +201,10 @@ class OssItem:
             json_item["exclude"] = self.exclude
         if self.comment != "":
             json_item["comment"] = self.comment
+        if len(self.depends_on) > 0:
+            json_item["depends on"] = self.depends_on
+        if self.purl != "":
+            json_item["purl"] = self.purl
 
         return json_item
 
