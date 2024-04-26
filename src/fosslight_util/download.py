@@ -62,7 +62,7 @@ def change_src_link_to_https(src_link):
 
 
 def parse_src_link(src_link):
-    src_info = {}
+    src_info = {"url": src_link}
     src_link_changed = ""
     if src_link.startswith("git://") or src_link.startswith("https://") or src_link.startswith("http://"):
         src_link_split = src_link.split(';')
@@ -79,7 +79,7 @@ def parse_src_link(src_link):
         src_info["url"] = src_link_changed
         src_info["branch"] = branch_info
         src_info["tag"] = tag_info
-        return src_info
+    return src_info
 
 
 def main():
