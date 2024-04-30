@@ -114,7 +114,8 @@ If you give a link, the source is downloaded to the target directory through git
 
 #### How it works
 1. Try git clone.
-1-1. If the target is private repository, try to authenticate with the user.name of local git config and the github personal access token.
+1-1. If the link is ssh-url, convert to https-url.
+1-2. If the target is private repository, try to authenticate with the user.name of local git config and the github personal access token.
 2. If git clone fails, download it with wget and extract the compressed file.
 3. After extracting the compressed file, delete the compressed file.
 
