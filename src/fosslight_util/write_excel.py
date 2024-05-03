@@ -10,7 +10,6 @@ import os
 import platform
 import pandas as pd
 import copy
-import openpyxl
 from pathlib import Path
 import fosslight_util.constant as constant
 from jsonmerge import merge
@@ -304,13 +303,8 @@ def merge_excels(find_excel_dir, final_out, merge_files='', cover=''):
                         added_sheet_names.append(sheet_name)
 
                         if sheet_name == 'BIN_FL_Binary':
-                            workbook = openpyxl.load_workbook(file)
-                            worksheet = workbook[sheet_name]
-                            # start_col = openpyxl.utils.cell.column_index_from_string('TLSH')
-                            # end_col = openpyxl.utils.cell.column_index_from_string('SHA1')
-
-                            worksheet.column_dimensions.group('L', 'M', hidden=True)
-                            workbook.save(file)
+                            bin_sheet = writer.sheets[sheet_name]
+                            bin_sheet.set_column("L:M", None, None, {"hidden": True})  # 'TLSH', 'SHA1' column hide
             writer.close()
     except Exception as ex:
         msg = str(ex)
