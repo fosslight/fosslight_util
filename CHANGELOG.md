@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.4.41 (07/05/2024)
+## Changes
+## 🚀 Features
+
+- Add depends_on, purl in yaml @dd-jy (#155)
+
+## 🐛 Hotfixes
+
+- Set the default link value when downloading @soimkim (#158)
+
+## 🔧 Maintenance
+
+- Print TLSH, SHA1 to the report @bjk7119 (#160)
+
+---
+
 ## v1.4.40 (24/04/2024)
 ## Changes
 ## 🚀 Features
@@ -271,11 +287,3 @@
 ## 🔧 Maintenance
 - Initialize the variable of the OSS Item @soimkim (#97)
 - Change the python version to 3.8 in the PR action @dd-jy (#96)
-
----
-
-## v1.4.11 (10/11/2022)
-## Changes
-## 🔧 Maintenance
-
-- Fix the pygit2 error @dd-jy (#95)
