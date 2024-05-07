@@ -5,7 +5,7 @@
 
 import logging
 import os
-from fosslight_util.constant import LOGGER_NAME, FL_DEPENDENCY
+from fosslight_util.constant import LOGGER_NAME, FL_DEPENDENCY, FL_BINARY
 
 _logger = logging.getLogger(LOGGER_NAME)
 
@@ -27,6 +27,9 @@ class OssItem:
         self.is_binary = False
         self._depends_on = []
         self.purl = ""
+        self.bin_vulnerability = ""
+        self.bin_tlsh = ""
+        self.bin_sha1 = ""
 
     def __del__(self):
         pass
@@ -159,6 +162,11 @@ class OssItem:
 
         if len(item) >= 10 and scanner_name == FL_DEPENDENCY:
             self.depends_on = item[9]
+        if len(item) >= 10 and scanner_name == FL_BINARY:
+            self.bin_vulnerability = item[9]
+            if len(item) >= 12:
+                self.bin_tlsh = item[10]
+                self.bin_sha1 = item[11]
 
     def get_print_array(self, scanner_name=''):
         items = []
@@ -177,8 +185,13 @@ class OssItem:
                 items.append(",".join(self.depends_on))
         else:
             for source_name_or_path in self.source_name_or_path:
-                oss_item = [os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
-                            self.download_location, self.homepage, self.copyright, exclude, self.comment]
+                if scanner_name == FL_BINARY:
+                    oss_item = [os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
+                                self.download_location, self.homepage, self.copyright, exclude, self.comment,
+                                self.bin_vulnerability, self.bin_tlsh, self.bin_sha1]
+                else:
+                    oss_item = [os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
+                                self.download_location, self.homepage, self.copyright, exclude, self.comment]
                 items.append(oss_item)
         return items
 

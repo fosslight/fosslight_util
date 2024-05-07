@@ -48,12 +48,13 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
         if sheet_name not in constant.supported_sheet_and_scanner.keys():
             continue
         correct_contents = copy.deepcopy(sheet_contents)
+        scanner_name = constant.supported_sheet_and_scanner[sheet_name]
         for idx, oss_raw_item in enumerate(sheet_contents):
             if len(oss_raw_item) < 9:
                 logger.warning(f"sheet list is too short ({len(oss_raw_item)}): {oss_raw_item}")
                 continue
             oss_item = OssItem('')
-            oss_item.set_sheet_item(oss_raw_item)
+            oss_item.set_sheet_item(oss_raw_item, scanner_name)
 
             matched_yi = []
             oss_rel_path = os.path.normpath(os.path.join(rel_path, oss_item.source_name_or_path[0]))
@@ -75,13 +76,13 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                     if matched_oss_item.comment:
                         matched_oss_item.comment += '/'
                     matched_oss_item.comment += 'Loaded from sbom-info.yaml'
-                    matched_oss_array = matched_oss_item.get_print_array()[0]
+                    matched_oss_array = matched_oss_item.get_print_array(scanner_name)[0]
                     correct_contents.append(matched_oss_array)
                 oss_item.exclude = True
                 if oss_item.comment:
                     oss_item.comment += '/'
                 oss_item.comment += 'Excluded by sbom-info.yaml'
-                correct_contents[idx] = oss_item.get_print_array()[0]
+                correct_contents[idx] = oss_item.get_print_array(scanner_name)[0]
 
         if sheet_name == 'SRC_FL_Source':
             for n_idx, ni in enumerate(matched_yaml):

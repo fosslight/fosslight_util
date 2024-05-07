@@ -115,6 +115,12 @@ def set_value_switch(oss, key, value, yaml_file=""):
         oss.yocto_package = value
     elif key == 'yocto_recipe':
         oss.yocto_recipe = value
+    elif key == 'vulnerability link':
+        oss.bin_vulnerability = value
+    elif key == 'tlsh':
+        oss.bin_tlsh = value
+    elif key == 'sha1':
+        oss.bin_sha1 = value
     else:
         if yaml_file != "":
             _logger.debug(f"file:{yaml_file} - key:{key} cannot be parsed")

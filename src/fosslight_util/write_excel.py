@@ -301,6 +301,10 @@ def merge_excels(find_excel_dir, final_out, merge_files='', cover=''):
                             sheet_name = f"{f_short_name}_{sheet_name}"
                         df_excel.to_excel(writer, sheet_name, index=False)
                         added_sheet_names.append(sheet_name)
+
+                        if sheet_name == 'BIN_FL_Binary':
+                            bin_sheet = writer.sheets[sheet_name]
+                            bin_sheet.set_column("L:M", None, None, {"hidden": True})  # 'TLSH', 'SHA1' column hide
             writer.close()
     except Exception as ex:
         msg = str(ex)
