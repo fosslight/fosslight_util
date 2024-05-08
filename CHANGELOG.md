@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.42 (08/05/2024)
+## Changes
+## 🚀 Features
+
+- Add functions to clone private repository and ssh url @SeongjunJo (#159)
+
+---
+
 ## v1.4.41 (07/05/2024)
 ## Changes
 ## 🚀 Features
@@ -280,10 +288,3 @@
 ## 🔧 Maintenance
 
 - Add options when parsing yaml @soimkim (#98)
-
----
-
-## v1.4.12 (23/11/2022)
-## 🔧 Maintenance
-- Initialize the variable of the OSS Item @soimkim (#97)
-- Change the python version to 3.8 in the PR action @dd-jy (#96)
