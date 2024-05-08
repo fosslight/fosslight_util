@@ -61,13 +61,21 @@ def change_src_link_to_https(src_link):
     return src_link
 
 
+def change_ssh_link_to_https(src_link):
+    src_link = src_link.replace("git@github.com:", "https://github.com/")
+    return src_link
+
+
 def parse_src_link(src_link):
     src_info = {"url": src_link}
     src_link_changed = ""
-    if src_link.startswith("git://") or src_link.startswith("https://") or src_link.startswith("http://"):
+    if src_link.startswith("git://") or src_link.startswith("git@") \
+            or src_link.startswith("https://") or src_link.startswith("http://"):
         src_link_split = src_link.split(';')
         if src_link.startswith("git://github.com/"):
             src_link_changed = change_src_link_to_https(src_link_split[0])
+        elif src_link.startswith("git@github.com:"):
+            src_link_changed = change_ssh_link_to_https(src_link_split[0])
         else:
             if "rubygems.org" in src_link:
                 src_info["rubygems"] = True
@@ -205,11 +213,24 @@ def get_github_ossname(link):
     return oss_name
 
 
+def get_github_token(git_url):
+    github_token = ""
+    pattern = r'https://(.*?)@'
+    search = re.search(pattern, git_url)
+    if search:
+        github_token = search.group(1)
+    return github_token
+
+
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     ref_to_checkout = decide_checkout(checkout_to, tag, branch)
     msg = ""
     oss_name = get_github_ossname(git_url)
     oss_version = ""
+    github_token = get_github_token(git_url)
+    callbacks = None
+    if github_token != "":
+        callbacks = git.RemoteCallbacks(credentials=git.UserPass("foo", github_token))  # username is not used, so set to dummy
 
     if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
@@ -221,7 +242,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
         Path(target_dir).mkdir(parents=True, exist_ok=True)
         repo = git.clone_repository(git_url, target_dir,
                                     bare=False, repository=None,
-                                    remote=None, callbacks=None)
+                                    remote=None, callbacks=callbacks)
         if platform.system() != "Windows":
             signal.alarm(0)
         else:

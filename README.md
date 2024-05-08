@@ -114,6 +114,7 @@ If you give a link, the source is downloaded to the target directory through git
 
 #### How it works
 1. Try git clone.
+1-1. If the link is ssh-url, convert to https-url.
 2. If git clone fails, download it with wget and extract the compressed file.
 3. After extracting the compressed file, delete the compressed file.
 
@@ -127,7 +128,11 @@ If you give a link, the source is downloaded to the target directory through git
 
 #### How to run
 ```
-$ fosslight_download  -s "https://github.com/LGE-OSS/example" -t target_dir/
+$ fosslight_download -s "https://github.com/LGE-OSS/example" -t target_dir/
+```
+If you want to try with private repository, set your github token like below.
+```
+$ fosslight_download -s "https://my_github_token@github.com/Foo/private_repo -t target_dir/"
 ```
 
 ## 👏 How to report issue
