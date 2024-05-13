@@ -14,9 +14,10 @@ class CoverItem:
     start_time_key = "Start time"
     python_ver_key = "Python version"
     analyzed_path_key = "Analyzed path"
+    excluded_path_key = "Excluded path"
     comment_key = "Comment"
 
-    def __init__(self, tool_name="", start_time="", input_path="", comment=""):
+    def __init__(self, tool_name="", start_time="", input_path="", comment="", exclude_path=[]):
         self.tool_name = tool_name
         if start_time:
             date, time = start_time.split('_')
@@ -24,6 +25,7 @@ class CoverItem:
         else:
             self.start_time = ""
         self.input_path = os.path.abspath(input_path)
+        self.exclude_path = ", ".join(exclude_path)
         self.comment = comment
 
         self.tool_version = print_package_version(self.tool_name, "", False)
@@ -39,6 +41,7 @@ class CoverItem:
         json_item[self.start_time_key] = self.start_time
         json_item[self.python_ver_key] = self.python_version
         json_item[self.analyzed_path_key] = self.input_path
+        json_item[self.excluded_path_key] = self.exclude_path
         json_item[self.comment_key] = self.comment
 
         return json_item

@@ -42,7 +42,7 @@ class CustomAdapter(logging.LoggerAdapter):
 
 
 def init_log(log_file, create_file=True, stream_log_level=logging.INFO,
-             file_log_level=logging.DEBUG, main_package_name="", path_to_analyze=""):
+             file_log_level=logging.DEBUG, main_package_name="", path_to_analyze="", path_to_exclude=[]):
 
     logger = logging.getLogger(constant.LOGGER_NAME)
 
@@ -83,5 +83,7 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO,
         _result_log["Tool Info"] = pkg_info
     if path_to_analyze != "":
         _result_log["Path to analyze"] = path_to_analyze
+    if path_to_exclude != []:
+        _result_log["Path to exclude"] = ", ".join(path_to_exclude)
 
     return logger, _result_log
