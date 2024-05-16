@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.43 (16/05/2024)
+## Changes
+## 🔧 Maintenance
+
+- Add log and cover item for excluded path @SeongjunJo (#161)
+
+---
+
 ## v1.4.42 (08/05/2024)
 ## Changes
 ## 🚀 Features
@@ -280,11 +288,3 @@
 
 - Add frequent license nick list file @bjk7119 (#100)
 - Add *sbom_info*.yaml pattern to find oss pkg info file @bjk7119 (#99)
-
----
-
-## v1.4.13 (25/11/2022)
-## Changes
-## 🔧 Maintenance
-
-- Add options when parsing yaml @soimkim (#98)
