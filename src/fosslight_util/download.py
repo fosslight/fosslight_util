@@ -127,6 +127,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
 
     success = True
     msg = ""
+    msg_wget = ""
     oss_name = ""
     oss_version = ""
     log_file_name = "fosslight_download_" + \
@@ -162,10 +163,14 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                 success = gem_download(link, target_dir, checkout_to)
         if msg:
             msg = f'git fail: {msg}'
-            if msg_wget:
-                msg = f'{msg}, wget fail: {msg_wget}'
+            if is_rubygems:
+                msg = f'gem download: {success}'
             else:
-                msg = f'{msg}, wget success'
+                if msg_wget:
+                    msg = f'{msg}, wget fail: {msg_wget}'
+                else:
+                    msg = f'{msg}, wget success'
+
     except Exception as error:
         success = False
         msg = str(error)
@@ -232,13 +237,14 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     if github_token != "":
         callbacks = git.RemoteCallbacks(credentials=git.UserPass("foo", github_token))  # username is not used, so set to dummy
 
-    if platform.system() != "Windows":
-        signal.signal(signal.SIGALRM, alarm_handler)
-        signal.alarm(SIGNAL_TIMEOUT)
-    else:
-        alarm = Alarm(SIGNAL_TIMEOUT)
-        alarm.start()
     try:
+        if platform.system() != "Windows":
+            signal.signal(signal.SIGALRM, alarm_handler)
+            signal.alarm(SIGNAL_TIMEOUT)
+        else:
+            alarm = Alarm(SIGNAL_TIMEOUT)
+            alarm.start()
+
         Path(target_dir).mkdir(parents=True, exist_ok=True)
         repo = git.clone_repository(git_url, target_dir,
                                     bare=False, repository=None,
@@ -419,11 +425,13 @@ def gem_download(link, target_dir, checkout_to):
         fetch_result = subprocess.check_output(fetch_cmd, universal_newlines=True)
         fetch_result = fetch_result.replace('\n', '').split(' ')[-1]
         downloaded_gem = f"{fetch_result}.gem"
-
-        # gem unpack
-        subprocess.check_output(['gem', 'unpack', downloaded_gem], universal_newlines=True)
-        # move unpacked file to target directory
-        shutil.move(fetch_result, target_dir)
+        if not os.path.isfile(downloaded_gem):
+            success = False
+        else:
+            # gem unpack
+            subprocess.check_output(['gem', 'unpack', downloaded_gem], universal_newlines=True)
+            # move unpacked file to target directory
+            shutil.move(fetch_result, target_dir)
     except Exception as error:
         success = False
         logger.warning(f"gem download - failed: {error}")
