@@ -76,6 +76,12 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
                     if matched_oss_item.comment:
                         matched_oss_item.comment += '/'
                     matched_oss_item.comment += 'Loaded from sbom-info.yaml'
+
+                    if sheet_name == 'BIN_FL_Binary':
+                        matched_oss_item.bin_vulnerability = oss_item.bin_vulnerability
+                        matched_oss_item.bin_tlsh = oss_item.bin_tlsh
+                        matched_oss_item.bin_sha1 = oss_item.bin_sha1
+
                     matched_oss_array = matched_oss_item.get_print_array(scanner_name)[0]
                     correct_contents.append(matched_oss_array)
                 oss_item.exclude = True
