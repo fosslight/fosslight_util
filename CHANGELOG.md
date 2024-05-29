@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.44 (29/05/2024)
+## Changes
+## 🔧 Maintenance
+
+- Print TLSH, SHA1 to row from loaded yaml @bjk7119 (#162)
+
+---
+
 ## v1.4.43 (16/05/2024)
 ## Changes
 ## 🔧 Maintenance
@@ -279,12 +287,3 @@
 - Unify version output format if  msg is none @bjk7119 (#103)
 - Change package to get release package @bjk7119 (#102)
 - Update version of package for actions @bjk7119 (#101)
-
----
-
-## v1.4.14 (28/12/2022)
-## Changes
-## 🔧 Maintenance
-
-- Add frequent license nick list file @bjk7119 (#100)
-- Add *sbom_info*.yaml pattern to find oss pkg info file @bjk7119 (#99)
