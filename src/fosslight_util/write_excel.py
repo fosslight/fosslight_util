@@ -15,15 +15,15 @@ import fosslight_util.constant as constant
 from jsonmerge import merge
 from fosslight_util.cover import CoverItem
 
-_HEADER = {'BIN (': ['ID', 'Binary Name', 'Source Code Path',
+_HEADER = {'BIN (': ['ID', 'Binary Path', 'Source Code Path',
                      'NOTICE.html', 'OSS Name', 'OSS Version',
                      'License', 'Download Location', 'Homepage',
                      'Copyright Text', 'Exclude', 'Comment'],
-           'SRC': ['ID', 'Source Name or Path', 'OSS Name',
+           'SRC': ['ID', 'Source Path', 'OSS Name',
                    'OSS Version', 'License',  'Download Location',
                    'Homepage', 'Copyright Text', 'Exclude',
                    'Comment'],
-           'BIN': ['ID', 'Binary Name', 'OSS Name', 'OSS Version',
+           'BIN': ['ID', 'Binary Path', 'OSS Name', 'OSS Version',
                    'License', 'Download Location', 'Homepage',
                    'Copyright Text', 'Exclude', 'Comment']}
 _OUTPUT_FILE_PREFIX = "FOSSLight-Report_"

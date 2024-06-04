@@ -201,7 +201,7 @@ class OssItem:
 
         json_item["version"] = self.version
         if len(self.source_name_or_path) > 0:
-            json_item["source name or path"] = self.source_name_or_path
+            json_item["source path"] = self.source_name_or_path
         if len(self.license) > 0:
             json_item["license"] = self.license
         if self.download_location != "":
