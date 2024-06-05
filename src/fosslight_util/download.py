@@ -46,12 +46,14 @@ class Alarm(threading.Thread):
 
 
 class TimeOutException(Exception):
-    pass
+    def __init__(self, message, error_code):
+        super().__init__(message)
+        self.error_code = error_code
 
 
 def alarm_handler(signum, frame):
     logger.warning("download timeout! (%d sec)", SIGNAL_TIMEOUT)
-    raise TimeOutException()
+    raise TimeOutException(f'Timeout ({SIGNAL_TIMEOUT} sec)', 1)
 
 
 def change_src_link_to_https(src_link):
@@ -127,6 +129,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
 
     success = True
     msg = ""
+    msg_wget = ""
     oss_name = ""
     oss_version = ""
     log_file_name = "fosslight_download_" + \
@@ -156,16 +159,20 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
 
                 success, downloaded_file, msg_wget, oss_name, oss_version = download_wget(link, target_dir, compressed_only)
                 if success:
-                    success = extract_compressed_file(downloaded_file, target_dir, True)
+                    success = extract_compressed_file(downloaded_file, target_dir, True, compressed_only)
             # Download from rubygems.org
             elif is_rubygems and shutil.which("gem"):
                 success = gem_download(link, target_dir, checkout_to)
         if msg:
             msg = f'git fail: {msg}'
-            if msg_wget:
-                msg = f'{msg}, wget fail: {msg_wget}'
+            if is_rubygems:
+                msg = f'gem download: {success}'
             else:
-                msg = f'{msg}, wget success'
+                if msg_wget:
+                    msg = f'{msg}, wget fail: {msg_wget}'
+                else:
+                    msg = f'{msg}, wget success'
+
     except Exception as error:
         success = False
         msg = str(error)
@@ -232,13 +239,14 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     if github_token != "":
         callbacks = git.RemoteCallbacks(credentials=git.UserPass("foo", github_token))  # username is not used, so set to dummy
 
-    if platform.system() != "Windows":
-        signal.signal(signal.SIGALRM, alarm_handler)
-        signal.alarm(SIGNAL_TIMEOUT)
-    else:
-        alarm = Alarm(SIGNAL_TIMEOUT)
-        alarm.start()
     try:
+        if platform.system() != "Windows":
+            signal.signal(signal.SIGALRM, alarm_handler)
+            signal.alarm(SIGNAL_TIMEOUT)
+        else:
+            alarm = Alarm(SIGNAL_TIMEOUT)
+            alarm.start()
+
         Path(target_dir).mkdir(parents=True, exist_ok=True)
         repo = git.clone_repository(git_url, target_dir,
                                     bare=False, repository=None,
@@ -273,13 +281,15 @@ def download_wget(link, target_dir, compressed_only):
     oss_name = ""
     oss_version = ""
     downloaded_file = ""
-    if platform.system() != "Windows":
-        signal.signal(signal.SIGALRM, alarm_handler)
-        signal.alarm(SIGNAL_TIMEOUT)
-    else:
-        alarm = Alarm(SIGNAL_TIMEOUT)
-        alarm.start()
+
     try:
+        if platform.system() != "Windows":
+            signal.signal(signal.SIGALRM, alarm_handler)
+            signal.alarm(SIGNAL_TIMEOUT)
+        else:
+            alarm = Alarm(SIGNAL_TIMEOUT)
+            alarm.start()
+
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
         ret, new_link, oss_name, oss_version = get_downloadable_url(link)
@@ -320,14 +330,14 @@ def extract_compressed_dir(src_dir, target_dir, remove_after_extract=True):
     try:
         files_path = [os.path.join(src_dir, x) for x in os.listdir(src_dir)]
         for fname in files_path:
-            extract_compressed_file(fname, target_dir, remove_after_extract)
+            extract_compressed_file(fname, target_dir, remove_after_extract, True)
     except Exception as error:
         logger.debug(f"Extract files in dir - failed: {error}")
         return False
     return True
 
 
-def extract_compressed_file(fname, extract_path, remove_after_extract=True):
+def extract_compressed_file(fname, extract_path, remove_after_extract=True, compressed_only=True):
     success = True
     try:
         is_compressed_file = True
@@ -349,7 +359,8 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True):
                 decompress_bz2(fname, extract_path)
             else:
                 is_compressed_file = False
-                success = False
+                if compressed_only:
+                    success = False
                 logger.warning(f"Unsupported file extension: {fname}")
 
             if remove_after_extract and is_compressed_file:
@@ -419,11 +430,13 @@ def gem_download(link, target_dir, checkout_to):
         fetch_result = subprocess.check_output(fetch_cmd, universal_newlines=True)
         fetch_result = fetch_result.replace('\n', '').split(' ')[-1]
         downloaded_gem = f"{fetch_result}.gem"
-
-        # gem unpack
-        subprocess.check_output(['gem', 'unpack', downloaded_gem], universal_newlines=True)
-        # move unpacked file to target directory
-        shutil.move(fetch_result, target_dir)
+        if not os.path.isfile(downloaded_gem):
+            success = False
+        else:
+            # gem unpack
+            subprocess.check_output(['gem', 'unpack', downloaded_gem], universal_newlines=True)
+            # move unpacked file to target directory
+            shutil.move(fetch_result, target_dir)
     except Exception as error:
         success = False
         logger.warning(f"gem download - failed: {error}")
