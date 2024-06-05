@@ -46,12 +46,14 @@ class Alarm(threading.Thread):
 
 
 class TimeOutException(Exception):
-    pass
+    def __init__(self, message, error_code):
+        super().__init__(message)
+        self.error_code = error_code
 
 
 def alarm_handler(signum, frame):
     logger.warning("download timeout! (%d sec)", SIGNAL_TIMEOUT)
-    raise TimeOutException()
+    raise TimeOutException(f'Timeout ({SIGNAL_TIMEOUT} sec)', 1)
 
 
 def change_src_link_to_https(src_link):
