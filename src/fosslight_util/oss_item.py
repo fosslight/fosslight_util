@@ -217,7 +217,7 @@ class OssItem:
         if len(self.depends_on) > 0:
             json_item["depends on"] = self.depends_on
         if self.purl != "":
-            json_item["purl"] = self.purl
+            json_item["package url"] = self.purl
 
         return json_item
 
