@@ -66,7 +66,9 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
             _item_idx = {
                 "ID": IDX_CANNOT_FOUND,
                 "Source Name or Path": IDX_CANNOT_FOUND,
+                "Source Path": IDX_CANNOT_FOUND,
                 "Binary Name": IDX_CANNOT_FOUND,
+                "Binary Path": IDX_CANNOT_FOUND,
                 "OSS Name": IDX_CANNOT_FOUND,
                 "OSS Version": IDX_CANNOT_FOUND,
                 "License": IDX_CANNOT_FOUND,

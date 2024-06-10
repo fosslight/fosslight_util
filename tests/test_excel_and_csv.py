@@ -35,7 +35,7 @@ def main():
                         '0.4.3', 'Apache-2.0',  'https://github.com/jpeddicord/askalono',
                         '', 'Copyright (c) 2018 Amazon.com, Inc. or its affiliates.',
                         '', '']]
-    sheet_items = [['ID', 'Binary Name', 'OSS Name', 'OSS Version',
+    sheet_items = [['ID', 'Binary Path', 'OSS Name', 'OSS Version',
                     'License', 'Download Location', 'Homepage',
                     'Copyright Text', 'Exclude', 'Comment'],
                    ['dependency_unified.py', 'fosslight_dependency',
