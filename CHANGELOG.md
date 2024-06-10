@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4.45 (10/06/2024)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the download alarm error @dd-jy (#163)
+
+## 🔧 Maintenance
+
+- Modify column name @bjk7119 (#164)
+
+---
+
 ## v1.4.44 (29/05/2024)
 ## Changes
 ## 🔧 Maintenance
@@ -277,13 +289,3 @@
 ## 🔧 Maintenance
 
 - Add handling for parsing yaml error @bjk7119 (#104)
-
----
-
-## v1.4.15 (27/01/2023)
-## Changes
-## 🔧 Maintenance
-
-- Unify version output format if  msg is none @bjk7119 (#103)
-- Change package to get release package @bjk7119 (#102)
-- Update version of package for actions @bjk7119 (#101)
