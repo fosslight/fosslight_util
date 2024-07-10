@@ -49,6 +49,7 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
             continue
         correct_contents = copy.deepcopy(sheet_contents)
         scanner_name = constant.supported_sheet_and_scanner[sheet_name]
+        matched_source_path_with_sbom = []
         for idx, oss_raw_item in enumerate(sheet_contents):
             if len(oss_raw_item) < 9:
                 logger.warning(f"sheet list is too short ({len(oss_raw_item)}): {oss_raw_item}")
@@ -57,33 +58,39 @@ def correct_with_yaml(correct_filepath, path_to_scan, scanner_oss_list):
             oss_item.set_sheet_item(oss_raw_item, scanner_name)
 
             matched_yi = []
-            oss_rel_path = os.path.normpath(os.path.join(rel_path, oss_item.source_name_or_path[0]))
-            for y_idx, yi in enumerate(yaml_oss_list):
-                if not yi.source_name_or_path:
-                    continue
-                for ys_idx, yi_path in enumerate(yi.source_name_or_path):
-                    yi_item = copy.deepcopy(yi)
-                    if ((os.path.normpath(yi_path) == os.path.normpath(oss_rel_path))
-                       or ((os.path.normpath(oss_rel_path).startswith(os.path.normpath(yi_path.rstrip('*')))))):
-                        find_match = True
-                        yi_item.source_name_or_path = []
-                        yi_item.source_name_or_path = oss_item.source_name_or_path[0]
-                        matched_yi.append(yi_item)
-                        matched_yaml[y_idx][ys_idx] = 1
-            if len(matched_yi) > 0:
-                for matched_yi_item in matched_yi:
-                    matched_oss_item = copy.deepcopy(matched_yi_item)
-                    if matched_oss_item.comment:
-                        matched_oss_item.comment += '/'
-                    matched_oss_item.comment += 'Loaded from sbom-info.yaml'
-
-                    if sheet_name == 'BIN_FL_Binary':
-                        matched_oss_item.bin_vulnerability = oss_item.bin_vulnerability
-                        matched_oss_item.bin_tlsh = oss_item.bin_tlsh
-                        matched_oss_item.bin_sha1 = oss_item.bin_sha1
-
-                    matched_oss_array = matched_oss_item.get_print_array(scanner_name)[0]
-                    correct_contents.append(matched_oss_array)
+            if not oss_item.source_name_or_path[0] in matched_source_path_with_sbom:
+                oss_rel_path = os.path.normpath(os.path.join(rel_path, oss_item.source_name_or_path[0]))
+                for y_idx, yi in enumerate(yaml_oss_list):
+                    if not yi.source_name_or_path:
+                        continue
+                    for ys_idx, yi_path in enumerate(yi.source_name_or_path):
+                        yi_item = copy.deepcopy(yi)
+                        if ((os.path.normpath(yi_path) == os.path.normpath(oss_rel_path)) or
+                                ((os.path.normpath(oss_rel_path).startswith(os.path.normpath(yi_path.rstrip('*')))))):
+                            find_match = True
+                            yi_item.source_name_or_path = []
+                            yi_item.source_name_or_path = oss_item.source_name_or_path[0]
+                            matched_source_path_with_sbom.append(oss_item.source_name_or_path[0])
+                            matched_yi.append(yi_item)
+                            matched_yaml[y_idx][ys_idx] = 1
+                if len(matched_yi) > 0:
+                    for matched_yi_item in matched_yi:
+                        matched_oss_item = copy.deepcopy(matched_yi_item)
+                        if matched_oss_item.comment:
+                            matched_oss_item.comment += '/'
+                        matched_oss_item.comment += 'Loaded from sbom-info.yaml'
+                        if sheet_name == 'BIN_FL_Binary':
+                            matched_oss_item.bin_vulnerability = oss_item.bin_vulnerability
+                            matched_oss_item.bin_tlsh = oss_item.bin_tlsh
+                            matched_oss_item.bin_sha1 = oss_item.bin_sha1
+                        matched_oss_array = matched_oss_item.get_print_array(scanner_name)[0]
+                        correct_contents.append(matched_oss_array)
+                    oss_item.exclude = True
+                    if oss_item.comment:
+                        oss_item.comment += '/'
+                    oss_item.comment += 'Excluded by sbom-info.yaml'
+                    correct_contents[idx] = oss_item.get_print_array(scanner_name)[0]
+            else:
                 oss_item.exclude = True
                 if oss_item.comment:
                     oss_item.comment += '/'
