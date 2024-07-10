@@ -56,6 +56,53 @@ def check_output_format(output='', format='', customized_format={}):
     return success, msg, output_path, output_file, output_extension
 
 
+def check_output_formats(output='', formats=[], customized_format={}):
+    success = True
+    msg = ''
+    output_path = ''
+    output_files = []
+    output_extensions = []
+
+    if customized_format:
+        support_format = customized_format
+    else:
+        support_format = SUPPORT_FORMAT
+
+    if formats:
+        # If -f option exist
+        formats = [format.lower() for format in formats]
+        for format in formats:
+            if format not in list(support_format.keys()):
+                success = False
+                msg = 'Enter the supported format with -f option: ' + ', '.join(list(support_format.keys()))
+            else:
+                output_extensions.append(support_format[format])
+
+    if success:
+        if output != '':
+            basename_extension = ''
+            if not os.path.isdir(output):
+                output_path = os.path.dirname(output)
+
+                basename = os.path.basename(output)
+                basename_file, basename_extension = os.path.splitext(basename)
+            if basename_extension:
+                if formats:
+                    if basename_extension not in output_extensions:
+                        success = False
+                        msg = f"The format of output file(-o:'{output}') should be in the format list(-f:'{formats}')."
+                else:
+                    if basename_extension not in support_format.values():
+                        success = False
+                        msg = 'Enter the supported file extension: ' + ', '.join(list(support_format.values()))
+                    output_extensions.append(basename_extension)
+                output_files = [basename_file for _ in range(len(output_extensions))]
+            else:
+                output_path = output
+
+    return success, msg, output_path, output_files, output_extensions
+
+
 def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}, hide_header={}, cover=""):
     success = True
     msg = ''
