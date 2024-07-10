@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4.46 (10/07/2024)
+## Changes
+## 🚀 Features
+
+- Enable multiple input for -f and -o option @JustinWonjaePark (#166)
+
+## 🔧 Maintenance
+
+- Fix to add sbom info one time @dd-jy (#167)
+
+---
+
 ## v1.4.45 (10/06/2024)
 ## Changes
 ## 🐛 Hotfixes
@@ -281,11 +293,3 @@
 
 - Update the spdx-license-list-data v3.20 @dd-jy (#107)
 - Add package name to log @dd-jy (#106)
-
----
-
-## v1.4.16 (10/02/2023)
-## Changes
-## 🔧 Maintenance
-
-- Add handling for parsing yaml error @bjk7119 (#104)
