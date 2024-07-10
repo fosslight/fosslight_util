@@ -96,7 +96,7 @@ def check_output_formats(output='', formats=[], customized_format={}):
                         success = False
                         msg = 'Enter the supported file extension: ' + ', '.join(list(support_format.values()))
                     output_extensions.append(basename_extension)
-                output_files.append(basename_file)
+                output_files = [basename_file for _ in range(len(output_extensions))]
             else:
                 output_path = output
 
