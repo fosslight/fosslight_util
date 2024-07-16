@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.47 (16/07/2024)
+## Changes
+## 🐛 Hotfixes
+
+- Fix default file extension bug @JustinWonjaePark (#168)
+
+---
+
 ## v1.4.46 (10/07/2024)
 ## Changes
 ## 🚀 Features
@@ -284,12 +292,3 @@
 ## 🚀 Features
 
 - Be available to download yocto url @bjk7119 (#105)
-
----
-
-## v1.4.17 (23/02/2023)
-## Changes
-## 🔧 Maintenance
-
-- Update the spdx-license-list-data v3.20 @dd-jy (#107)
-- Add package name to log @dd-jy (#106)
