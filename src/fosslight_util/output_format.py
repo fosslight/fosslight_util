@@ -99,6 +99,8 @@ def check_output_formats(output='', formats=[], customized_format={}):
                 output_files = [basename_file for _ in range(len(output_extensions))]
             else:
                 output_path = output
+    if not output_extensions:
+        output_extensions = ['.xlsx']
 
     return success, msg, output_path, output_files, output_extensions
 
