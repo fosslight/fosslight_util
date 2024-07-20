@@ -116,7 +116,7 @@ def write_output_file(output_file_without_ext, file_extension, sheet_list, exten
     if file_extension == '.xlsx':
         success, msg = write_result_to_excel(result_file, sheet_list, extended_header, hide_header, cover)
     elif file_extension == '.csv':
-        success, msg, result_file = write_result_to_csv(result_file, sheet_list)
+        success, msg, result_file = write_result_to_csv(result_file, sheet_list, False, extended_header)
     elif file_extension == '.json':
         success, msg = write_opossum(result_file, sheet_list)
     elif file_extension == '.yaml':
