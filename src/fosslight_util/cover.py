@@ -9,16 +9,36 @@ from fosslight_util.help import print_package_version
 
 
 class CoverItem:
-    tool_name_key = "Tool name"
-    tool_version_key = "Tool version"
+    tool_name_key = "Tool information"
     start_time_key = "Start time"
     python_ver_key = "Python version"
     analyzed_path_key = "Analyzed path"
     excluded_path_key = "Excluded path"
     comment_key = "Comment"
 
-    def __init__(self, tool_name="", start_time="", input_path="", comment="", exclude_path=[]):
-        self.tool_name = tool_name
+    pkg_scanner = "fosslight_scanner"
+    pkg_source = "fosslight_source"
+    pkg_dependency = "fosslight_dependency"
+    pkg_binary = "fosslight_binary"
+
+    pkg_names = [
+        pkg_scanner,
+        pkg_source,
+        pkg_dependency,
+        pkg_binary
+    ]
+
+    def __init__(self, tool_name="", start_time="", input_path="", comment="", exclude_path=[], simple_mode=True):
+        if simple_mode:
+            self.tool_name = f'{tool_name} v{print_package_version(tool_name, "", False)}'
+        else:
+            first_pkg = f'{self.pkg_names[0]} v{print_package_version(self.pkg_names[0], "", False)}'
+            remaining_pkgs = ", ".join([
+                f'{pkg_name} v{print_package_version(pkg_name, "", False)}'
+                for pkg_name in self.pkg_names[1:]
+            ])
+            self.tool_name = f'{first_pkg} ({remaining_pkgs})'
+
         if start_time:
             date, time = start_time.split('_')
             self.start_time = f'{date}, {time[0:2]}:{time[2:4]}'
@@ -28,7 +48,6 @@ class CoverItem:
         self.exclude_path = ", ".join(exclude_path)
         self.comment = comment
 
-        self.tool_version = print_package_version(self.tool_name, "", False)
         self.python_version = f'{sys.version_info.major}.{sys.version_info.minor}'
 
     def __del__(self):
@@ -37,7 +56,6 @@ class CoverItem:
     def get_print_json(self):
         json_item = {}
         json_item[self.tool_name_key] = self.tool_name
-        json_item[self.tool_version_key] = self.tool_version
         json_item[self.start_time_key] = self.start_time
         json_item[self.python_ver_key] = self.python_version
         json_item[self.analyzed_path_key] = self.input_path
