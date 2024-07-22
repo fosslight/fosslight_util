@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4.48 (22/07/2024)
+## Changes
+## 🐛 Hotfixes
+
+- Fix csv format column name bug @Hosim33 (#171)
+
+## 🔧 Maintenance
+
+- Update CoverItem init for dynamic package versions @YongGoose (#173)
+
+---
+
 ## v1.4.47 (16/07/2024)
 ## Changes
 ## 🐛 Hotfixes
@@ -284,11 +296,3 @@
 ## 🚀 Features
 
 - Be available to download src from rubygem @bjk7119 (#108)
-
----
-
-## v1.4.18 (23/02/2023)
-## Changes
-## 🚀 Features
-
-- Be available to download yocto url @bjk7119 (#105)
