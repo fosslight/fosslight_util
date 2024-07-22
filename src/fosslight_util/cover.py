@@ -16,26 +16,21 @@ class CoverItem:
     excluded_path_key = "Excluded path"
     comment_key = "Comment"
 
-    pkg_scanner = "fosslight_scanner"
-    pkg_source = "fosslight_source"
-    pkg_dependency = "fosslight_dependency"
-    pkg_binary = "fosslight_binary"
-
-    pkg_names = [
-        pkg_scanner,
-        pkg_source,
-        pkg_dependency,
-        pkg_binary
+    PKG_NAMES = [
+        "fosslight_scanner",
+        "fosslight_source",
+        "fosslight_dependency",
+        "fosslight_binary"
     ]
 
     def __init__(self, tool_name="", start_time="", input_path="", comment="", exclude_path=[], simple_mode=True):
         if simple_mode:
             self.tool_name = f'{tool_name} v{print_package_version(tool_name, "", False)}'
         else:
-            first_pkg = f'{self.pkg_names[0]} v{print_package_version(self.pkg_names[0], "", False)}'
+            first_pkg = f'{self.PKG_NAMES[0]} v{print_package_version(self.PKG_NAMES[0], "", False)}'
             remaining_pkgs = ", ".join([
                 f'{pkg_name} v{print_package_version(pkg_name, "", False)}'
-                for pkg_name in self.pkg_names[1:]
+                for pkg_name in self.PKG_NAMES[1:]
             ])
             self.tool_name = f'{first_pkg} ({remaining_pkgs})'
 
