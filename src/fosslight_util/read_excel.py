@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 from typing import List, Dict, Any
-import xlrd
+import pandas as pd
 import json
 from fosslight_util.constant import LOGGER_NAME
 from fosslight_util.oss_item import OssItem
@@ -14,9 +14,6 @@ logger = logging.getLogger(LOGGER_NAME)
 IDX_CANNOT_FOUND = -1
 PREFIX_BIN = "bin"
 SHEET_PREFIX_TO_READ = ["bin", "bom", "src"]
-xlrd.xlsx.ensure_elementtree_imported(False, None)
-xlrd.xlsx.Element_has_iter = True
-
 
 def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
     oss_report_items: List[OssItem] = []
@@ -34,7 +31,7 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
 
     try:
         logger.info(f"Read data from : {excel_file}")
-        xl_workbook = xlrd.open_workbook(excel_file)
+        xl_workbook = pd.ExcelFile('excel_file', engine='openpyxl')
         all_sheet_in_excel = xl_workbook.sheet_names()
 
         for sheet_to_read in sheet_name_to_read:
