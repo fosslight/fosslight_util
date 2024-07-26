@@ -15,6 +15,7 @@ IDX_CANNOT_FOUND = -1
 PREFIX_BIN = "bin"
 SHEET_PREFIX_TO_READ = ["bin", "bom", "src"]
 
+
 def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
     oss_report_items: List[OssItem] = []
     xl_sheets: Dict[str, Any] = {}
