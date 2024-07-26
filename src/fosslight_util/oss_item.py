@@ -5,31 +5,26 @@
 
 import logging
 import os
-from fosslight_util.constant import LOGGER_NAME, FL_DEPENDENCY, FL_BINARY
+from fosslight_util.constant import LOGGER_NAME
 
 _logger = logging.getLogger(LOGGER_NAME)
 
 
 class OssItem:
     def __init__(self, value):
+        self.relative_path = value
+
+        self._source_name_or_path = []
         self._name = ""
         self._version = ""
         self._license = []
-        self._copyright = ""
-        self.comment = ""
-        self._exclude = False
-        self.homepage = ""
-        self.relative_path = value
-        self._source_name_or_path = []
         self.download_location = ""
-        self._yocto_recipe = []
-        self._yocto_package = []
+        self.homepage = ""
+        self._copyright = ""
+        self._exclude = False
+        self._comment = ""
+
         self.is_binary = False
-        self._depends_on = []
-        self.purl = ""
-        self.bin_vulnerability = ""
-        self.bin_tlsh = ""
-        self.bin_sha1 = ""
 
     def __del__(self):
         pass
@@ -105,96 +100,55 @@ class OssItem:
             self._source_name_or_path = list(set(self._source_name_or_path))
 
     @property
-    def yocto_recipe(self):
-        return self._yocto_recipe
+    def comment(self):
+        return self._comment
 
-    @yocto_recipe.setter
-    def yocto_recipe(self, value):
-        if not isinstance(value, list):
-            value = value.split(",")
-        self._yocto_recipe.extend(value)
-        self._yocto_recipe = [item.strip() for item in self._yocto_recipe]
-        self._yocto_recipe = list(set(self._yocto_recipe))
-
-    @property
-    def yocto_package(self):
-        return self._yocto_package
-
-    @yocto_package.setter
-    def yocto_package(self, value):
-        if not isinstance(value, list):
-            value = value.split(",")
-        self._yocto_package.extend(value)
-        self._yocto_package = [item.strip() for item in self._yocto_package]
-        self._yocto_package = list(set(self._yocto_package))
-
-    @property
-    def depends_on(self):
-        return self._depends_on
-
-    @depends_on.setter
-    def depends_on(self, value):
+    @comment.setter
+    def comment(self, value):
         if not value:
-            self._depends_on = []
+            self._comment = ""
         else:
-            if not isinstance(value, list):
-                value = value.split(",")
-            self._depends_on.extend(value)
-            self._depends_on = [item.strip() for item in self._depends_on]
-            self._depends_on = list(set(self._depends_on))
+            if self._comment:
+                self._comment = f"{self._comment} / {value}"
+            else:
+                self._comment = value
 
-    def set_sheet_item(self, item, scanner_name=''):
-        if len(item) < 9:
-            _logger.warning(f"sheet list is too short ({len(item)}): {item}")
-            return
-        if scanner_name == FL_DEPENDENCY:
-            self.purl = item[0]
-        else:
-            self.source_name_or_path = item[0]
-        self.name = item[1]
-        self.version = item[2]
-        self.license = item[3]
-        self.download_location = item[4]
-        self.homepage = item[5]
-        self.copyright = item[6]
-        self.exclude = item[7]
-        self.comment = item[8]
-
-        if len(item) >= 10 and scanner_name == FL_DEPENDENCY:
-            self.depends_on = item[9]
-        if len(item) >= 10 and scanner_name == FL_BINARY:
-            self.bin_vulnerability = item[9]
-            if len(item) >= 12:
-                self.bin_tlsh = item[10]
-                self.bin_sha1 = item[11]
-
-    def get_print_array(self, scanner_name=''):
+    def get_print_array(self):
         items = []
-        if scanner_name != FL_DEPENDENCY:
-            if len(self.source_name_or_path) == 0:
-                self.source_name_or_path.append("")
+
+        if len(self.source_name_or_path) == 0:
+            self.source_name_or_path.append("")
         if len(self.license) == 0:
             self.license.append("")
 
         exclude = "Exclude" if self.exclude else ""
         lic = ",".join(self.license)
-        if scanner_name == FL_DEPENDENCY:
-            items = [self.purl, self.name, self.version, lic,
-                     self.download_location, self.homepage, self.copyright, exclude, self.comment]
-            if len(self.depends_on) > 0:
-                items.append(",".join(self.depends_on))
-        else:
-            for source_name_or_path in self.source_name_or_path:
-                if scanner_name == FL_BINARY:
-                    oss_item = [os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
-                                self.download_location, self.homepage, self.copyright, exclude, self.comment,
-                                self.bin_vulnerability, self.bin_tlsh, self.bin_sha1]
-                else:
-                    oss_item = [os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
-                                self.download_location, self.homepage, self.copyright, exclude, self.comment]
-                items.append(oss_item)
+
+        for source_name_or_path in self.source_name_or_path:
+            oss_item = [os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
+                        self.download_location, self.homepage, self.copyright, exclude, self.comment]
+            items.append(oss_item)
         return items
 
+    '''
+    def get_print_array(self): # 나중에 BinaryItem용 함수로 옮겨야 함
+        items = []
+
+        if len(self.source_name_or_path) == 0:
+            self.source_name_or_path.append("")
+        if len(self.license) == 0:
+            self.license.append("")
+
+        exclude = "Exclude" if self.exclude else ""
+        lic = ",".join(self.license)
+
+        for source_name_or_path in self.source_name_or_path:
+            oss_item = [os.path.join(self.relative_path, source_name_or_path), self.name, self.version, lic,
+                        self.download_location, self.homepage, self.copyright, exclude, self.comment,
+                        self.bin_vulnerability, self.bin_tlsh, self.bin_sha1]
+            items.append(oss_item)
+        return items
+    '''
     def get_print_json(self):
         json_item = {}
         json_item["name"] = self.name
@@ -214,10 +168,6 @@ class OssItem:
             json_item["exclude"] = self.exclude
         if self.comment != "":
             json_item["comment"] = self.comment
-        if len(self.depends_on) > 0:
-            json_item["depends on"] = self.depends_on
-        if self.purl != "":
-            json_item["package url"] = self.purl
 
         return json_item
 
