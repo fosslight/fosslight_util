@@ -13,7 +13,7 @@ from fosslight_util.parsing_yaml import set_value_switch
 logger = logging.getLogger(LOGGER_NAME)
 IDX_CANNOT_FOUND = -1
 PREFIX_BIN = "bin"
-SHEET_PREFIX_TO_READ = ["bin", "bom", "src"] 
+SHEET_PREFIX_TO_READ = ["bin", "bom", "src"]
 
 
 def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
