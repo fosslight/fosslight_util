@@ -32,9 +32,10 @@ class OssItem:
 
     @license.setter
     def license(self, value):
-        if not isinstance(value, list):
-            value = value.split(",")
-        self._license.extend(value)
+        if value != "":
+            if not isinstance(value, list):
+                value = value.split(",")
+            self._license.extend(value)
         self._license = [item.strip() for item in self._license]
         self._license = list(set(self._license))
     
@@ -168,3 +169,12 @@ class FileItem:
 
 def invalid(cmd):
     _logger.info('[{}] is invalid'.format(cmd))
+
+
+class ScannerItem:
+    def __init__(self):
+        self.cover = CoverItem()
+        self.file_items: List[FileItem] = []
+
+    def __del__(self):
+        pass
