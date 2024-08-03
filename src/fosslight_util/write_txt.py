@@ -4,9 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 from pathlib import Path
+from typing import Tuple
 
 
-def write_txt_file(file_to_create, str_to_write):
+def write_txt_file(file_to_create: str, str_to_write: str) -> Tuple[bool, str]:
     success = True
     error_msg = ""
     try:
