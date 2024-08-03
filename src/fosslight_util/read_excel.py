@@ -32,7 +32,7 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
 
     try:
         logger.info(f"Read data from : {excel_file}")
-        xl_workbook = pd.ExcelFile(excel_file, engine='openpyxl')
+        xl_workbook = pd.ExcelFile(excel_file, engine='openpyxl') 
         all_sheet_in_excel = xl_workbook.sheet_names()
 
         for sheet_to_read in sheet_name_to_read:
