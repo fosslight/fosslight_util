@@ -30,7 +30,7 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
         sheet_name_prefix_match = True
         sheet_name_to_read = SHEET_PREFIX_TO_READ
 
-    try:
+    if True:
         logger.info(f"Read data from : {excel_file}")
         xl_workbook = pd.ExcelFile(excel_file, engine='openpyxl')
         all_sheet_in_excel = xl_workbook.sheet_names
@@ -44,10 +44,9 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
                     sheet_name_lower = sheet_name.lower()
                     if (sheet_name_prefix_match and sheet_name_lower.startswith(sheet_to_read_lower)) \
                        or sheet_to_read_lower == sheet_name_lower:
-                        sheet = xl_workbook.sheet_by_name(sheet_name)
-                        if sheet:
-                            xl_sheets[sheet_name] = sheet
-                            any_sheet_matched = True
+                        sheet = pd.read_excel(excel_file, sheet_name=sheet_name, engine='openpyxl', na_values='')
+                        xl_sheets[sheet_name] = sheet.fillna('')
+                        any_sheet_matched = True
                 if not any_sheet_matched:
                     not_matched_sheet.append(sheet_to_read)
             except Exception as error:
@@ -80,26 +79,19 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
                 "TLSH": IDX_CANNOT_FOUND,
                 "SHA1": IDX_CANNOT_FOUND
             }
-            num_cols = xl_sheet.ncols
-            num_rows = xl_sheet.nrows
+            num_rows, num_cols = xl_sheet.shape
             MAX_FIND_HEADER_COLUMN = 5 if num_rows > 5 else num_rows
             DATA_START_ROW_IDX = 1
-            for row_idx in range(0, MAX_FIND_HEADER_COLUMN):
-                for col_idx in range(row_idx, num_cols):
-                    cell_obj = xl_sheet.cell(row_idx, col_idx)
-                    if cell_obj.value in _item_idx:
-                        _item_idx[cell_obj.value] = col_idx
 
-                if len([key for key, value in _item_idx.items() if value != IDX_CANNOT_FOUND]) > 3:
-                    DATA_START_ROW_IDX = row_idx + 1
-                    break
+            for index, value in enumerate(xl_sheet.columns.tolist()):
+                _item_idx[value] =index
 
             # Get all values, iterating through rows and columns
             column_keys = json.loads(json.dumps(_item_idx))
 
             is_bin = True if sheet_name.lower().startswith(PREFIX_BIN) else False
 
-            for row_idx in range(DATA_START_ROW_IDX, xl_sheet.nrows):
+            for row_idx, row in xl_sheet.iterrows():
                 item = OssItem("")
                 item.is_binary = is_bin
                 valid_row = True
@@ -107,8 +99,10 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
 
                 for column_key, column_idx in column_keys.items():
                     if column_idx != IDX_CANNOT_FOUND:
-                        cell_obj = xl_sheet.cell(row_idx, column_idx)
-                        cell_value = cell_obj.value
+                        cell_obj = xl_sheet.iloc[row_idx, column_idx]
+                        cell_value = cell_obj
+                        print(f"cell value:{cell_value}")
+                        
                         if cell_value != "":
                             if column_key != "ID":
                                 if column_key:
@@ -120,6 +114,5 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
                 if valid_row and load_data_cnt > 0:
                     oss_report_items.append(item)
 
-    except Exception as error:
-        logger.error(f"Parsing a OSS Report: {error}")
+
     return oss_report_items
