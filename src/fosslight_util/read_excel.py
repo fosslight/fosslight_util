@@ -29,7 +29,7 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
         sheet_name_prefix_match = True
         sheet_name_to_read = SHEET_PREFIX_TO_READ
 
-    if True:
+    try:
         logger.info(f"Read data from : {excel_file}")
         xl_workbook = pd.ExcelFile(excel_file, engine='openpyxl')
         all_sheet_in_excel = xl_workbook.sheet_names
@@ -108,4 +108,6 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
                 if valid_row and load_data_cnt > 0:
                     oss_report_items.append(item)
 
+    except Exception as error:
+        logger.error(f"Parsing a OSS Report: {error}")
     return oss_report_items
