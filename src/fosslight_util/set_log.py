@@ -31,6 +31,17 @@ def init_check_latest_version(pkg_version="", main_package_name=""):
     except Exception as error:
         logger.debug('Cannot check the latest version:' + str(error))
 
+def get_os_version() :
+    os_version = platform.system() + " " + platform.release()
+    if os_version == "Windows 10" :
+        try :
+            windows_build = sys.getwindowsversion().build
+            if windows_build >= 22000 :
+                os_version = "Windows 11"
+        except Exception as e :
+            pass
+
+    return os_version
 
 class CustomAdapter(logging.LoggerAdapter):
     def __init__(self, logger, extra):
@@ -70,7 +81,7 @@ def init_log(log_file, create_file=True, stream_log_level=logging.INFO,
     _result_log = {
         "Tool Info": main_package_name,
         "Python version": _PYTHON_VERSION,
-        "OS": platform.system()+" "+platform.release(),
+        "OS": get_os_version(),
     }
     if main_package_name != "":
         pkg_info = main_package_name
