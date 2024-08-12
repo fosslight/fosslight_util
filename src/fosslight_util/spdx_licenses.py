@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import traceback
+from typing import Tuple
 
 _resources_dir = 'resources'
 _licenses_json_file = 'licenses.json'
@@ -34,7 +35,7 @@ def get_license_from_nick():
     return licenses
 
 
-def get_spdx_licenses_json():
+def get_spdx_licenses_json() -> Tuple[bool, str, str]:
     success = True
     error_msg = ''
     licenses = ''
