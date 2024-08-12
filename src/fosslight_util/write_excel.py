@@ -14,6 +14,7 @@ from pathlib import Path
 import fosslight_util.constant as constant
 from jsonmerge import merge
 from fosslight_util.cover import CoverItem
+from typing import Tuple
 
 _HEADER = {'BIN (': ['ID', 'Binary Path', 'Source Code Path',
                      'NOTICE.html', 'OSS Name', 'OSS Version',
@@ -35,13 +36,18 @@ logger = logging.getLogger(constant.LOGGER_NAME)
 COVER_SHEET_NAME = 'Scanner Info'
 
 
-def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False, extended_header={}, hide_header={}):
+def write_excel_and_csv(filename_without_extension: str, sheet_list: dict, ignore_os: bool = False,
+                        extended_header: dict = {}, hide_header: dict = {}) -> Tuple[bool, str, str]:
     success = True
     error_msg = ""
     success_csv = True
     error_msg_csv = ""
     output_files = ""
     output_csv = ""
+
+    print("=========================")
+    print(type(sheet_list))
+    print("=========================")
 
     is_not_null, sheet_list = remove_empty_sheet(sheet_list)
 
