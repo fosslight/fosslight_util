@@ -45,10 +45,6 @@ def write_excel_and_csv(filename_without_extension: str, sheet_list: dict, ignor
     output_files = ""
     output_csv = ""
 
-    print("=========================")
-    print(type(sheet_list))
-    print("=========================")
-
     is_not_null, sheet_list = remove_empty_sheet(sheet_list)
 
     if is_not_null:
