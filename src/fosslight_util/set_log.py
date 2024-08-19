@@ -43,8 +43,8 @@ class CustomAdapter(logging.LoggerAdapter):
         return '[%s] %s' % (self.extra, msg), kwargs
 
 
-def init_log(log_file: str, create_file: bool = True, stream_log_level: int = logging.INFO,
-             file_log_level: int = logging.DEBUG, main_package_name: str = "", path_to_analyze: str = "", path_to_exclude: list = []) -> Tuple[Logger, dict]:
+def init_log(log_file: str, create_file: bool = True, stream_log_level: int = logging.INFO, file_log_level: int = logging.DEBUG,
+             main_package_name: str = "", path_to_analyze: str = "", path_to_exclude: list = []) -> Tuple[Logger, dict]:
 
     logger = logging.getLogger(constant.LOGGER_NAME)
 
