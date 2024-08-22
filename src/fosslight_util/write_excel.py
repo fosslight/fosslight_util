@@ -7,11 +7,9 @@ import csv
 import time
 import logging
 import os
-import platform
 import pandas as pd
-import copy
 from pathlib import Path
-import fosslight_util.constant as constant
+from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER
 from jsonmerge import merge
 from fosslight_util.cover import CoverItem
 
@@ -27,76 +25,13 @@ _HEADER = {'BIN (': ['ID', 'Binary Path', 'Source Code Path',
                    'License', 'Download Location', 'Homepage',
                    'Copyright Text', 'Exclude', 'Comment']}
 _OUTPUT_FILE_PREFIX = "FOSSLight-Report_"
-_EMPTY_ITEM_MSG = "* There is no item"\
-                    " to print in FOSSLight-Report.\n"
 IDX_FILE = 0
 IDX_EXCLUDE = 7
-logger = logging.getLogger(constant.LOGGER_NAME)
+logger = logging.getLogger(LOGGER_NAME)
 COVER_SHEET_NAME = 'Scanner Info'
 
 
-def write_excel_and_csv(filename_without_extension, sheet_list, ignore_os=False, extended_header={}, hide_header={}):
-    success = True
-    error_msg = ""
-    success_csv = True
-    error_msg_csv = ""
-    output_files = ""
-    output_csv = ""
-
-    is_not_null, sheet_list = remove_empty_sheet(sheet_list)
-
-    if is_not_null:
-        output_dir = os.path.dirname(filename_without_extension)
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-
-        success, error_msg = write_result_to_excel(f"{filename_without_extension}.xlsx",
-                                                   sheet_list,
-                                                   extended_header,
-                                                   hide_header)
-
-        if ignore_os or platform.system() != "Windows":
-            success_csv, error_msg_csv, output_csv = write_result_to_csv(f"{filename_without_extension}.csv",
-                                                                         sheet_list, True, extended_header)
-        if success:
-            output_files = f"{filename_without_extension}.xlsx"
-        else:
-            error_msg = "[Error] Writing excel:" + error_msg
-        if success_csv:
-            if output_csv:
-                output_files = f"{output_files}, {output_csv}" if output_files else output_csv
-        else:
-            error_msg += "\n[Error] Writing csv:" + error_msg_csv
-    else:
-        success = False
-        error_msg = _EMPTY_ITEM_MSG
-
-    return (success and success_csv), error_msg, output_files
-
-
-def remove_empty_sheet(sheet_items):
-    skip_sheet_name = []
-    cnt_sheet_to_print = 0
-    final_sheet_to_print = {}
-    success = False
-    try:
-        if sheet_items:
-            for sheet_name, sheet_content in sheet_items.items():
-                if len(sheet_content) > 0:
-                    final_sheet_to_print[sheet_name] = sheet_content
-                    cnt_sheet_to_print += 1
-                else:
-                    skip_sheet_name.append(sheet_name)
-            if cnt_sheet_to_print != 0:
-                success = True
-                if len(skip_sheet_name) > 0:
-                    logger.warn("* Empty sheet(not printed):" + str(skip_sheet_name))
-    except Exception as ex:
-        logger.warn("* Warning:"+str(ex))
-
-    return success, final_sheet_to_print
-
-
-def get_header_row(sheet_name, sheet_content, extended_header={}):
+def get_header_row(sheet_name, extended_header={}):
     selected_header = []
 
     merged_headers = merge(_HEADER, extended_header)
@@ -107,60 +42,58 @@ def get_header_row(sheet_name, sheet_content, extended_header={}):
             if sheet_name.startswith(header_key):
                 selected_header = merged_headers[header_key]
                 break
-    if len(sheet_content) > 0:
-        if not selected_header:
-            selected_header = sheet_content.pop(0)
-    return selected_header, sheet_content
+
+    return selected_header
 
 
-def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, extended_header={}):
+def write_result_to_csv(output_file, scan_item, separate_sheet=False, extended_header={}):
     success = True
     error_msg = ""
     file_extension = ".csv"
     output = ""
 
     try:
-        sheet_list = copy.deepcopy(sheet_list_origin)
-        if sheet_list:
-            output_files = []
-            output_dir = os.path.dirname(output_file)
-            Path(output_dir).mkdir(parents=True, exist_ok=True)
-            if separate_sheet:
-                filename = os.path.splitext(os.path.basename(output_file))[0]
-                separate_output_file = os.path.join(output_dir, filename)
+        output_files = []
+        output_dir = os.path.dirname(output_file)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        if separate_sheet:
+            filename = os.path.splitext(os.path.basename(output_file))[0]
+            separate_output_file = os.path.join(output_dir, filename)
 
-            merge_sheet = []
-            for sheet_name, sheet_contents in sheet_list.items():
-                row_num = 1
-                header_row, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:], extended_header)
+        merge_sheet = []
+        for scanner_name, _ in scan_item.file_items.items():
+            row_num = 1
+            sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
+            sheet_content_without_header = scan_item.get_print_array(scanner_name)
+            header_row = get_header_row(sheet_name, extended_header)
 
-                if 'Copyright Text' in header_row:
-                    idx = header_row.index('Copyright Text')-1
-                    for item in sheet_content_without_header:
-                        item[idx] = item[idx].replace('\n', ', ')
-                if not separate_sheet:
-                    merge_sheet.extend(sheet_content_without_header)
-                    if sheet_name == list(sheet_list.keys())[-1]:
-                        sheet_content_without_header = merge_sheet
-                    else:
-                        continue
+            if 'Copyright Text' in header_row:
+                idx = header_row.index('Copyright Text')-1
+                for item in sheet_content_without_header:
+                    item[idx] = item[idx].replace('\n', ', ')
+            if not separate_sheet:
+                merge_sheet.extend(sheet_content_without_header)
+                if scanner_name == list(scan_item.file_items.keys())[-1]:
+                    sheet_content_without_header = merge_sheet
                 else:
-                    output_file = separate_output_file + "_" + sheet_name + file_extension
-                try:
-                    sheet_content_without_header = sorted(sheet_content_without_header,
-                                                          key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
-                except Exception:
-                    pass
-                with open(output_file, 'w', newline='') as file:
-                    writer = csv.writer(file, delimiter='\t')
-                    writer.writerow(header_row)
-                    for row_item in sheet_content_without_header:
-                        row_item.insert(0, row_num)
-                        writer.writerow(row_item)
-                        row_num += 1
-                output_files.append(output_file)
-            if output_files:
-                output = ", ".join(output_files)
+                    continue
+            else:
+                output_file = separate_output_file + "_" + sheet_name + file_extension
+            try:
+                sheet_content_without_header = sorted(sheet_content_without_header,
+                                                      key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
+            except Exception:
+                pass
+            with open(output_file, 'w', newline='') as file:
+                writer = csv.writer(file, delimiter='\t')
+                writer.writerow(header_row)
+                for row_item in sheet_content_without_header:
+                    row_item.insert(0, row_num)
+                    writer.writerow(row_item)
+                    row_num += 1
+            output_files.append(output_file)
+        if output_files:
+            output = ", ".join(output_files)
     except Exception as ex:
         error_msg = str(ex)
         success = False
@@ -168,7 +101,7 @@ def write_result_to_csv(output_file, sheet_list_origin, separate_sheet=False, ex
     return success, error_msg, output
 
 
-def write_result_to_excel(out_file_name, sheet_list, extended_header={}, hide_header={}, cover=""):
+def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_header={}):
     success = True
     error_msg = ""
 
@@ -177,11 +110,13 @@ def write_result_to_excel(out_file_name, sheet_list, extended_header={}, hide_he
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
         workbook = xlsxwriter.Workbook(out_file_name)
-        if cover:
-            write_cover_sheet(workbook, cover)
-        if sheet_list:
-            for sheet_name, sheet_contents in sheet_list.items():
-                selected_header, sheet_content_without_header = get_header_row(sheet_name, sheet_contents[:], extended_header)
+        write_cover_sheet(workbook, scan_item.cover)
+
+        if len(scan_item.file_items.keys()) > 0:
+            for scanner_name, _ in scan_item.file_items.items():
+                sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
+                sheet_content_without_header = scan_item.get_print_array(scanner_name)
+                selected_header = get_header_row(sheet_name, extended_header)
                 try:
                     sheet_content_without_header = sorted(sheet_content_without_header,
                                                           key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
@@ -240,8 +175,9 @@ def create_worksheet(workbook, sheet_name, header_row):
         current_time = str(time.time())
         sheet_name = current_time
     worksheet = workbook.add_worksheet(sheet_name)
-    for col_num, value in enumerate(header_row):
-        worksheet.write(0, col_num, value)
+    if header_row:
+        for col_num, value in enumerate(header_row):
+            worksheet.write(0, col_num, value)
     return worksheet
 
 

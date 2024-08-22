@@ -12,8 +12,7 @@ from datetime import datetime
 from pathlib import Path
 import traceback
 from typing import Dict, Optional
-
-import fosslight_util.constant as constant
+from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SOURCE
 
 
 PACKAGE = {
@@ -30,7 +29,7 @@ PACKAGE = {
 }
 
 _attributionConfidence = 80
-logger = logging.getLogger(constant.LOGGER_NAME)
+logger = logging.getLogger(LOGGER_NAME)
 
 
 class AttributionItem():
@@ -51,7 +50,7 @@ class AttributionItem():
             self.excludeFromNotice = False
 
         self.source_name = source_name
-        if source_name == constant.FL_DEPENDENCY:
+        if source_name == FOSSLIGHT_DEPENDENCY:
             self.preSelected = True
         else:
             self.preSelected = False
@@ -113,12 +112,12 @@ class Attribution(AttributionItem):
         dict[licenseName] = self.licenseName
         dict[preSelected] = self.preSelected
 
-        if self.source_name == constant.FL_SOURCE or constant.FL_BINARY:
+        if self.source_name == FOSSLIGHT_SOURCE or FOSSLIGHT_BINARY:
             dict[copyright] = self.copyright
             dict[packageName] = self.packageName
             dict[packageVersion] = self.packageVersion
             dict[url] = self.url
-        elif self.source_name == constant.FL_DEPENDENCY:
+        elif self.source_name == FOSSLIGHT_DEPENDENCY:
             dict[copyright] = self.copyright
             dict[packageName] = self.packageName
             dict[packageVersion] = self.packageVersion
@@ -165,7 +164,7 @@ def make_frequentlicenses():
     return frequentLicenses, success, error_msg
 
 
-def write_opossum(filename, sheet_list):
+def write_opossum(filename, scan_item):
     success = True
     error_msg = ''
     dict = {}
@@ -176,7 +175,7 @@ def write_opossum(filename, sheet_list):
     _filesWithChildren_key = 'filesWithChildren'
     _attributionBreakpoints_key = 'attributionBreakpoints'
 
-    if sheet_list:
+    if scan_item:
         output_dir = os.path.dirname(filename)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -189,14 +188,9 @@ def write_opossum(filename, sheet_list):
         filesWithChildren_list = []
         attributionBreakpoints_list = []
         try:
-            for sheet_name, sheet_contents in sheet_list.items():
-                if sheet_name in constant.supported_sheet_and_scanner.keys():
-                    scanner = constant.supported_sheet_and_scanner.get(sheet_name)
-                else:
-                    logger.warning("Not supported scanner(sheet_name):" + sheet_name)
-                    continue
-
-                ret_resources_attribution = make_resources_and_attributions(sheet_contents, scanner, resources, fc_list)
+            for scanner_name, _ in scan_item.file_items.items():
+                sheet_contents = scan_item.get_print_array(scanner_name)
+                ret_resources_attribution = make_resources_and_attributions(sheet_contents, scanner_name, resources, fc_list)
                 success, rsc, ea, ra, fl, ab = ret_resources_attribution
                 if success:
                     dict[_resources_key].update(rsc)
@@ -255,14 +249,14 @@ def make_resources_and_attributions(sheet_items, scanner, resources, fc_list):
             items = items[0:9]
             path, oss_name, oss_version, license, url, homepage, copyright, exclude, comment = items
 
-            if scanner == constant.FL_SOURCE:
+            if scanner == FOSSLIGHT_SOURCE:
                 if (os.path.join(os.sep, path) + os.sep) not in fc_list:
                     resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
-            elif scanner == constant.FL_BINARY:
+            elif scanner == FOSSLIGHT_BINARY:
                 resources = make_resources(path, resources)
                 attribution = Attribution(scanner, license, exclude, copyright, oss_name, oss_version, url)
-            elif scanner == constant.FL_DEPENDENCY:
+            elif scanner == FOSSLIGHT_DEPENDENCY:
                 try:
                     packageType = PACKAGE[path]
                 except Exception:

@@ -105,7 +105,7 @@ def check_output_formats(output='', formats=[], customized_format={}):
     return success, msg, output_path, output_files, output_extensions
 
 
-def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}, hide_header={}, cover=""):
+def write_output_file(output_file_without_ext, file_extension, scan_item, extended_header={}, hide_header={}):
     success = True
     msg = ''
 
@@ -114,13 +114,13 @@ def write_output_file(output_file_without_ext, file_extension, sheet_list, exten
     result_file = output_file_without_ext + file_extension
 
     if file_extension == '.xlsx':
-        success, msg = write_result_to_excel(result_file, sheet_list, extended_header, hide_header, cover)
+        success, msg = write_result_to_excel(result_file, scan_item, extended_header, hide_header)
     elif file_extension == '.csv':
-        success, msg, result_file = write_result_to_csv(result_file, sheet_list, False, extended_header)
+        success, msg, result_file = write_result_to_csv(result_file, scan_item, False, extended_header)
     elif file_extension == '.json':
-        success, msg = write_opossum(result_file, sheet_list)
+        success, msg = write_opossum(result_file, scan_item)
     elif file_extension == '.yaml':
-        success, msg, result_file = write_yaml(result_file, sheet_list, False)
+        success, msg, result_file = write_yaml(result_file, scan_item, False)
     else:
         success = False
         msg = f'Not supported file extension({file_extension})'

@@ -5,10 +5,12 @@
 
 import logging
 import os
-from fosslight_util.constant import LOGGER_NAME, FL_DEPENDENCY, FL_BINARY
-from typing import List
+from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_SCANNER
+from fosslight_util.cover import CoverItem
+from typing import List, Dict
+
 _logger = logging.getLogger(LOGGER_NAME)
- 
+
 
 class OssItem:
 
@@ -38,7 +40,7 @@ class OssItem:
             self._license.extend(value)
         self._license = [item.strip() for item in self._license]
         self._license = list(set(self._license))
-    
+
     @property
     def exclude(self):
         return self._exclude
@@ -49,7 +51,7 @@ class OssItem:
             self._exclude = True
         else:
             self._exclude = False
-    
+
     @property
     def copyright(self):
         return self._copyright
@@ -172,9 +174,45 @@ def invalid(cmd):
 
 
 class ScannerItem:
-    def __init__(self):
-        self.cover = CoverItem()
-        self.file_items: List[FileItem] = []
+    def __init__(self, pkg_name, start_time=""):
+        self.cover = CoverItem(tool_name=pkg_name, start_time=start_time)
+        self.file_items: Dict[str, List[FileItem]] = {pkg_name: []} if pkg_name != FOSSLIGHT_SCANNER else {}
+
+    def set_cover_pathinfo(self, input_dir, path_to_exclude):
+        self.cover.input_path = input_dir
+        self.cover.exclude_path = ", ".join(path_to_exclude)
+
+    def set_cover_comment(self, value):
+        if value:
+            if self.cover.comment:
+                self.cover.comment = f"{self.cover.comment} / {value}"
+            else:
+                self.cover.comment = value
+
+    def get_cover_comment(self):
+        return [item.strip() for item in self.cover.comment.split(" / ")]
+
+    def append_file_items(self, file_item: List[FileItem], pkg_name=""):
+        if pkg_name == "":
+            if len(self.file_items.keys()) != 1:
+                _logger.error("Package name is not set. Cannot append file_item into ScannerItem.")
+            else:
+                pkg_name = list(self.file_items.keys())[0]
+        if pkg_name not in self.file_items:
+            self.file_items[pkg_name] = []
+        self.file_items[pkg_name].extend(file_item)
+
+    def get_print_array(self, scanner_name):
+        items = []
+        for file_item in self.file_items[scanner_name]:
+            items.extend(file_item.get_print_array())
+        return items
+
+    def get_print_json(self, scanner_name):
+        items = []
+        for file_item in self.file_items[scanner_name]:
+            items.extend(file_item.get_print_json())
+        return items
 
     def __del__(self):
         pass
