@@ -21,10 +21,10 @@ from spdx.writers import yaml
 from spdx.writers import xml
 from spdx.writers import tagvalue
 from fosslight_util.spdx_licenses import get_spdx_licenses_json, get_license_from_nick
-import fosslight_util.constant as constant
+from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_DEPENDENCY
 import traceback
 
-logger = logging.getLogger(constant.LOGGER_NAME)
+logger = logging.getLogger(LOGGER_NAME)
 
 
 def get_license_list_version():
@@ -37,11 +37,11 @@ def get_license_list_version():
     return version
 
 
-def write_spdx(output_file_without_ext, output_extension, sheet_list,
+def write_spdx(output_file_without_ext, output_extension, scan_item,
                scanner_name, scanner_version, spdx_version=(2, 3)):
     success = True
     error_msg = ''
-    if sheet_list:
+    if scan_item:
         doc = Document(version=Version(*spdx_version),
                        data_license=License.from_identifier('CC0-1.0'),
                        namespace=f'http://spdx.org/spdxdocs/{scanner_name.lower()}-{uuid.uuid4()}',
@@ -60,44 +60,39 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
         try:
             package_id = 0
             root_package = False
-            for sheet_name, sheet_contents in sheet_list.items():
-                if sheet_name not in constant.supported_sheet_and_scanner.keys():
-                    continue
-                scanner = constant.supported_sheet_and_scanner.get(sheet_name)
-                for oss_item in sheet_contents:
-                    if len(oss_item) < 9:
-                        logger.warning(f"sheet list is too short ({len(oss_item)}): {oss_item}")
-                        continue
+            for scanner_name, _ in scan_item.file_items.items():
+                json_contents = scan_item.get_print_json(scanner_name)
+                for oss_item in json_contents:
                     package_id += 1
                     package = Package(spdx_id=f'SPDXRef-{package_id}')
 
-                    if oss_item[1] != '':
-                        package.name = oss_item[1]  # required
+                    if oss_item.get('name', '') != '':
+                        package.name = oss_item.get('name', '')  # required
                     else:
                         package.name = SPDXNone()
 
-                    if oss_item[2] != '':
-                        package.version = oss_item[2]  # no required
+                    if oss_item.get('version', '') != '':
+                        package.version = oss_item.get('version', '')  # no required
 
-                    if oss_item[4] != '':
-                        package.download_location = oss_item[4]  # required
+                    if oss_item.get('download location', '') != '':
+                        package.download_location = oss_item.get('download location', '')  # required
                     else:
                         package.download_location = SPDXNone()
 
-                    if scanner == constant.FL_DEPENDENCY:
+                    if scanner_name == FOSSLIGHT_DEPENDENCY:
                         package.files_analyzed = False  # If omitted, the default value of true is assumed.
                     else:
                         package.files_analyzed = True
 
-                    if oss_item[5] != '':
-                        package.homepage = oss_item[5]  # no required
+                    if oss_item.get('homepage', '') != '':
+                        package.homepage = oss_item.get('homepage', '')  # no required
 
-                    if oss_item[6] != '':
-                        package.cr_text = oss_item[3]  # required
+                    if oss_item.get('copyright text', '') != '':
+                        package.cr_text = oss_item.get('copyright text', '')  # required
                     else:
                         package.cr_text = SPDXNone()
-                    if oss_item[3] != '':
-                        lic_list = [check_input_license_format(lic.strip()) for lic in oss_item[3].split(',')]
+                    if oss_item.get('license', []) != '':
+                        lic_list = [check_input_license_format(lic.strip()) for lic in oss_item.get('license', [])]
                         first_lic = License.from_identifier(lic_list.pop(0))
                         while lic_list:
                             next_lic = License.from_identifier(lic_list.pop(0))
@@ -109,21 +104,21 @@ def write_spdx(output_file_without_ext, output_extension, sheet_list,
 
                     doc.add_package(package)
 
-                    if scanner == constant.FL_DEPENDENCY:
-                        spdx_id_packages.append([package.name, package.spdx_id])
-                        comment = oss_item[8]
-                        relation_tree[package.name] = {}
-                        relation_tree[package.name]['id'] = package.spdx_id
-                        relation_tree[package.name]['dep'] = []
+                    if scanner_name == FOSSLIGHT_DEPENDENCY:
+                        purl = oss_item.get('package url', '')
+                        spdx_id_packages.append([purl, package.spdx_id])
+                        comment = oss_item.get('comment', '')
+                        relation_tree[purl] = {}
+                        relation_tree[purl]['id'] = package.spdx_id
+                        relation_tree[purl]['dep'] = []
 
                         if 'root package' in comment.split(','):
                             root_package = True
                             relationship = Relationship(f"{doc.spdx_id} DESCRIBES {package.spdx_id}")
                             doc.add_relationship(relationship)
-                        if len(oss_item) > 9:
-                            deps = oss_item[9]
-                            relation_tree[package.name]['dep'].extend([di.strip().split('(')[0] for di in deps.split(',')])
-            if scanner == constant.FL_DEPENDENCY and len(relation_tree) > 0:
+                        deps = oss_item.get('depends on', '')
+                        relation_tree[purl]['dep'].extend([di.strip().split('(')[0] for di in deps])
+            if scanner_name == FOSSLIGHT_DEPENDENCY and len(relation_tree) > 0:
                 for pkg in relation_tree:
                     if len(relation_tree[pkg]['dep']) > 0:
                         pkg_spdx_id = relation_tree[pkg]['id']
