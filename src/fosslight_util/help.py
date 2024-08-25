@@ -35,12 +35,11 @@ _HELP_MESSAGE_DOWNLOAD = """
 
 
 class PrintHelpMsg():
-    message_suffix = ""
 
-    def __init__(self, value):
+    def __init__(self, value: str = ""):
         self.message_suffix = value
 
-    def print_help_msg(self, exitopt):
+    def print_help_msg(self, exitopt: bool) -> None:
         print(_HELP_MESSAGE_COMMON)
         print(self.message_suffix)
 
@@ -48,7 +47,7 @@ class PrintHelpMsg():
             sys.exit()
 
 
-def print_package_version(pkg_name, msg="", exitopt=True):
+def print_package_version(pkg_name: str, msg: str = "", exitopt: bool = True) -> str:
     if msg == "":
         msg = f"{pkg_name} Version:"
     cur_version = pkg_resources.get_distribution(pkg_name).version

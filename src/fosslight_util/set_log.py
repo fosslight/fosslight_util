@@ -12,6 +12,8 @@ import platform
 from . import constant as constant
 from lastversion import lastversion
 import coloredlogs
+from typing import Tuple
+from logging import Logger
 
 
 def init_check_latest_version(pkg_version="", main_package_name=""):
@@ -41,8 +43,8 @@ class CustomAdapter(logging.LoggerAdapter):
         return '[%s] %s' % (self.extra, msg), kwargs
 
 
-def init_log(log_file, create_file=True, stream_log_level=logging.INFO,
-             file_log_level=logging.DEBUG, main_package_name="", path_to_analyze="", path_to_exclude=[]):
+def init_log(log_file: str, create_file: bool = True, stream_log_level: int = logging.INFO, file_log_level: int = logging.DEBUG,
+             main_package_name: str = "", path_to_analyze: str = "", path_to_exclude: list = []) -> Tuple[Logger, dict]:
 
     logger = logging.getLogger(constant.LOGGER_NAME)
 

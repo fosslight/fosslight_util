@@ -6,6 +6,7 @@ import os
 from fosslight_util.write_excel import write_result_to_excel, write_result_to_csv
 from fosslight_util.write_opossum import write_opossum
 from fosslight_util.write_yaml import write_yaml
+from typing import Tuple
 
 SUPPORT_FORMAT = {'excel': '.xlsx', 'csv': '.csv', 'opossum': '.json', 'yaml': '.yaml'}
 
@@ -105,7 +106,8 @@ def check_output_formats(output='', formats=[], customized_format={}):
     return success, msg, output_path, output_files, output_extensions
 
 
-def write_output_file(output_file_without_ext, file_extension, sheet_list, extended_header={}, hide_header={}, cover=""):
+def write_output_file(output_file_without_ext: str, file_extension: str, sheet_list: dict, extended_header: dict = {},
+                      hide_header: dict = {}, cover: str = "") -> Tuple[bool, str, str]:
     success = True
     msg = ''
 

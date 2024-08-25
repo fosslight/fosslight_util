@@ -3,6 +3,7 @@
 # Copyright (c) 2022 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 
+
 import yaml
 import logging
 import os
@@ -11,11 +12,12 @@ from pathlib import Path
 import fosslight_util.constant as constant
 from fosslight_util.oss_item import OssItem
 from fosslight_util.write_excel import _EMPTY_ITEM_MSG
+from typing import Tuple
 
 _logger = logging.getLogger(constant.LOGGER_NAME)
 
 
-def write_yaml(output_file, sheet_list_origin, separate_yaml=False):
+def write_yaml(output_file, sheet_list_origin, separate_yaml=False) -> Tuple[bool, str, str]:
     success = True
     error_msg = ""
     output = ""
