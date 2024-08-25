@@ -31,15 +31,19 @@ def init_check_latest_version(pkg_version="", main_package_name=""):
     except Exception as error:
         logger.debug('Cannot check the latest version:' + str(error))
 
+
 def get_os_version():
+
+    logger = logging.getLogger(constant.LOGGER_NAME)
+
     os_version = platform.system() + " " + platform.release()
     if os_version == "Windows 10":
         try:
             windows_build = sys.getwindowsversion().build
             if windows_build >= 22000:
                 os_version = "Windows 11"
-        except:
-            pass
+        except Exception as error:
+            logger.debug(str(error))
     return os_version
 
 
