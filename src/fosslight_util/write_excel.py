@@ -128,9 +128,10 @@ def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_hea
                     hide_column(worksheet, selected_header, hide_header)
 
             for sheet_name, content in scan_item.external_sheets.items():
-                selected_header = content.pop(0)
-                worksheet = create_worksheet(workbook, sheet_name, selected_header)
-                write_result_to_sheet(worksheet, content)
+                if len(content) > 0:
+                    selected_header = content.pop(0)
+                    worksheet = create_worksheet(workbook, sheet_name, selected_header)
+                    write_result_to_sheet(worksheet, content)
 
         workbook.close()
     except Exception as ex:
