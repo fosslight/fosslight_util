@@ -8,8 +8,6 @@ import os
 import json
 from pathlib import Path
 from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER
-from fosslight_util.oss_item import OssItem
-from fosslight_util.write_excel import _EMPTY_ITEM_MSG
 from typing import Tuple
 
 _logger = logging.getLogger(LOGGER_NAME)
