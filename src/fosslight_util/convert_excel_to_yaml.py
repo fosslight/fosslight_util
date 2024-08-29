@@ -33,7 +33,7 @@ def find_report_file(path_to_find):
     return ""
 
 
-def convert_excel_to_yaml(oss_report_to_read, output_file, sheet_names=""):
+def convert_excel_to_yaml(oss_report_to_read: str, output_file: str, sheet_names: str = "") -> None:
     _file_extension = ".yaml"
     yaml_dict = {}
 

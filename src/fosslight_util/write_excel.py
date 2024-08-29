@@ -12,6 +12,7 @@ from pathlib import Path
 from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER
 from jsonmerge import merge
 from fosslight_util.cover import CoverItem
+from typing import Tuple
 
 _HEADER = {'BIN (': ['ID', 'Binary Path', 'Source Code Path',
                      'NOTICE.html', 'OSS Name', 'OSS Version',

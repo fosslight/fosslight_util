@@ -2,18 +2,20 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2022 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
-
 import yaml
 import logging
 import os
 import json
 from pathlib import Path
 from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER
+from fosslight_util.oss_item import OssItem
+from fosslight_util.write_excel import _EMPTY_ITEM_MSG
+from typing import Tuple
 
 _logger = logging.getLogger(LOGGER_NAME)
 
 
-def write_yaml(output_file, scan_item, separate_yaml=False):
+def write_yaml(output_file, scan_item, separate_yaml=False) -> Tuple[bool, str, str]:
     success = True
     error_msg = ""
     output = ""

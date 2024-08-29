@@ -11,8 +11,8 @@ import logging
 from datetime import datetime
 from pathlib import Path
 import traceback
-from typing import Dict, Optional
 from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SOURCE
+from typing import Dict, Optional, Tuple
 
 
 PACKAGE = {
@@ -164,7 +164,7 @@ def make_frequentlicenses():
     return frequentLicenses, success, error_msg
 
 
-def write_opossum(filename, scan_item):
+def write_opossum(filename: str, scan_item) -> Tuple[bool, str]:
     success = True
     error_msg = ''
     dict = {}
