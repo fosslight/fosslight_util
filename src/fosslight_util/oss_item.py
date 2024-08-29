@@ -177,6 +177,7 @@ class ScannerItem:
     def __init__(self, pkg_name, start_time=""):
         self.cover = CoverItem(tool_name=pkg_name, start_time=start_time)
         self.file_items: Dict[str, List[FileItem]] = {pkg_name: []} if pkg_name != FOSSLIGHT_SCANNER else {}
+        self.external_sheets: Dict[str, List[List[str]]] = {}
 
     def set_cover_pathinfo(self, input_dir, path_to_exclude):
         self.cover.input_path = input_dir

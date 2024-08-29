@@ -36,13 +36,12 @@ def get_header_row(sheet_name, extended_header={}):
 
     merged_headers = merge(_HEADER, extended_header)
 
-    selected_header = merged_headers.get(sheet_name)
+    selected_header = merged_headers.get(sheet_name, [])
     if not selected_header:
         for header_key in merged_headers.keys():
             if sheet_name.startswith(header_key):
                 selected_header = merged_headers[header_key]
                 break
-
     return selected_header
 
 
@@ -127,6 +126,12 @@ def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_hea
 
                 if hide_header:
                     hide_column(worksheet, selected_header, hide_header)
+
+            for sheet_name, content in scan_item.external_sheets.items():
+                selected_header = content.pop(0)
+                worksheet = create_worksheet(workbook, sheet_name, selected_header)
+                write_result_to_sheet(worksheet, content)
+
         workbook.close()
     except Exception as ex:
         error_msg = str(ex)
