@@ -8,8 +8,8 @@ import codecs
 import os
 import re
 import sys
-from .constant import LOGGER_NAME
-from .oss_item import OssItem
+from fosslight_util.constant import LOGGER_NAME
+from fosslight_util.oss_item import OssItem, FileItem
 
 _logger = logging.getLogger(LOGGER_NAME)
 SUPPORT_OSS_INFO_FILES = [r"oss-pkg-info[\s\S]*.ya?ml", r"sbom(-|_)info[\s\S]*.ya?ml"]
@@ -17,7 +17,7 @@ EXAMPLE_OSS_PKG_INFO_LINK = "https://github.com/fosslight/fosslight_prechecker/b
 
 
 def parsing_yml(yaml_file, base_path, print_log=True):
-    oss_list = []
+    fileitems = []
     license_list = []
     idx = 1
     err_reason = ""
@@ -38,37 +38,65 @@ def parsing_yml(yaml_file, base_path, print_log=True):
             err_reason = "empty"
             if print_log:
                 _logger.warning(f"The yaml file is empty file: {yaml_file}")
-            return oss_list, license_list, err_reason
+            return fileitems, license_list, err_reason
 
         is_old_format = any(x in doc for x in OLD_YAML_ROOT_ELEMENT)
 
+        filepath_list = []
         for root_element in doc:
             oss_items = doc[root_element]
             if oss_items:
                 if not isinstance(oss_items, list) or 'version' not in oss_items[0]:
                     raise AttributeError(f"- Ref. {EXAMPLE_OSS_PKG_INFO_LINK}")
                 for oss in oss_items:
-                    item = OssItem(relative_path)
-                    if not is_old_format:
-                        item.name = root_element
-                    for key, value in oss.items():
-                        if key:
-                            key = key.lower().strip()
-                        set_value_switch(item, key, value, yaml_file)
-                    oss_list.append(item)
-                    license_list.extend(item.license)
-                    idx += 1
+                    source_paths = get_source_name_or_path_in_yaml(oss)
+                    for source_path in source_paths:
+                        if os.path.join(relative_path, source_path) not in filepath_list:
+                            filepath_list.append(os.path.join(relative_path, source_path))
+                            fileitem = FileItem(relative_path)
+                            fileitem.source_name_or_path = source_path
+                            fileitems.append(fileitem)
+                        else:
+                            fileitem = next((i for i in fileitems if i.source_name_or_path == source_path), None)
+                        ossitem = OssItem()
+                        if not is_old_format:
+                            ossitem.name = root_element
+                        for key, value in oss.items():
+                            if key:
+                                key = key.lower().strip()
+                            set_value_switch(ossitem, key, value, yaml_file)
+                        fileitem.oss_items.append(ossitem)
+                        license_list.extend(ossitem.license)
+                        idx += 1
     except AttributeError as ex:
         if print_log:
             _logger.warning(f"Not supported yaml file format: {yaml_file} {ex}")
-        oss_list = []
+        fileitems = []
         err_reason = "not_supported"
     except yaml.YAMLError:
         if print_log:
             _logger.warning(f"Error to parse yaml - skip to parse yaml file: {yaml_file}")
-        oss_list = []
+        fileitems = []
         err_reason = "yaml_error"
-    return oss_list, set(license_list), err_reason
+
+    return fileitems, set(license_list), err_reason
+
+
+def get_source_name_or_path_in_yaml(oss):
+    source_name_or_path = []
+    find = False
+    for key in oss.keys():
+        if key in ['file name or path', 'source name or path', 'source path',
+                   'file', 'binary name', 'binary path']:
+            if isinstance(oss[key], list):
+                source_name_or_path = oss[key]
+            else:
+                source_name_or_path.append(oss[key])
+            find = True
+            break
+    if not find:
+        source_name_or_path.append('')
+    return source_name_or_path
 
 
 def find_sbom_yaml_files(path_to_find):
@@ -101,9 +129,6 @@ def set_value_switch(oss, key, value, yaml_file=""):
         oss.download_location = value
     elif key in ['license', 'license text']:
         oss.license = value
-    elif key in ['file name or path', 'source name or path', 'source path',
-                 'file', 'binary name', 'binary path']:
-        oss.source_name_or_path = value
     elif key in ['copyright text', 'copyright']:
         oss.copyright = value
     elif key == 'exclude':
@@ -112,16 +137,6 @@ def set_value_switch(oss, key, value, yaml_file=""):
         oss.comment = value
     elif key == 'homepage':
         oss.homepage = value
-    elif key == 'yocto_package':
-        oss.yocto_package = value
-    elif key == 'yocto_recipe':
-        oss.yocto_recipe = value
-    elif key == 'vulnerability link':
-        oss.bin_vulnerability = value
-    elif key == 'tlsh':
-        oss.bin_tlsh = value
-    elif key == 'sha1':
-        oss.bin_sha1 = value
     else:
         if yaml_file != "":
             _logger.debug(f"file:{yaml_file} - key:{key} cannot be parsed")
