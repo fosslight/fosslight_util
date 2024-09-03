@@ -62,7 +62,10 @@ def write_result_to_csv(output_file, scan_item, separate_sheet=False, extended_h
         merge_sheet = []
         for scanner_name, _ in scan_item.file_items.items():
             row_num = 1
-            sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
+            if scanner_name.lower() in SHEET_NAME_FOR_SCANNER:
+                sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
+            else:
+                sheet_name = list(extended_header.keys())[0]
             sheet_content_without_header = scan_item.get_print_array(scanner_name)
             header_row = get_header_row(sheet_name, extended_header)
 
@@ -113,7 +116,10 @@ def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_hea
 
         if len(scan_item.file_items.keys()) > 0:
             for scanner_name, _ in scan_item.file_items.items():
-                sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
+                if scanner_name.lower() in SHEET_NAME_FOR_SCANNER:
+                    sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
+                else:
+                    sheet_name = list(extended_header.keys())[0]
                 sheet_content_without_header = scan_item.get_print_array(scanner_name)
                 selected_header = get_header_row(sheet_name, extended_header)
                 try:
