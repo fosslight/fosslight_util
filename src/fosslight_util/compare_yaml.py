@@ -4,9 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import os
 from fosslight_util.constant import LOGGER_NAME
-from fosslight_util.parsing_yaml import parsing_yml
 
 logger = logging.getLogger(LOGGER_NAME)
 VERSION = 'version'
@@ -14,12 +12,16 @@ LICENSE = 'license'
 NAME = 'name'
 
 
-def compare_yaml(before_file, after_file):
-    before_oss_items, _, _ = parsing_yml(before_file, os.path.dirname(before_file))
-    after_oss_items, _, _ = parsing_yml(after_file, os.path.dirname(after_file))
+def compare_yaml(before_fileitems, after_fileitems):
+    bf_raw = []
+    af_raw = []
+    for bf in before_fileitems:
+        bf_raw.extend(bf.get_print_json())
+    for af in after_fileitems:
+        af_raw.extend(af.get_print_json())
 
-    before_items = get_merged_item(before_oss_items)
-    after_items = get_merged_item(after_oss_items)
+    before_items = get_merged_item(bf_raw)
+    after_items = get_merged_item(af_raw)
 
     new_before = []
     for bi in before_items:
@@ -72,13 +74,18 @@ def compare_yaml(before_file, after_file):
 def get_merged_item(oss_items):
     item_list = []
     for oi in oss_items:
-        if oi.exclude:
+        if oi.get("exclude", None):
             continue
-        item_info = {NAME: oi.name, VERSION: oi.version, LICENSE: oi.license}
+        oi_name = oi.get("name", '')
+        oi_version = oi.get("version", '')
+        oi_license = oi.get("license", '')
+        if not (oi_name and oi_version and oi_license):
+            continue
+        item_info = {NAME: oi_name, VERSION: oi_version, LICENSE: oi_license}
 
-        filtered = next(filter(lambda oss_dict: oss_dict[NAME] == oi.name and oss_dict[VERSION] == oi.version, item_list), None)
+        filtered = next(filter(lambda oss_dict: oss_dict[NAME] == oi_name and oss_dict[VERSION] == oi_version, item_list), None)
         if filtered:
-            filtered[LICENSE].extend(oi.license)
+            filtered[LICENSE].extend(oi_license)
             filtered[LICENSE] = list(set(filtered[LICENSE]))
         else:
             item_list.append(item_info)

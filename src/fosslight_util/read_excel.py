@@ -7,7 +7,7 @@ from typing import List, Dict, Any
 import pandas as pd
 import json
 from fosslight_util.constant import LOGGER_NAME
-from fosslight_util.oss_item import OssItem
+from fosslight_util.oss_item import OssItem, FileItem
 from fosslight_util.parsing_yaml import set_value_switch
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -16,8 +16,8 @@ PREFIX_BIN = "bin"
 SHEET_PREFIX_TO_READ = ["bin", "bom", "src"]
 
 
-def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
-    oss_report_items: List[OssItem] = []
+def read_oss_report(excel_file: str, sheet_names: str = "", basepath: str = "") -> List[FileItem]:
+    fileitems: List[FileItem] = []
     xl_sheets: Dict[str, Any] = {}
     all_sheet_to_read: List[str] = []
     not_matched_sheet: List[str] = []
@@ -57,6 +57,7 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
         elif (not sheet_name_prefix_match) and not_matched_sheet:
             logger.warning(f"Not matched sheet name: {not_matched_sheet}")
 
+        filepath_list = []
         for sheet_name, xl_sheet in xl_sheets.items():
             _item_idx = {
                 "ID": IDX_CANNOT_FOUND,
@@ -87,11 +88,18 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
             is_bin = True if sheet_name.lower().startswith(PREFIX_BIN) else False
 
             for row_idx, row in xl_sheet.iterrows():
-                item = OssItem("")
-                item.is_binary = is_bin
                 valid_row = True
                 load_data_cnt = 0
-
+                source_path = row[1]
+                if source_path not in filepath_list:
+                    filepath_list.append(source_path)
+                    fileitem = FileItem(basepath)
+                    fileitem.source_name_or_path = source_path
+                    fileitems.append(fileitem)
+                else:
+                    fileitem = next((i for i in fileitems if i.source_name_or_path == source_path), None)
+                fileitem.is_binary = is_bin
+                ossitem = OssItem()
                 for column_key, column_idx in column_keys.items():
                     if column_idx != IDX_CANNOT_FOUND:
                         cell_obj = xl_sheet.iloc[row_idx, column_idx]
@@ -101,13 +109,13 @@ def read_oss_report(excel_file: str, sheet_names: str = "") -> List[OssItem]:
                             if column_key != "ID":
                                 if column_key:
                                     column_key = column_key.lower().strip()
-                                set_value_switch(item, column_key, cell_value)
+                                set_value_switch(ossitem, column_key, cell_value)
                                 load_data_cnt += 1
                             else:
                                 valid_row = False if cell_value == "-" else True
                 if valid_row and load_data_cnt > 0:
-                    oss_report_items.append(item)
+                    fileitem.oss_items.append(ossitem)
 
     except Exception as error:
         logger.error(f"Parsing a OSS Report: {error}")
-    return oss_report_items
+    return fileitems
