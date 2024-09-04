@@ -9,7 +9,7 @@ import logging
 import os
 import pandas as pd
 from pathlib import Path
-from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER
+from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER, FOSSLIGHT_BINARY
 from jsonmerge import merge
 from fosslight_util.cover import CoverItem
 
@@ -17,13 +17,19 @@ _HEADER = {'BIN (': ['ID', 'Binary Path', 'Source Code Path',
                      'NOTICE.html', 'OSS Name', 'OSS Version',
                      'License', 'Download Location', 'Homepage',
                      'Copyright Text', 'Exclude', 'Comment'],
-           'SRC': ['ID', 'Source Path', 'OSS Name',
-                   'OSS Version', 'License',  'Download Location',
-                   'Homepage', 'Copyright Text', 'Exclude',
-                   'Comment'],
+           'SRC': ['ID', 'Source Path', 'OSS Name', 'OSS Version',
+                   'License', 'Download Location', 'Homepage',
+                   'Copyright Text', 'Exclude', 'Comment'],
            'BIN': ['ID', 'Binary Path', 'OSS Name', 'OSS Version',
                    'License', 'Download Location', 'Homepage',
-                   'Copyright Text', 'Exclude', 'Comment']}
+                   'Copyright Text', 'Exclude', 'Comment',
+                   'Vulnerability Link', 'TLSH', 'SHA1'],
+           'DEP': ['ID', 'Package URL', 'OSS Name', 'OSS Version',
+                   'License', 'Download Location', 'Homepage',
+                   'Copyright Text', 'Exclude', 'Comment',
+                   'Depends On']}
+
+BIN_HIDE_HEADER = {'TLSH', "SHA1"}
 _OUTPUT_FILE_PREFIX = "FOSSLight-Report_"
 IDX_FILE = 0
 IDX_EXCLUDE = 7
@@ -129,7 +135,8 @@ def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_hea
                     pass
                 worksheet = create_worksheet(workbook, sheet_name, selected_header)
                 write_result_to_sheet(worksheet, sheet_content_without_header)
-
+                if (scanner_name == FOSSLIGHT_BINARY) and (not hide_header):
+                    hide_header = BIN_HIDE_HEADER
                 if hide_header:
                     hide_column(worksheet, selected_header, hide_header)
 
@@ -191,32 +198,6 @@ def create_worksheet(workbook, sheet_name, header_row):
         for col_num, value in enumerate(header_row):
             worksheet.write(0, col_num, value)
     return worksheet
-
-
-def merge_cover_comment(find_excel_dir, merge_files=''):
-    FIND_EXTENSION = '.xlsx'
-    merge_comment = []
-    cover_comment = ''
-    try:
-        files = os.listdir(find_excel_dir)
-
-        if len([name for name in files if name.endswith(FIND_EXTENSION)]) > 0:
-            for file in files:
-                if merge_files:
-                    if file not in merge_files:
-                        continue
-                if file.endswith(FIND_EXTENSION):
-                    file = os.path.join(find_excel_dir, file)
-                    df_excel = pd.read_excel(file, sheet_name=COVER_SHEET_NAME, index_col=0, engine='openpyxl')
-                    if not df_excel.empty:
-                        tool_name = df_excel.loc[CoverItem.tool_name_key].values[0]
-                        comment = df_excel.loc[CoverItem.comment_key].values[0]
-                        merge_comment.append(str(f"[{tool_name}] {comment}"))
-            cover_comment = '\n'.join(merge_comment)
-    except Exception as ex:
-        logger.warning(f'Fail to merge comment of Scanner info: {str(ex)}')
-
-    return cover_comment
 
 
 def merge_excels(find_excel_dir, final_out, merge_files='', cover=''):
