@@ -68,9 +68,10 @@ def write_result_to_csv(output_file, scan_item, separate_sheet=False, extended_h
         merge_sheet = []
         for scanner_name, _ in scan_item.file_items.items():
             row_num = 1
+            sheet_name = ""
             if scanner_name.lower() in SHEET_NAME_FOR_SCANNER:
                 sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
-            else:
+            elif extended_header:
                 sheet_name = list(extended_header.keys())[0]
             sheet_content_without_header = scan_item.get_print_array(scanner_name)
             header_row = get_header_row(sheet_name, extended_header)
@@ -119,12 +120,12 @@ def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_hea
 
         workbook = xlsxwriter.Workbook(out_file_name)
         write_cover_sheet(workbook, scan_item.cover)
-
-        if len(scan_item.file_items.keys()) > 0:
+        if scan_item.file_items and len(scan_item.file_items.keys()) > 0:
             for scanner_name, _ in scan_item.file_items.items():
+                sheet_name = ""
                 if scanner_name.lower() in SHEET_NAME_FOR_SCANNER:
                     sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
-                else:
+                elif extended_header:
                     sheet_name = list(extended_header.keys())[0]
                 sheet_content_without_header = scan_item.get_print_array(scanner_name)
                 selected_header = get_header_row(sheet_name, extended_header)
@@ -133,18 +134,21 @@ def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_hea
                                                           key=lambda x: (x[IDX_EXCLUDE], x[IDX_FILE] == "", x[IDX_FILE]))
                 except Exception:
                     pass
+                if sheet_name:
+                    worksheet = create_worksheet(workbook, sheet_name, selected_header)
+                    write_result_to_sheet(worksheet, sheet_content_without_header)
+                    if (scanner_name == FOSSLIGHT_BINARY) and (not hide_header):
+                        hide_header = BIN_HIDE_HEADER
+                    if hide_header:
+                        hide_column(worksheet, selected_header, hide_header)
+
+        for sheet_name, content in scan_item.external_sheets.items():
+            if len(content) > 0:
+                selected_header = content.pop(0)
                 worksheet = create_worksheet(workbook, sheet_name, selected_header)
-                write_result_to_sheet(worksheet, sheet_content_without_header)
-                if (scanner_name == FOSSLIGHT_BINARY) and (not hide_header):
-                    hide_header = BIN_HIDE_HEADER
+                write_result_to_sheet(worksheet, content)
                 if hide_header:
                     hide_column(worksheet, selected_header, hide_header)
-
-            for sheet_name, content in scan_item.external_sheets.items():
-                if len(content) > 0:
-                    selected_header = content.pop(0)
-                    worksheet = create_worksheet(workbook, sheet_name, selected_header)
-                    write_result_to_sheet(worksheet, content)
 
         workbook.close()
     except Exception as ex:
