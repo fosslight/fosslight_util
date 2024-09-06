@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.0.0 (06/09/2024)
+## Changes
+## 🐛 Hotfixes
+
+- Fix printing windows version @s-cu-bot (#179)
+
+## 🔧 Maintenance
+
+- Refactoring OssItem @dd-jy (#175)
+- Adding external calling function parameter type hints @MoonJeWoong (#177)
+- Alter modules xlrd to pandas @cjho0316 (#174)
+
+---
+
 ## v1.4.48 (22/07/2024)
 ## Changes
 ## 🐛 Hotfixes
@@ -288,11 +302,3 @@
 - Update deploy gh action version @dd-jy (#112)
 - Fix the xlsxwriter save issue @dd-jy (#111)
 - Fix the bug that can't print excel @soimkim (#110)
-
----
-
-## v1.4.19 (07/03/2023)
-## Changes
-## 🚀 Features
-
-- Be available to download src from rubygem @bjk7119 (#108)
