@@ -41,12 +41,12 @@ def correct_with_yaml(correct_filepath, path_to_scan, scan_item):
         exclude_fileitems = []
         for yaml_file_item in yaml_file_list:
             yaml_path_exists = False
-            if scanner_name == FOSSLIGHT_SOURCE:
-                if yaml_file_item.source_name_or_path == '':
+            if yaml_file_item.source_name_or_path == '':
+                if scanner_name == FOSSLIGHT_SOURCE:
                     correct_item = copy.deepcopy(yaml_file_item)
                     correct_item.comment = 'Added by sbom-info.yaml'
                     correct_fileitems.append(correct_item)
-                    continue
+                continue
             for idx, scan_file_item in enumerate(scan_item.file_items[scanner_name]):
                 oss_rel_path = os.path.normpath(os.path.join(rel_path, scan_file_item.source_name_or_path))
                 yi_path = yaml_file_item.source_name_or_path
@@ -70,7 +70,7 @@ def correct_with_yaml(correct_filepath, path_to_scan, scan_item):
                 else:
                     if scanner_name == FOSSLIGHT_SOURCE:
                         correct_item.exclude = True
-                        correct_item.comment = 'Loaded from sbom-info.yaml'
+                        correct_item.comment = 'Added by sbom-info.yaml'
                         correct_fileitems.append(correct_item)
         if correct_fileitems:
             scan_item.append_file_items(correct_fileitems, scanner_name)
