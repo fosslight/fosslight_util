@@ -2,62 +2,49 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2022 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
-
-
 import yaml
 import logging
 import os
-import copy
+import json
 from pathlib import Path
-import fosslight_util.constant as constant
-from fosslight_util.oss_item import OssItem
-from fosslight_util.write_excel import _EMPTY_ITEM_MSG
+from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER
 from typing import Tuple
 
-_logger = logging.getLogger(constant.LOGGER_NAME)
+_logger = logging.getLogger(LOGGER_NAME)
 
 
-def write_yaml(output_file, sheet_list_origin, separate_yaml=False) -> Tuple[bool, str, str]:
+def write_yaml(output_file, scan_item, separate_yaml=False) -> Tuple[bool, str, str]:
     success = True
     error_msg = ""
     output = ""
 
     try:
-        sheet_list = copy.deepcopy(sheet_list_origin)
-        if sheet_list:
-            output_files = []
-            output_dir = os.path.dirname(output_file)
+        output_files = []
+        output_dir = os.path.dirname(output_file)
 
-            Path(output_dir).mkdir(parents=True, exist_ok=True)
-            if separate_yaml:
-                filename = os.path.splitext(os.path.basename(output_file))[0]
-                separate_output_file = os.path.join(output_dir, filename)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        if separate_yaml:
+            filename = os.path.splitext(os.path.basename(output_file))[0]
+            separate_output_file = os.path.join(output_dir, filename)
 
-            merge_sheet = []
-            for sheet_name, sheet_contents in sheet_list.items():
-                if sheet_name not in constant.supported_sheet_and_scanner.keys():
-                    continue
-                scanner_name = constant.supported_sheet_and_scanner[sheet_name]
-                sheet_contents_with_scanner = []
-                for i in sheet_contents:
-                    i.insert(0, scanner_name)
-                    sheet_contents_with_scanner.append(i)
-                if not separate_yaml:
-                    merge_sheet.extend(sheet_contents_with_scanner)
-                else:
-                    output_file = f'{separate_output_file}_{sheet_name}.yaml'
-                    convert_sheet_to_yaml(sheet_contents_with_scanner, output_file)
-                    output_files.append(output_file)
+        merge_sheet = []
+        for scanner_name, _ in scan_item.file_items.items():
+            sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
+            json_contents = scan_item.get_print_json(scanner_name)
 
             if not separate_yaml:
-                convert_sheet_to_yaml(merge_sheet, output_file)
+                merge_sheet.extend(json_contents)
+            else:
+                output_file = f'{separate_output_file}_{sheet_name}.yaml'
+                remove_duplicates_and_dump_yaml(json_contents, output_file)
                 output_files.append(output_file)
 
-            if output_files:
-                output = ", ".join(output_files)
-        else:
-            success = False
-            error_msg = _EMPTY_ITEM_MSG
+        if not separate_yaml:
+            remove_duplicates_and_dump_yaml(merge_sheet, output_file)
+            output_files.append(output_file)
+
+        if output_files:
+            output = ", ".join(output_files)
     except Exception as ex:
         error_msg = str(ex)
         success = False
@@ -68,37 +55,37 @@ def write_yaml(output_file, sheet_list_origin, separate_yaml=False) -> Tuple[boo
     return success, error_msg, output
 
 
-def convert_sheet_to_yaml(sheet_contents_with_scanner, output_file):
-    sheet_contents_with_scanner = [list(t) for t in set(tuple(e) for e in sorted(sheet_contents_with_scanner))]
+def remove_duplicates_and_dump_yaml(json_contents, output_file):
+    unique_json_strings = {json.dumps(e, sort_keys=True) for e in json_contents}
+    unique_json_contents = [json.loads(e) for e in unique_json_strings]
 
     yaml_dict = {}
-    for sheet_item in sheet_contents_with_scanner:
-        item = OssItem('')
-        item.set_sheet_item(sheet_item[1:], sheet_item[0])
-        create_yaml_with_ossitem(item, yaml_dict)
+    for uitem in unique_json_contents:
+        create_yaml_with_ossitem(uitem, yaml_dict)
 
     with open(output_file, 'w') as f:
         yaml.dump(yaml_dict, f, default_flow_style=False, sort_keys=False)
 
 
 def create_yaml_with_ossitem(item, yaml_dict):
-    item_json = item.get_print_json()
-    item_name = item_json.pop("name")
+    item_name = item.pop("name")
 
     if item_name not in yaml_dict.keys():
         yaml_dict[item_name] = []
     merged = False
     for oss_info in yaml_dict[item_name]:
-        if oss_info.get('version', '') == item.version and \
-           oss_info.get('license', []) == item.license and \
-           oss_info.get('copyright text', '') == item.copyright and \
-           oss_info.get('homepage', '') == item.homepage and \
-           oss_info.get('download location', '') == item.download_location and \
-           oss_info.get('exclude', False) == item.exclude:
-            oss_info.get('source path', []).extend(item.source_name_or_path)
+        if oss_info.get('version', '') == item.get('version', '') and \
+           oss_info.get('license', []) == item.get('license', []) and \
+           oss_info.get('copyright text', '') == item.get('copyright text', '') and \
+           oss_info.get('homepage', '') == item.get('homepage', '') and \
+           oss_info.get('download location', '') == item.get('download location', '') and \
+           oss_info.get('exclude', False) == item.get('exclude', False):
+            if isinstance(oss_info.get('source path', []), str):
+                oss_info['source path'] = [oss_info.get('source path', '')]
+            oss_info.get('source path', []).append(item.get('source path', ''))
             oss_info.pop('comment', None)
             merged = True
             break
 
     if not merged:
-        yaml_dict[item_name].append(item_json)
+        yaml_dict[item_name].append(item)

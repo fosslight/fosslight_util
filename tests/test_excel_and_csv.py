@@ -2,68 +2,37 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
-from fosslight_util.write_excel import write_excel_and_csv
 from fosslight_util.output_format import write_output_file
 from fosslight_util.set_log import init_log
 from copy import deepcopy
+from fosslight_util.oss_item import ScannerItem, FileItem, OssItem
+from fosslight_util.constant import FOSSLIGHT_SOURCE
 
 
 def main():
-    logger, _result_log = init_log("test_result/excel_and_csv/log_write_excel_and_csv.txt")
+    logger, _result_log = init_log("test_result/excel_and_csv/log_write_excel_csv.txt")
 
-    sheet_contents = {}
-    src_sheet_items = [['run_scancode.py', 'fosslight_source',
-                        '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_source',
-                        'https://github.com/LGE-OSS/fosslight_source',
-                        'Copyright (c) 2021 LG Electronics, Inc.',
-                        'Exclude', 'Comment message'],
-                       ['', 'Enact',
-                        '', 'Apache-2.0',  'https://github.com/enactjs/enact',
-                        'https://enactjs.com', 'Copyright (c) 2012-2021 LG Electronics',
-                        '', ''],
-                       ['dependency_unified.py', 'fosslight_dependency',
-                        '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_dependency',
-                        'https://github.com/LGE-OSS/fosslight_dependency',
-                        'Copyright (c) 2020 LG Electronics, Inc.',
-                        '', '']]
+    scan_item = ScannerItem(FOSSLIGHT_SOURCE)
+    scan_item.set_cover_pathinfo('tests/test_excel_and_csv', '')
+    scan_item.set_cover_comment('This is a test comment')
 
-    bin_sheet_items = [['dependency_unified.py', 'fosslight_dependency',
-                        '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_dependency',
-                        'https://github.com/LGE-OSS/fosslight_dependency', 'Copyright (c) 2020 LG Electronics, Inc.',
-                        '', 'Awesome Open Source'],
-                       ['askalono.exe', 'askalono',
-                        '0.4.3', 'Apache-2.0',  'https://github.com/jpeddicord/askalono',
-                        '', 'Copyright (c) 2018 Amazon.com, Inc. or its affiliates.',
-                        '', '']]
-    sheet_items = [['ID', 'Binary Path', 'OSS Name', 'OSS Version',
-                    'License', 'Download Location', 'Homepage',
-                    'Copyright Text', 'Exclude', 'Comment'],
-                   ['dependency_unified.py', 'fosslight_dependency',
-                    '3.0.6', 'Apache-2.0',  'https://github.com/LGE-OSS/fosslight_dependency',
-                    'https://github.com/LGE-OSS/fosslight_dependency', 'Copyright (c) 2020 LG Electronics, Inc.',
-                    'Exclude', 'Awesome Open Source'],
-                   ['askalono.exe', 'askalono',
-                    '0.4.3', 'Apache-2.0',  'https://github.com/jpeddicord/askalono',
-                    '', 'Copyright (c) 2018 Amazon.com, Inc. or its affiliates.',
-                    '', '']]
+    file_item = FileItem('test_result/excel_and_csv')
+    oss_item = OssItem("test_name", "1.0.0", "Apache-2.0", "https://abc.com")
+    oss_item.comment = "test_name comment"
+    file_item.oss_items.append(oss_item)
+    oss_item2 = OssItem("test_name", "2.0.0", "MIT", "https://abc2.com")
+    file_item.oss_items.append(oss_item2)
+    file_item.comment = "all test comment"
 
-    sheet_contents['SRC'] = src_sheet_items
-    sheet_contents['BIN_TEST'] = bin_sheet_items
-    sheet_contents['SRC_NULL'] = []
-    sheet_contents['CUSTOM_HEADER_SHEET'] = sheet_items
-
-    logger.warning("TESTING - Writing an excel and csv")
-    success, msg, result_file = write_excel_and_csv(
-        'test_result/excel_and_csv/FOSSLight-Report', deepcopy(sheet_contents))
-    logger.warning(f"|-- Result:{success}, file:{result_file}, error_msg:{msg}")
+    scan_item.append_file_items([file_item])
 
     logger.warning("TESTING - Writing an excel")
-    success, msg, result_file = write_output_file('test_result/excel_and_csv/excel/Test_Excel', '.xlsx', deepcopy(sheet_contents))
+    success, msg, result_file = write_output_file('test_result/excel_and_csv/excel/Test_Excel', '.xlsx', deepcopy(scan_item))
     logger.warning(f"|-- Result:{success}, file:{result_file}, error_msg:{msg}")
 
     logger.warning("TESTING - Writing an csv")
     success, msg, result_file = write_output_file(
-        'test_result/excel_and_csv/csv/Test_Csv', '.csv', deepcopy(sheet_contents))
+        'test_result/excel_and_csv/csv/Test_Csv', '.csv', deepcopy(scan_item))
     logger.warning(f"|-- Result:{success}, file:{result_file}, error_msg:{msg}")
 
 
