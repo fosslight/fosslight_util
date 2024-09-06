@@ -80,7 +80,9 @@ def create_yaml_with_ossitem(item, yaml_dict):
            oss_info.get('homepage', '') == item.get('homepage', '') and \
            oss_info.get('download location', '') == item.get('download location', '') and \
            oss_info.get('exclude', False) == item.get('exclude', False):
-            oss_info.get('source path', []).extend(item.get('source path', []))
+            if isinstance(oss_info.get('source path', []), str):
+                oss_info['source path'] = [oss_info.get('source path', '')]
+            oss_info.get('source path', []).append(item.get('source path', ''))
             oss_info.pop('comment', None)
             merged = True
             break
