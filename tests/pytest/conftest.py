@@ -2,17 +2,21 @@ import pytest
 import os
 import shutil
 
+set_up_directories = ["test_result", "test_result/convert"]
+remove_directories = ["test_result"]
+
 @pytest.fixture(scope="function", autouse=True)
 def setup_test_result_dir_and_teardown():
     print("==============setup==============")
 
-    output_dir = "test_result/convert"
-    os.makedirs(output_dir, exist_ok=True)
+    for dir in set_up_directories:
+        os.makedirs(dir, exist_ok=True)
 
     yield
 
     print("==============tearDown==============")
-    shutil.rmtree(output_dir)
+    for dir in remove_directories:
+        shutil.rmtree(dir)
 
 
 @pytest.fixture
