@@ -3,6 +3,8 @@ import pytest
 from fosslight_util.write_excel import write_excel_and_csv
 from fosslight_util.output_format import write_output_file
 
+# legacy/test_excel_and_csv
+
 def test_write_excel_and_csv(sheet_list_fixture):
     #given
     output_dir = "test_result/excel_and_csv"
@@ -24,11 +26,11 @@ def test_write_excel_and_csv(sheet_list_fixture):
     assert result_file_name in result_file
     assert not_included_tab_name not in result_file
 
+# legacy/test_output_format
 
 @pytest.mark.parametrize("output_dir, result_file_name, file_extension",
     [("test_result/excel_and_csv/excel", "Test_Excel", ".xlsx"),
      ("test_result/excel_and_csv/csv", "Test_Csv", ".csv"),
-     # ("test_result/output_format", "FL-TEST_Excel", ".xlsx"),
      ("test_result/output_format", "FL-TEST_opossum", ".json")])
 def test_write_output_file(output_dir, result_file_name, file_extension):
     #given
