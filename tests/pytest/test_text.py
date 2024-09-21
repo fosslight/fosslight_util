@@ -1,6 +1,8 @@
 import os
 from fosslight_util.write_txt import write_txt_file
 
+# legacy/test_text
+
 def test_text():
     #given
     output_dir = "test_result/txt"
