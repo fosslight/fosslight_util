@@ -1,6 +1,8 @@
 import os
 from fosslight_util.convert_excel_to_yaml import convert_excel_to_yaml
 
+# legacy/test_convert_to_yaml
+
 def test_convert_excel_to_yaml():
     #given
     output_dir = "test_result/convert"
