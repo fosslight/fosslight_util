@@ -1,6 +1,8 @@
 import pytest
 from fosslight_util.write_yaml import write_yaml
 
+# legacy/test_yaml
+
 def test_write_yaml(sheet_list_fixture_for_write_yaml):
     #given
     output_file1 = 'test_result/yaml/FL-TEST_yaml.yaml'
