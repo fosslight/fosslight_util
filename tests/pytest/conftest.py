@@ -4,6 +4,8 @@ import shutil
 
 set_up_directories = ["test_result", "test_result/convert"]
 remove_directories = ["test_result"]
+TEST_RESULT_DIR = os.path.join(os.path.dirname(__file__), "test_result")
+TEST_RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_test_result_dir_and_teardown():
@@ -18,6 +20,13 @@ def setup_test_result_dir_and_teardown():
     for dir in remove_directories:
         shutil.rmtree(dir)
 
+@pytest.fixture
+def fixture_constants():
+    constants = {
+        "TEST_RESULT_DIR": TEST_RESULT_DIR,
+        "TEST_RESOURCES_DIR": TEST_RESOURCES_DIR,
+    }
+    return constants
 
 @pytest.fixture
 def sheet_list_fixture():
