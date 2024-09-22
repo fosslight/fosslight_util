@@ -1,3 +1,6 @@
+# Copyright (c) 2021 LG Electronics Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 from fosslight_util.spdx_licenses import get_spdx_licenses_json
 
 # legacy/test_spdx_licenses

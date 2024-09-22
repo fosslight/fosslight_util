@@ -1,24 +1,28 @@
+# Copyright (c) 2021 LG Electronics Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 import os
 import shutil
 
-set_up_directories = ["test_result", "test_result/convert"]
-remove_directories = ["test_result"]
 TEST_RESULT_DIR = os.path.join(os.path.dirname(__file__), "test_result")
 TEST_RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
 
-@pytest.fixture(scope="function", autouse=True)
-def setup_test_result_dir_and_teardown():
-    print("==============setup==============")
+set_up_directories = [TEST_RESULT_DIR, os.path.join(TEST_RESULT_DIR, "convert")]
+remove_directories = [TEST_RESULT_DIR]
 
-    for dir in set_up_directories:
-        os.makedirs(dir, exist_ok=True)
-
-    yield
-
-    print("==============tearDown==============")
-    for dir in remove_directories:
-        shutil.rmtree(dir)
+# @pytest.fixture(scope="function", autouse=True)
+# def setup_test_result_dir_and_teardown():
+#     print("==============setup==============")
+#
+#     for dir in set_up_directories:
+#         os.makedirs(dir, exist_ok=True)
+#
+#     yield
+#
+#     print("==============tearDown==============")
+#     for dir in remove_directories:
+#         shutil.rmtree(dir)
 
 @pytest.fixture
 def fixture_constants():

@@ -1,3 +1,6 @@
+# Copyright (c) 2021 LG Electronics Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from fosslight_util.compare_yaml import compare_yaml
 

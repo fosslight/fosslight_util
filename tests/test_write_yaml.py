@@ -1,3 +1,6 @@
+# Copyright (c) 2021 LG Electronics Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 from fosslight_util.write_yaml import write_yaml
 

@@ -263,6 +263,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
         if ref_to_checkout != "":
             ref_list = [x for x in repo.references]
             ref_to_checkout = get_ref_to_checkout(ref_to_checkout, ref_list)
+            print(ref_to_checkout)
             logger.info(f"git checkout: {ref_to_checkout}")
             repo.checkout(ref_to_checkout)
 

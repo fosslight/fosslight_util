@@ -1,3 +1,6 @@
+# Copyright (c) 2021 LG Electronics Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 
 import pytest
@@ -5,9 +8,9 @@ from fosslight_util.download import cli_download_and_extract
 
 # legacy/test_download
 
-def test_download_from_github():
+def test_download_from_github(fixture_constants):
     #when
-    target_dir = "test_result/download/example"
+    target_dir = os.path.join(fixture_constants["TEST_RESULT_DIR"], "download/example")
     success, msg, _, _ = cli_download_and_extract("https://github.com/LGE-OSS/example",
                                                   target_dir,
                                                   "test_result/download_log/example")
@@ -21,10 +24,12 @@ def test_download_from_github():
                           ("dependency", "https://pypi.org/project/fosslight-dependency/3.0.5/"),
                           ("jackson", "https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind/2.12.2"),
                           ("pub", "https://pub.dev/packages/file/versions/5.2.1")])
-def test_download_from_wget(project_name, project_url):
+def test_download_from_wget(project_name, project_url, fixture_constants):
     #given
-    target_dir = "test_result/download/" + project_name
-    log_dir = "test_result/download_log/" + project_name
+    target_dir = os.path.join(fixture_constants["TEST_RESULT_DIR"],
+                              os.path.join("download", project_name))
+    log_dir = os.path.join(fixture_constants["TEST_RESULT_DIR"],
+                           os.path.join("download_log" + project_name))
 
     #when
     success, msg, _, _ = cli_download_and_extract(project_url, target_dir, log_dir)
