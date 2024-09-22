@@ -2,23 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from . import constants
+
 from fosslight_util.write_txt import write_txt_file
+from . import constants
+
 
 # legacy/test_text
 
+
 def test_text():
-    #given
+    # given
     output_dir = os.path.join(constants.TEST_RESULT_DIR, "txt")
     file_to_create = os.path.join(output_dir, "test.txt")
     text_to_write = "Testing - Writing text in a file."
 
-    #when
+    # when
     success, error_msg = write_txt_file(file_to_create, text_to_write)
-    with open(file_to_create, 'r', encoding='utf-8') as result_file:
+    with open(file_to_create, "r", encoding="utf-8") as result_file:
         result = result_file.read()
 
-    #then
+    # then
     assert success is True
     assert text_to_write in result
-

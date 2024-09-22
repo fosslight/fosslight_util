@@ -2,10 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
 import pytest
-from . import constants
-from fosslight_util.write_excel import write_excel_and_csv
+
 from fosslight_util.output_format import write_output_file
+from fosslight_util.write_excel import write_excel_and_csv
+from . import constants
+
 
 # legacy/test_excel_and_csv
 
@@ -32,10 +35,11 @@ def test_write_excel_and_csv(sheet_list_fixture):
 
 # legacy/test_output_format
 
+
 @pytest.mark.parametrize("result_file_name, file_extension",
-    [("Test_Excel", ".xlsx"),
-     ("Test_Csv", ".csv"),
-     ("FL-TEST_opossum", ".json")])
+                         [("Test_Excel", ".xlsx"),
+                          ("Test_Csv", ".csv"),
+                          ("FL-TEST_opossum", ".json")])
 def test_write_output_file(result_file_name, file_extension):
     #given
     output_dir = (os.path.join(constants.TEST_RESULT_DIR, "write_output_format"))
@@ -92,5 +96,3 @@ def test_write_output_file(result_file_name, file_extension):
     #then
     assert success is True
     assert result_file_name + file_extension in result_file
-
-

@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from . import constants
+
 from fosslight_util.write_yaml import write_yaml
+from . import constants
+
 
 # legacy/test_yaml
 

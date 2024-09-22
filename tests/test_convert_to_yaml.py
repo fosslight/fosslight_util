@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from tests import constants
+
 from fosslight_util.convert_excel_to_yaml import convert_excel_to_yaml
+from tests import constants
+
 
 # legacy/test_convert_to_yaml
 

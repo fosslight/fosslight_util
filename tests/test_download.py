@@ -4,8 +4,10 @@
 import os
 
 import pytest
-from tests import constants
+
 from fosslight_util.download import cli_download_and_extract
+from tests import constants
+
 
 # legacy/test_download
 
@@ -19,6 +21,7 @@ def test_download_from_github():
     #then
     assert success is True
     assert len(os.listdir(target_dir)) > 0
+
 
 @pytest.mark.parametrize("project_name, project_url",
                          [("filelock", "https://pypi.org/project/filelock/3.4.1"),

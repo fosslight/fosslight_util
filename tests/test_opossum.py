@@ -2,19 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from . import constants
+
 from fosslight_util.write_opossum import write_opossum
+from . import constants
+
 
 # legacy/test_opossum
 
+
 def test_opossum(sheet_list_fixture):
-    #given
+    # given
     sheet_contents = sheet_list_fixture[1]
-    output_dir = os.path.join(constants.TEST_RESULT_DIR, 'opossum')
+    output_dir = os.path.join(constants.TEST_RESULT_DIR, "opossum")
 
-    #when
-    success, msg = write_opossum(output_dir + '/FL-TEST_opossum.json', sheet_contents)
+    # when
+    success, msg = write_opossum(output_dir + "/FL-TEST_opossum.json", sheet_contents)
 
-    #then
+    # then
     assert success is True
     assert len(os.listdir(output_dir)) > 0
