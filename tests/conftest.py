@@ -1,36 +1,28 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
-
 import pytest
 import os
 import shutil
+from . import constants
 
-TEST_RESULT_DIR = os.path.join(os.path.dirname(__file__), "test_result")
-TEST_RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "resources")
+set_up_directories = [
+    constants.TEST_RESULT_DIR,
+    os.path.join(constants.TEST_RESULT_DIR, "convert")
+]
+remove_directories = [constants.TEST_RESULT_DIR]
 
-set_up_directories = [TEST_RESULT_DIR, os.path.join(TEST_RESULT_DIR, "convert")]
-remove_directories = [TEST_RESULT_DIR]
+@pytest.fixture(scope="function", autouse=True)
+def setup_test_result_dir_and_teardown():
+    print("==============setup==============")
 
-# @pytest.fixture(scope="function", autouse=True)
-# def setup_test_result_dir_and_teardown():
-#     print("==============setup==============")
-#
-#     for dir in set_up_directories:
-#         os.makedirs(dir, exist_ok=True)
-#
-#     yield
-#
-#     print("==============tearDown==============")
-#     for dir in remove_directories:
-#         shutil.rmtree(dir)
+    for dir in set_up_directories:
+        os.makedirs(dir, exist_ok=True)
 
-@pytest.fixture
-def fixture_constants():
-    constants = {
-        "TEST_RESULT_DIR": TEST_RESULT_DIR,
-        "TEST_RESOURCES_DIR": TEST_RESOURCES_DIR,
-    }
-    return constants
+    yield
+
+    print("==============tearDown==============")
+    for dir in remove_directories:
+        shutil.rmtree(dir)
 
 @pytest.fixture
 def sheet_list_fixture():
