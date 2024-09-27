@@ -1,11 +1,10 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import os
-import shutil
 
 import pytest
 
-from . import constants
+from tests.pytest_refectored import constants
 from fosslight_util.constant import FOSSLIGHT_SOURCE
 from fosslight_util.oss_item import ScannerItem, FileItem, OssItem
 
@@ -26,8 +25,8 @@ def setup_test_result_dir_and_teardown():
     yield
 
     print("==============tearDown==============")
-    for dir in remove_directories:
-        shutil.rmtree(dir)
+    # for dir in remove_directories:
+    #     shutil.rmtree(dir)
 
 
 @pytest.fixture
