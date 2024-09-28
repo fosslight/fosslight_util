@@ -4,7 +4,7 @@
 import os
 
 from fosslight_util.write_opossum import write_opossum
-from . import constants
+from tests import constants
 
 
 def test_opossum(scan_item):

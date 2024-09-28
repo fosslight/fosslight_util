@@ -18,7 +18,7 @@ def test_write_excel_and_csv(output_dir, result_file_name, file_extension, scan_
 
     # when
     success, _, result_file = write_output_file(output_file_without_extension,
-                                                  file_extension, deepcopy(scan_item))
+                                                file_extension, deepcopy(scan_item))
 
     # then
     assert success is True

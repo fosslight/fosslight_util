@@ -4,17 +4,17 @@
 import os
 
 from fosslight_util.write_yaml import write_yaml
-from . import constants
+from tests import constants
 
 
 def test_write_yaml(scan_item):
-    #given
+    # given
     output_dir = os.path.join(constants.TEST_RESULT_DIR, "yaml")
     output_file = os.path.join(output_dir, 'FL-TEST_yaml.yaml')
 
-    #when
+    # when
     success, _, output = write_yaml(output_file, scan_item)
 
-    #then
+    # then
     assert success is True
-    assert output_file not in output
+    assert output_file in output

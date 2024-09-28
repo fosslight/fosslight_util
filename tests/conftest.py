@@ -5,7 +5,7 @@ import shutil
 
 import pytest
 
-from tests.pytest_refectored import constants
+from tests import constants
 from fosslight_util.constant import FOSSLIGHT_SOURCE
 from fosslight_util.oss_item import ScannerItem, FileItem, OssItem
 
