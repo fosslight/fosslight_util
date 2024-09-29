@@ -6,14 +6,33 @@ import pytest
 
 from fosslight_util.download import cli_download_and_extract
 from tests import constants
+from git import Repo
 
 
 def test_download_from_github():
-    # when
+    # given
+    git_url = "https://github.com/LGE-OSS/example"
     target_dir = os.path.join(constants.TEST_RESULT_DIR, "download/example")
-    success, _, _, _ = cli_download_and_extract("https://github.com/LGE-OSS/example",
-                                                target_dir,
-                                                "test_result/download_log/example")
+    log_dir = "test_result/download_log/example"
+
+    # when
+    success, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
+
+    # then
+    assert success is True
+    assert len(os.listdir(target_dir)) > 0
+
+
+@pytest.mark.parametrize("git_url",
+                         ["git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;branch=ci-test",
+                          "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;tag=v32"])
+def test_download_from_github_with_branch_or_tag(git_url):
+    # given
+    target_dir = os.path.join(constants.TEST_RESULT_DIR, "download/example")
+    log_dir = "test_result/download_log/example"
+
+    # when
+    success, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
 
     # then
     assert success is True
