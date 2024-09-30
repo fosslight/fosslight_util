@@ -4,9 +4,8 @@
 import os
 import pytest
 
-from fosslight_util.download import cli_download_and_extract
+from fosslight_util.download import cli_download_and_extract, download_git_clone
 from tests import constants
-from git import Repo
 
 
 def test_download_from_github():
@@ -57,3 +56,35 @@ def test_download_from_wget(project_name, project_url):
     # then
     assert success is True
     assert len(os.listdir(target_dir)) > 0
+
+
+def test_download_git_clone_with_branch():
+    # given
+    git_url = "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
+    target_dir = os.path.join(constants.TEST_RESULT_DIR, "download/example")
+    branch_name = "ci-test"
+
+    # when
+    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, branch=branch_name)
+
+    # then
+    assert success is True
+    assert len(os.listdir(target_dir)) > 0
+    assert oss_name == ''
+    assert oss_version == branch_name
+
+
+def test_download_git_clone_with_tag():
+    # given
+    git_url = "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
+    target_dir = os.path.join(constants.TEST_RESULT_DIR, "download/example")
+    tag_name = "v32"
+
+    # when
+    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, tag=tag_name)
+
+    # then
+    assert success is True
+    assert len(os.listdir(target_dir)) > 0
+    assert oss_name == ''
+    assert oss_version == tag_name
