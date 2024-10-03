@@ -17,9 +17,11 @@ def main():
     scan_item.set_cover_comment('This is a test comment')
 
     file_item = FileItem('test_result/excel_and_csv')
+
     oss_item = OssItem("test_name", "1.0.0", "Apache-2.0", "https://abc.com")
     oss_item.comment = "test_name comment"
     file_item.oss_items.append(oss_item)
+
     oss_item2 = OssItem("test_name", "2.0.0", "MIT", "https://abc2.com")
     file_item.oss_items.append(oss_item2)
     file_item.comment = "all test comment"

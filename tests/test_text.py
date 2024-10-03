@@ -1,20 +1,21 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
+
 import os
-from fosslight_util.set_log import init_log
 from fosslight_util.write_txt import write_txt_file
 
 
-def main():
+def test_text():
+    # given
     output_dir = "test_result/txt"
-    logger, _result_log = init_log(os.path.join(output_dir, "log.txt"))
-    logger.warning("TESTING - writing text file")
-    success, error_msg = write_txt_file(
-        os.path.join(output_dir, "test.txt"), "Testing - Writing text in a file.")
-    logger.warning("Result:" + str(success) + ", error_msg:"+error_msg)
+    file_to_create = os.path.join(output_dir, "test.txt")
+    text_to_write = "Testing - Writing text in a file."
 
+    # when
+    success, _ = write_txt_file(file_to_create, text_to_write)
+    with open(file_to_create, 'r', encoding='utf-8') as result_file:
+        result = result_file.read()
 
-if __name__ == '__main__':
-    main()
+    # then
+    assert success is True
+    assert text_to_write in result
