@@ -57,7 +57,7 @@ def check_output_format(output='', format='', customized_format={}):
     return success, msg, output_path, output_file, output_extension
 
 
-def check_output_formats(output='', formats=[], customized_format={}):
+def check_output_formats(output='', formats=[], customized_format={}, simple_mode=False):
     success = True
     msg = ''
     output_path = ''
@@ -101,7 +101,10 @@ def check_output_formats(output='', formats=[], customized_format={}):
             else:
                 output_path = output
     if not output_extensions:
-        output_extensions = ['.xlsx']
+        if simple_mode:
+            output_extensions = ['.txt']
+        else:
+            output_extensions = ['.xlsx']
 
     return success, msg, output_path, output_files, output_extensions
 
