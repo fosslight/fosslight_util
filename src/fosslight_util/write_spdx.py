@@ -8,20 +8,27 @@ import uuid
 import logging
 import re
 from pathlib import Path
-from spdx.creationinfo import Tool
-from spdx.document import Document
-from spdx.package import Package
-from spdx.relationship import Relationship
-from spdx.license import License, LicenseConjunction
-from spdx.utils import SPDXNone
-from spdx.utils import NoAssert
-from spdx.version import Version
-from spdx.writers import json
-from spdx.writers import yaml
-from spdx.writers import xml
-from spdx.writers import tagvalue
+from spdx_tools.common.spdx_licensing import spdx_licensing
+from spdx_tools.spdx.model import (
+    Actor,
+    ActorType,
+    Checksum,
+    ChecksumAlgorithm,
+    CreationInfo,
+    Document,
+    File,
+    Package,
+    Relationship,
+    RelationshipType,
+    SpdxNoAssertion,
+    SpdxNone
+)
+from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
+from spdx_tools.spdx.writer.write_anything import write_file
+from datetime import datetime
 from fosslight_util.spdx_licenses import get_spdx_licenses_json, get_license_from_nick
-from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_DEPENDENCY
+from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
+                                     FOSSLIGHT_BINARY, FOSSLIGHT_SOURCE)
 import traceback
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -37,20 +44,29 @@ def get_license_list_version():
     return version
 
 
-def write_spdx(output_file_without_ext, output_extension, scan_item,
-               scanner_name, scanner_version, spdx_version=(2, 3)):
+def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_version='2.3'):
     success = True
     error_msg = ''
-    if scan_item:
-        doc = Document(version=Version(*spdx_version),
-                       data_license=License.from_identifier('CC0-1.0'),
-                       namespace=f'http://spdx.org/spdxdocs/{scanner_name.lower()}-{uuid.uuid4()}',
-                       name=f'SPDX Document by {scanner_name.upper()}',
-                       spdx_id='SPDXRef-DOCUMENT')
 
-        doc.creation_info.set_created_now()
-        doc.creation_info.add_creator(Tool(f'{scanner_name.upper()} {scanner_version}'))
-        doc.creation_info.license_list_version = Version(*tuple(get_license_list_version().split('.')))
+    if scan_item:
+        try:
+            cover_name = scan_item.cover.get_print_json()["Tool information"].split('(').pop(0).strip()
+            match = re.search(r"(.+) v([0-9.]+)", cover_name)
+            if match:
+                scanner_name = match.group(1)
+            else:
+                scanner_name = FOSSLIGHT_SCANNER
+        except Exception:
+            cover_name = FOSSLIGHT_SCANNER
+            scanner_name = FOSSLIGHT_SCANNER
+        creation_info = CreationInfo(spdx_version=f'SPDX-{spdx_version}',
+                                     spdx_id='SPDXRef-DOCUMENT',
+                                     name=f'SPDX Document by {scanner_name.upper()}',
+                                     data_license='CC0-1.0',
+                                     document_namespace=f'http://spdx.org/spdxdocs/{scanner_name.lower()}-{uuid.uuid4()}',
+                                     creators=[Actor(name=cover_name, actor_type=ActorType.TOOL)],
+                                     created=datetime.now())
+        doc = Document(creation_info=creation_info)
 
         relation_tree = {}
         spdx_id_packages = []
@@ -58,67 +74,94 @@ def write_spdx(output_file_without_ext, output_extension, scan_item,
         output_dir = os.path.dirname(output_file_without_ext)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         try:
+            file_id = 0
             package_id = 0
             root_package = False
-            for scanner_name, _ in scan_item.file_items.items():
-                json_contents = scan_item.get_print_json(scanner_name)
-                for oss_item in json_contents:
-                    package_id += 1
-                    package = Package(spdx_id=f'SPDXRef-{package_id}')
+            for scanner_name, file_items in scan_item.file_items.items():
+                for file_item in file_items:
+                    file = ''  # file의 license, copyright은 oss item에서 append
+                    if scanner_name in [FOSSLIGHT_BINARY, FOSSLIGHT_SOURCE]:
+                        file_id += 1
+                        file = File(name=file_item.source_name_or_path,
+                                    spdx_id=f'SPDXRef-File{file_id}',
+                                    checksums=[Checksum(ChecksumAlgorithm.SHA1, file_item.checksum)])
+                    file_license = []
+                    file_copyright = []
+                    for oss_item in file_item.oss_items:
+                        oss_licenses = []
+                        declared_oss_licenses = []
+                        lic_comment = []
+                        for oi in oss_item.license:
+                            oi = check_input_license_format(oi)
+                            try:
+                                oi_spdx = spdx_licensing.parse(oi, validate=True)
+                                oss_licenses.append(oi_spdx)
+                                declared_oss_licenses.append(oi)
+                            except Exception:
+                                logger.debug(f'No spdx license name: {oi}')
+                                lic_comment.append(oi)
+                        if oss_licenses:
+                            file_license.extend(oss_licenses)
+                        if oss_item.copyright != '':
+                            file_copyright.append(oss_item.copyright)
 
-                    if oss_item.get('name', '') != '':
-                        package.name = oss_item.get('name', '')  # required
-                    else:
-                        package.name = SPDXNone()
+                        if oss_item.download_location == '':
+                            if scanner_name == FOSSLIGHT_DEPENDENCY:
+                                download_location = SpdxNone()
+                            else:
+                                continue
+                        else:
+                            download_location = oss_item.download_location
+                        if scanner_name != FOSSLIGHT_DEPENDENCY and oss_item.name == '':
+                            continue
+                        package_id += 1
+                        package = Package(name=oss_item.name,
+                                          spdx_id=f'SPDXRef-Package{package_id}',
+                                          download_location=download_location)
 
-                    if oss_item.get('version', '') != '':
-                        package.version = oss_item.get('version', '')  # no required
+                        if oss_item.version != '':
+                            package.version = oss_item.version
 
-                    if oss_item.get('download location', '') != '':
-                        package.download_location = oss_item.get('download location', '')  # required
-                    else:
-                        package.download_location = SPDXNone()
+                        if scanner_name == FOSSLIGHT_DEPENDENCY:
+                            package.files_analyzed = False  # If omitted, the default value of true is assumed.
+                        else:
+                            package.files_analyzed = True
+                        if oss_item.copyright != '':
+                            package.cr_text = oss_item.copyright
+                        if oss_item.homepage != '':
+                            package.homepage = oss_item.homepage
 
-                    if scanner_name == FOSSLIGHT_DEPENDENCY:
-                        package.files_analyzed = False  # If omitted, the default value of true is assumed.
-                    else:
-                        package.files_analyzed = True
+                        if declared_oss_licenses:
+                            package.license_declared = spdx_licensing.parse(' AND '.join(declared_oss_licenses))
+                        if lic_comment:
+                            package.license_comment = ' '.join(lic_comment)
 
-                    if oss_item.get('homepage', '') != '':
-                        package.homepage = oss_item.get('homepage', '')  # no required
+                        doc.packages.append(package)
 
-                    if oss_item.get('copyright text', '') != '':
-                        package.cr_text = oss_item.get('copyright text', '')  # required
-                    else:
-                        package.cr_text = SPDXNone()
-                    if oss_item.get('license', []) != '':
-                        lic_list = [check_input_license_format(lic.strip()) for lic in oss_item.get('license', [])]
-                        first_lic = License.from_identifier(lic_list.pop(0))
-                        while lic_list:
-                            next_lic = License.from_identifier(lic_list.pop(0))
-                            license_conjunction = LicenseConjunction(first_lic, next_lic)
-                            first_lic = license_conjunction
-                        package.license_declared = first_lic
-                    else:
-                        package.license_declared = NoAssert()  # required
+                        if scanner_name == FOSSLIGHT_DEPENDENCY:
+                            purl = file_item.purl
+                            spdx_id_packages.append([purl, package.spdx_id])
+                            relation_tree[purl] = {}
+                            relation_tree[purl]['id'] = package.spdx_id
+                            relation_tree[purl]['dep'] = []
+                            if 'root package' in oss_item.comment:
+                                root_package = True
+                                relationship = Relationship(doc.creation_info.spdx_id,
+                                                            RelationshipType.DESCRIBES,
+                                                            package.spdx_id)
+                                doc.relationships.append(relationship)
+                            relation_tree[purl]['dep'].extend(file_item.depends_on)
 
-                    doc.add_package(package)
+                    if scanner_name in [FOSSLIGHT_BINARY, FOSSLIGHT_SOURCE]:
+                        if file_license:
+                            file.license_info_in_file = file_license
+                        if file_copyright:
+                            file.copyright_text = '\n'.join(file_copyright)
+                        if lic_comment:
+                            file.license_comment = ' '.join(lic_comment)
+                        doc.files.append(file)
 
-                    if scanner_name == FOSSLIGHT_DEPENDENCY:
-                        purl = oss_item.get('package url', '')
-                        spdx_id_packages.append([purl, package.spdx_id])
-                        comment = oss_item.get('comment', '')
-                        relation_tree[purl] = {}
-                        relation_tree[purl]['id'] = package.spdx_id
-                        relation_tree[purl]['dep'] = []
-
-                        if 'root package' in comment.split(','):
-                            root_package = True
-                            relationship = Relationship(f"{doc.spdx_id} DESCRIBES {package.spdx_id}")
-                            doc.add_relationship(relationship)
-                        deps = oss_item.get('depends on', '')
-                        relation_tree[purl]['dep'].extend([di.strip().split('(')[0] for di in deps])
-            if scanner_name == FOSSLIGHT_DEPENDENCY and len(relation_tree) > 0:
+            if len(doc.packages) > 0:
                 for pkg in relation_tree:
                     if len(relation_tree[pkg]['dep']) > 0:
                         pkg_spdx_id = relation_tree[pkg]['id']
@@ -128,18 +171,18 @@ def write_spdx(output_file_without_ext, output_extension, scan_item,
                                 if ans is None:
                                     continue
                                 rel_pkg_spdx_id = ans[1]
-                                relationship = Relationship(f'{pkg_spdx_id} DEPENDS_ON {rel_pkg_spdx_id}')
-                                doc.add_relationship(relationship)
-                if not root_package:
-                    root_package = Package(spdx_id='SPDXRef-ROOT-PACKAGE')
-                    root_package.name = 'root package'
-                    root_package.download_location = NoAssert()
-                    root_package.files_analyzed = False
-                    root_package.cr_text = SPDXNone()
-                    root_package.license_declared = NoAssert()
-                    doc.add_package(root_package)
-                    relationship = Relationship(f"{doc.spdx_id} DESCRIBES {root_package.spdx_id}")
-                    doc.add_relationship(relationship)
+                                relationship = Relationship(pkg_spdx_id, RelationshipType.DEPENDS_ON, rel_pkg_spdx_id)
+                                doc.relationships.append(relationship)
+            if not root_package:
+                root_package = Package(name='root package',
+                                       spdx_id='SPDXRef-ROOT-PACKAGE',
+                                       download_location=SpdxNoAssertion())
+                root_package.files_analyzed = False
+                root_package.license_declared = SpdxNoAssertion()
+                doc.packages.append(root_package)
+                relationship = Relationship(doc.creation_info.spdx_id, RelationshipType.DESCRIBES, root_package.spdx_id)
+                doc.relationships.append(relationship)
+
         except Exception as e:
             success = False
             error_msg = f'Failed to create spdx document object:{e}, {traceback.format_exc()}'
@@ -147,24 +190,18 @@ def write_spdx(output_file_without_ext, output_extension, scan_item,
         success = False
         error_msg = 'No item to write in output file.'
 
+    validation_messages = validate_full_spdx_document(doc)
+    for message in validation_messages:
+        logger.warning(message.validation_message)
+        logger.warning(message.context)
+
+    # assert validation_messages == []
+
     result_file = ''
     if success:
         result_file = output_file_without_ext + output_extension
         try:
-            out_mode = "w"
-            if result_file.endswith(".tag"):
-                writer_module = tagvalue
-            elif result_file.endswith(".json"):
-                writer_module = json
-            elif result_file.endswith(".xml"):
-                writer_module = xml
-            elif result_file.endswith(".yaml"):
-                writer_module = yaml
-            else:
-                raise Exception("FileType Not Supported")
-
-            with open(result_file, out_mode) as out:
-                writer_module.write_document(doc, out, True)
+            write_file(doc, result_file)
         except Exception as e:
             success = False
             error_msg = f'Failed to write spdx document: {e}'

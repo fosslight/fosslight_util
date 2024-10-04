@@ -5,3 +5,4 @@ pytest-flake8
 flake8==3.9.2
 tox-wheel
 fosslight-source
+spdx-tools==0.8.2
