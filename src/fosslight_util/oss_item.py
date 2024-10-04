@@ -10,6 +10,7 @@ from fosslight_util.cover import CoverItem
 from typing import List, Dict
 
 _logger = logging.getLogger(LOGGER_NAME)
+CHECKSUM_NULL = "0"
 
 
 class OssItem:
@@ -98,6 +99,7 @@ class FileItem:
         self._comment = ""
         self.is_binary = False
         self.oss_items: List[OssItem] = []
+        self.checksum = CHECKSUM_NULL
 
     def __del__(self):
         pass
