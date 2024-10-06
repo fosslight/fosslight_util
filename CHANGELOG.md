@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.0.1 (04/10/2024)
+## Changes
+## 🚀 Features
+
+- Update spdx function @dd-jy (#192)
+
+## 🐛 Hotfixes
+
+- Fix the tox bug @dd-jy (#188)
+
+## 🔧 Maintenance
+
+- Refactor existing tox test to pytest @MoonJeWoong (#189)
+- Fix tox version & delete tox-wheel @bjk7119 (#186)
+
+---
+
 ## v2.0.0 (06/09/2024)
 ## Changes
 ## 🐛 Hotfixes
@@ -292,13 +309,3 @@
 ## 🚀 Features
 
 - Add to generate spdx format result @dd-jy (#113)
-
----
-
-## v1.4.20 (05/04/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Update deploy gh action version @dd-jy (#112)
-- Fix the xlsxwriter save issue @dd-jy (#111)
-- Fix the bug that can't print excel @soimkim (#110)
