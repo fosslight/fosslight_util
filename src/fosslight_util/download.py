@@ -10,7 +10,7 @@ import zipfile
 import logging
 import argparse
 import shutil
-import pygit2 as git
+from git import Repo, GitCommandError
 import bz2
 import contextlib
 from datetime import datetime
@@ -230,14 +230,10 @@ def get_github_token(git_url):
 
 
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
-    ref_to_checkout = decide_checkout(checkout_to, tag, branch)
-    msg = ""
     oss_name = get_github_ossname(git_url)
-    oss_version = ""
-    github_token = get_github_token(git_url)
-    callbacks = None
-    if github_token != "":
-        callbacks = git.RemoteCallbacks(credentials=git.UserPass("foo", github_token))  # username is not used, so set to dummy
+    refs_to_checkout = decide_checkout(checkout_to, tag, branch)
+    clone_default_branch_flag = False
+    msg = ""
 
     try:
         if platform.system() != "Windows":
@@ -248,9 +244,26 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
             alarm.start()
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
-        repo = git.clone_repository(git_url, target_dir,
-                                    bare=False, repository=None,
-                                    remote=None, callbacks=callbacks)
+        if refs_to_checkout != "":
+            try:
+                # gitPython uses the branch argument the same whether you check out to a branch or a tag.
+                repo = Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
+            except GitCommandError as error:
+                error_msg = error.args[2].decode("utf-8")
+                if "Remote branch " + refs_to_checkout + " not found in upstream origin" in error_msg:
+                    # clone default branch, when non-existent branch or tag entered
+                    repo = Repo.clone_from(git_url, target_dir)
+                    clone_default_branch_flag = True
+        else:
+            repo = Repo.clone_from(git_url, target_dir)
+            clone_default_branch_flag = True
+
+        if refs_to_checkout != tag or clone_default_branch_flag:
+            oss_version = repo.active_branch.name
+        else:
+            oss_version = repo.git.describe('--tags')
+        logger.info(f"git checkout: {oss_version}")
+
         if platform.system() != "Windows":
             signal.alarm(0)
         else:
@@ -258,20 +271,8 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     except Exception as error:
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
-        return False, msg, oss_name, oss_version
-    try:
-        if ref_to_checkout != "":
-            ref_list = [x for x in repo.references]
-            ref_to_checkout = get_ref_to_checkout(ref_to_checkout, ref_list)
-            logger.info(f"git checkout: {ref_to_checkout}")
-            repo.checkout(ref_to_checkout)
+        return False, msg, oss_name, refs_to_checkout
 
-            for prefix_ref in prefix_refs:
-                if ref_to_checkout.startswith(prefix_ref):
-                    oss_version = ref_to_checkout[len(prefix_ref):]
-
-    except Exception as error:
-        logger.warning(f"git checkout to {ref_to_checkout} - failed: {error}")
     return True, msg, oss_name, oss_version
 
 
