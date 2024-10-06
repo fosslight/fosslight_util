@@ -10,7 +10,7 @@ import zipfile
 import logging
 import argparse
 import shutil
-from git import Repo
+from git import Repo, GitCommandError
 import bz2
 import contextlib
 from datetime import datetime
@@ -232,6 +232,7 @@ def get_github_token(git_url):
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
     oss_name = get_github_ossname(git_url)
     refs_to_checkout = decide_checkout(checkout_to, tag, branch)
+    clone_default_branch_flag = False
     msg = ""
 
     try:
@@ -244,16 +245,24 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
         if refs_to_checkout != "":
-            # gitPython uses the branch argument the same whether you check out to a branch or a tag.
-            repo = Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
-            logger.info(f"git checkout: {refs_to_checkout}")
+            try:
+                # gitPython uses the branch argument the same whether you check out to a branch or a tag.
+                repo = Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
+            except GitCommandError as error:
+                error_msg = error.args[2].decode("utf-8")
+                if "Remote branch " + refs_to_checkout + " not found in upstream origin" in error_msg:
+                    # clone default branch, when non-existent branch or tag entered
+                    repo = Repo.clone_from(git_url, target_dir)
+                    clone_default_branch_flag = True
         else:
             repo = Repo.clone_from(git_url, target_dir)
+            clone_default_branch_flag = True
 
-        if refs_to_checkout != tag:
+        if refs_to_checkout != tag or clone_default_branch_flag:
             oss_version = repo.active_branch.name
         else:
             oss_version = repo.git.describe('--tags')
+        logger.info(f"git checkout: {oss_version}")
 
         if platform.system() != "Windows":
             signal.alarm(0)
