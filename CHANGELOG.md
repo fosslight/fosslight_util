@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.0.2 (07/10/2024)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the spdx windows issue @dd-jy (#193)
+
+## 🔧 Maintenance
+
+- Improving download performance when cloning based on specific branches or tags @MoonJeWoong (#190)
+
+---
+
 ## v2.0.1 (04/10/2024)
 ## Changes
 ## 🚀 Features
@@ -301,11 +313,3 @@
 ## 🐛 Hotfixes
 
 - Fix the spdx-tools conflict issue @dd-jy (#115)
-
----
-
-## v1.4.21 (04/05/2023)
-## Changes
-## 🚀 Features
-
-- Add to generate spdx format result @dd-jy (#113)
