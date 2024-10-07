@@ -8,23 +8,6 @@ import uuid
 import logging
 import re
 from pathlib import Path
-from spdx_tools.common.spdx_licensing import spdx_licensing
-from spdx_tools.spdx.model import (
-    Actor,
-    ActorType,
-    Checksum,
-    ChecksumAlgorithm,
-    CreationInfo,
-    Document,
-    File,
-    Package,
-    Relationship,
-    RelationshipType,
-    SpdxNoAssertion,
-    SpdxNone
-)
-from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
-from spdx_tools.spdx.writer.write_anything import write_file
 from datetime import datetime
 from fosslight_util.spdx_licenses import get_spdx_licenses_json, get_license_from_nick
 from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
@@ -32,6 +15,27 @@ from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGH
 import traceback
 
 logger = logging.getLogger(LOGGER_NAME)
+
+try:
+    from spdx_tools.common.spdx_licensing import spdx_licensing
+    from spdx_tools.spdx.model import (
+        Actor,
+        ActorType,
+        Checksum,
+        ChecksumAlgorithm,
+        CreationInfo,
+        Document,
+        File,
+        Package,
+        Relationship,
+        RelationshipType,
+        SpdxNoAssertion,
+        SpdxNone
+    )
+    from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
+    from spdx_tools.spdx.writer.write_anything import write_file
+except Exception:
+    logger.info('No import spdx-tools')
 
 
 def get_license_list_version():
@@ -87,6 +91,7 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
                                     checksums=[Checksum(ChecksumAlgorithm.SHA1, file_item.checksum)])
                     file_license = []
                     file_copyright = []
+                    file_comment = []
                     for oss_item in file_item.oss_items:
                         oss_licenses = []
                         declared_oss_licenses = []
@@ -100,6 +105,7 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
                             except Exception:
                                 logger.debug(f'No spdx license name: {oi}')
                                 lic_comment.append(oi)
+                                file_comment.append(oi)
                         if oss_licenses:
                             file_license.extend(oss_licenses)
                         if oss_item.copyright != '':
@@ -157,8 +163,8 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
                             file.license_info_in_file = file_license
                         if file_copyright:
                             file.copyright_text = '\n'.join(file_copyright)
-                        if lic_comment:
-                            file.license_comment = ' '.join(lic_comment)
+                        if file_comment:
+                            file.license_comment = ' '.join(file_comment)
                         doc.files.append(file)
 
             if len(doc.packages) > 0:
