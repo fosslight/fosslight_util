@@ -5,6 +5,7 @@
 
 import logging
 import os
+import hashlib
 from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_SCANNER
 from fosslight_util.cover import CoverItem
 from typing import List, Dict
@@ -169,6 +170,22 @@ class FileItem:
                 json_item["comment"] = oss.comment
             items.append(json_item)
         return items
+
+
+def get_checksum_sha1(source_name_or_path) -> str:
+    checksum = CHECKSUM_NULL
+    try:
+        checksum = str(hashlib.sha1(source_name_or_path.encode()).hexdigest())
+    except Exception:
+        try:
+            f = open(source_name_or_path, "rb")
+            byte = f.read()
+            checksum = str(hashlib.sha1(byte).hexdigest())
+            f.close()
+        except Exception as ex:
+            _logger.info(f"(Error) Get_checksum: {ex}")
+
+    return checksum
 
 
 def invalid(cmd):
