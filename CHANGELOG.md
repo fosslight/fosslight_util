@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.1.0 (08/10/2024)
+## Changes
+## 🚀 Features
+
+- Update spdx function @dd-jy (#192)
+
+## 🐛 Hotfixes
+
+- Fix the spdx bug @dd-jy (#193, #194)
+- Fix the tox bug @dd-jy (#188)
+
+## 🔧 Maintenance
+
+- Improving download performance when cloning based on specific branches or tags @MoonJeWoong (#190)
+- Refactor existing tox test to pytest @MoonJeWoong (#189)
+- Fix tox version & delete tox-wheel @bjk7119 (#186)
+---
+
 ## v2.0.2 (07/10/2024)
 ## Changes
 ## 🐛 Hotfixes
@@ -305,11 +323,3 @@
 ## 🐛 Hotfixes
 
 - Fix the windows path for license resource @dd-jy (#114)
-
----
-
-## v1.4.22 (09/05/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the spdx-tools conflict issue @dd-jy (#115)
