@@ -12,6 +12,7 @@ from datetime import datetime
 from fosslight_util.spdx_licenses import get_spdx_licenses_json, get_license_from_nick
 from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
                                      FOSSLIGHT_BINARY, FOSSLIGHT_SOURCE)
+from fosslight_util.oss_item import CHECKSUM_NULL, get_checksum_sha1
 import traceback
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -85,6 +86,14 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
                 for file_item in file_items:
                     file = ''  # file의 license, copyright은 oss item에서 append
                     if scanner_name in [FOSSLIGHT_BINARY, FOSSLIGHT_SOURCE]:
+                        if file_item.exclude:
+                            continue
+                        if file_item.checksum == CHECKSUM_NULL:
+                            if os.path.exists(file_item.source_name_or_path):
+                                file_item.checksum = get_checksum_sha1(file_item.source_name_or_path)
+                            if file_item.checksum == CHECKSUM_NULL:
+                                logger.info(f'Failed to get checksum, Skip: {file_item.source_name_or_path}')
+                                continue
                         file_id += 1
                         file = File(name=file_item.source_name_or_path,
                                     spdx_id=f'SPDXRef-File{file_id}',
