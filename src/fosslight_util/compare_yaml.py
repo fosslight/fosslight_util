@@ -4,7 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+from typing import List, Dict
 from fosslight_util.constant import LOGGER_NAME
+from fosslight_util.oss_item import FileItem
 
 logger = logging.getLogger(LOGGER_NAME)
 VERSION = 'version'
@@ -12,7 +14,7 @@ LICENSE = 'license'
 NAME = 'name'
 
 
-def compare_yaml(before_fileitems, after_fileitems):
+def compare_yaml(before_fileitems: List[FileItem], after_fileitems: List[FileItem]) -> Dict[str, List]:
     bf_raw = []
     af_raw = []
     for bf in before_fileitems:
