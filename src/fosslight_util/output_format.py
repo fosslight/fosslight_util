@@ -31,7 +31,7 @@ def check_output_format(output='', format='', customized_format={}):
         format = format.lower()
         if format not in list(support_format.keys()):
             success = False
-            msg = 'Enter the supported format with -f option: ' + ', '.join(list(support_format.keys()))
+            msg = '(-f option) Enter the supported format: ' + ', '.join(list(support_format.keys()))
         else:
             output_extension = support_format[format]
 
@@ -47,11 +47,11 @@ def check_output_format(output='', format='', customized_format={}):
                 if format:
                     if output_extension != basename_extension:
                         success = False
-                        msg = f"Enter the same extension of output file(-o:'{output}') with format(-f:'{format}')."
+                        msg = f"(-o & -f option) Enter the same extension of output file(-o:'{output}') with format(-f:'{format}')."
                 else:
                     if basename_extension not in support_format.values():
                         success = False
-                        msg = 'Enter the supported file extension: ' + ', '.join(list(support_format.values()))
+                        msg = '(-o option) Enter the supported file extension: ' + ', '.join(list(support_format.values()))
                 if success:
                     output_file = basename_file
                     output_extension = basename_extension
@@ -79,7 +79,7 @@ def check_output_formats(output='', formats=[], customized_format={}):
         for format in formats:
             if format not in list(support_format.keys()):
                 success = False
-                msg = 'Enter the supported format with -f option: ' + ', '.join(list(support_format.keys()))
+                msg = '(-f option) Enter the supported format: ' + ', '.join(list(support_format.keys()))
             else:
                 output_extensions.append(support_format[format])
 
@@ -95,11 +95,11 @@ def check_output_formats(output='', formats=[], customized_format={}):
                 if formats:
                     if basename_extension not in output_extensions:
                         success = False
-                        msg = f"The format of output file(-o:'{output}') should be in the format list(-f:'{formats}')."
+                        msg = f"(-o & -f option) The format of output file(-o:'{output}') should be in the format list(-f:'{formats}')."
                 else:
                     if basename_extension not in support_format.values():
                         success = False
-                        msg = 'Enter the supported file extension: ' + ', '.join(list(support_format.values()))
+                        msg = '(-o option) Enter the supported file extension: ' + ', '.join(list(support_format.values()))
                     output_extensions.append(basename_extension)
                 output_files = [basename_file for _ in range(len(output_extensions))]
             else:
@@ -128,7 +128,7 @@ def check_output_formats_v2(output='', formats=[], customized_format={}):
         for format in formats:
             if format not in list(support_format.keys()):
                 success = False
-                msg = 'Enter the supported format with -f option: ' + ', '.join(list(support_format.keys()))
+                msg = '(-f option) Enter the supported format with -f option: ' + ', '.join(list(support_format.keys()))
             else:
                 output_extensions.append(support_format[format])
 
@@ -144,11 +144,11 @@ def check_output_formats_v2(output='', formats=[], customized_format={}):
                 if formats:
                     if basename_extension not in output_extensions:
                         success = False
-                        msg = f"The format of output file(-o:'{output}') should be in the format list(-f:'{formats}')."
+                        msg = f"(-o & -f option) The format of output file(-o:'{output}') should be in the format list(-f:'{formats}')."
                 else:
                     if basename_extension not in support_format.values():
                         success = False
-                        msg = 'Enter the supported file extension: ' + ', '.join(list(support_format.values()))
+                        msg = '(-o option) Enter the supported file extension: ' + ', '.join(list(support_format.values()))
                     output_extensions.append(basename_extension)
                 output_files = [basename_file for _ in range(len(output_extensions))]
             else:
@@ -199,6 +199,6 @@ def write_output_file(output_file_without_ext: str, file_extension: str, scan_it
             success, msg, result_file = write_yaml(result_file, scan_item, False)
         else:
             success = False
-            msg = f'Not supported file extension({file_extension})'
+            msg = f'(-f option) Not supported file extension({file_extension})'
 
     return success, msg, result_file
