@@ -183,11 +183,11 @@ def write_output_file(output_file_without_ext: str, file_extension: str, scan_it
         elif format == 'yaml':
             success, msg, _ = write_yaml(result_file, scan_item, False)
         elif format.startswith('spdx'):
-            if platform.system() != 'Windows':
-                success, msg, _ = write_spdx(output_file_without_ext, file_extension, scan_item, spdx_version)
-            else:
+            if platform.system() == 'Windows' or platform.system() == 'Darwin':
                 success = False
-                msg = 'Windows not support spdx format.'
+                msg = f'{platform.system()} not support spdx format.'
+            else:
+                success, msg, _ = write_spdx(output_file_without_ext, file_extension, scan_item, spdx_version)
     else:
         if file_extension == '.xlsx':
             success, msg = write_result_to_excel(result_file, scan_item, extended_header, hide_header)
