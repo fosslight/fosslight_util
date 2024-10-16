@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.1.1 (16/10/2024)
+## Changes
+## 🔧 Maintenance
+
+- Remove spdx for macos @dd-jy (#197)
+- Update compare yaml test case @dd-jy (#196)
+- Remove unnecessary req-dev.txt @dd-jy (#195)
+
+---
+
 ## v2.1.0 (08/10/2024)
 ## Changes
 ## 🚀 Features
@@ -16,35 +26,6 @@
 - Improving download performance when cloning based on specific branches or tags @MoonJeWoong (#190)
 - Refactor existing tox test to pytest @MoonJeWoong (#189)
 - Fix tox version & delete tox-wheel @bjk7119 (#186)
----
-
-## v2.0.2 (07/10/2024)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the spdx windows issue @dd-jy (#193)
-
-## 🔧 Maintenance
-
-- Improving download performance when cloning based on specific branches or tags @MoonJeWoong (#190)
-
----
-
-## v2.0.1 (04/10/2024)
-## Changes
-## 🚀 Features
-
-- Update spdx function @dd-jy (#192)
-
-## 🐛 Hotfixes
-
-- Fix the tox bug @dd-jy (#188)
-
-## 🔧 Maintenance
-
-- Refactor existing tox test to pytest @MoonJeWoong (#189)
-- Fix tox version & delete tox-wheel @bjk7119 (#186)
-
 ---
 
 ## v2.0.0 (06/09/2024)
@@ -323,3 +304,11 @@
 ## 🐛 Hotfixes
 
 - Fix the windows path for license resource @dd-jy (#114)
+
+---
+
+## v1.4.22 (09/05/2023)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the spdx-tools conflict issue @dd-jy (#115)
