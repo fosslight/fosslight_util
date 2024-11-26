@@ -65,7 +65,7 @@ def test_download_git_clone_with_branch():
     branch_name = "ci-test"
 
     # when
-    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, branch=branch_name)
+    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", branch_name)
 
     # then
     assert success is True
@@ -81,7 +81,7 @@ def test_download_git_clone_with_tag():
     tag_name = "v32"
 
     # when
-    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, tag=tag_name)
+    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", tag_name)
 
     # then
     assert success is True
@@ -114,7 +114,7 @@ def test_download_main_branch_when_non_existent_branch_entered():
     expected_oss_name = "main"
 
     # when
-    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, branch=branch_name)
+    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", "", branch_name)
 
     # then
     assert success is True
@@ -131,7 +131,7 @@ def test_download_main_branch_when_non_existent_tag_entered():
     expected_oss_name = "main"
 
     # when
-    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, tag=tag_name)
+    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", tag_name)
 
     # then
     assert success is True
