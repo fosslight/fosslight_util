@@ -92,37 +92,6 @@ def parse_src_link(src_link):
     return src_info
 
 
-def main():
-    parser = argparse.ArgumentParser(description='FOSSLight Downloader', prog='fosslight_download', add_help=False)
-    parser.add_argument('-h', '--help', help='Print help message', action='store_true', dest='help')
-    parser.add_argument('-s', '--source', help='Source link to download', type=str, dest='source')
-    parser.add_argument('-t', '--target_dir', help='Target directory', type=str, dest='target_dir', default="")
-    parser.add_argument('-d', '--log_dir', help='Directory to save log file', type=str, dest='log_dir', default="")
-
-    src_link = ""
-    target_dir = os.getcwd()
-    log_dir = os.getcwd()
-
-    try:
-        args = parser.parse_args()
-    except SystemExit:
-        sys.exit(0)
-
-    if args.help:
-        print_help_msg_download()
-    if args.source:
-        src_link = args.source
-    if args.target_dir:
-        target_dir = args.target_dir
-    if args.log_dir:
-        log_dir = args.log_dir
-
-    if not src_link:
-        print_help_msg_download()
-    else:
-        cli_download_and_extract(src_link, target_dir, log_dir)
-
-
 def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
                              compressed_only: bool = False, ssh_key: str = "") -> Tuple[bool, str, str, str]:
     global logger
@@ -464,6 +433,37 @@ def gem_download(link, target_dir, checkout_to):
         success = False
         logger.warning(f"gem download - failed: {error}")
     return success
+
+
+def main():
+    parser = argparse.ArgumentParser(description='FOSSLight Downloader', prog='fosslight_download', add_help=False)
+    parser.add_argument('-h', '--help', help='Print help message', action='store_true', dest='help')
+    parser.add_argument('-s', '--source', help='Source link to download', type=str, dest='source')
+    parser.add_argument('-t', '--target_dir', help='Target directory', type=str, dest='target_dir', default="")
+    parser.add_argument('-d', '--log_dir', help='Directory to save log file', type=str, dest='log_dir', default="")
+
+    src_link = ""
+    target_dir = os.getcwd()
+    log_dir = os.getcwd()
+
+    try:
+        args = parser.parse_args()
+    except SystemExit:
+        sys.exit(0)
+
+    if args.help:
+        print_help_msg_download()
+    if args.source:
+        src_link = args.source
+    if args.target_dir:
+        target_dir = args.target_dir
+    if args.log_dir:
+        log_dir = args.log_dir
+
+    if not src_link:
+        print_help_msg_download()
+    else:
+        cli_download_and_extract(src_link, target_dir, log_dir)
 
 
 if __name__ == '__main__':
