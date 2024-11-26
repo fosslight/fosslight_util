@@ -201,7 +201,7 @@ def get_github_token(git_url):
 def download_git_repository(refs_to_checkout, git_url, target_dir, tag):
     success = False
     oss_version = ""
-
+    clone_default_branch_flag = False
     if refs_to_checkout:
         try:
             # gitPython uses the branch argument the same whether you check out to a branch or a tag.
@@ -226,7 +226,6 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag):
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="", ssh_key=""):
     oss_name = get_github_ossname(git_url)
     refs_to_checkout = decide_checkout(checkout_to, tag, branch)
-    clone_default_branch_flag = False
     msg = ""
     success = True
 
