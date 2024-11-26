@@ -10,7 +10,7 @@ import zipfile
 import logging
 import argparse
 import shutil
-from git import Repo, GitCommandError
+from git import Repo, GitCommandError, Git
 import bz2
 import contextlib
 from datetime import datetime
@@ -124,7 +124,7 @@ def main():
 
 
 def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
-                             compressed_only: bool = False) -> Tuple[bool, str, str, str]:
+                             compressed_only: bool = False, ssh_key: str = "") -> Tuple[bool, str, str, str]:
     global logger
 
     success = True
@@ -152,7 +152,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir, checkout_to, tag, branch)
+            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir, checkout_to, tag, branch, ssh_key)
             if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
@@ -229,11 +229,37 @@ def get_github_token(git_url):
     return github_token
 
 
-def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
+def download_git_repository(refs_to_checkout, git_url, target_dir, tag):
+    success = False
+    oss_version = ""
+
+    if refs_to_checkout:
+        try:
+            # gitPython uses the branch argument the same whether you check out to a branch or a tag.
+            repo = Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
+            success = True
+        except GitCommandError as error:
+            logger.debug(f"Git checkout error:{error}")
+            success = False
+
+    if not success:
+        repo = Repo.clone_from(git_url, target_dir)
+        clone_default_branch_flag = True
+        success = True
+
+    if refs_to_checkout != tag or clone_default_branch_flag:
+        oss_version = repo.active_branch.name
+    else:
+        oss_version = repo.git.describe('--tags')
+    return success, oss_version
+
+
+def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="", ssh_key=""):
     oss_name = get_github_ossname(git_url)
     refs_to_checkout = decide_checkout(checkout_to, tag, branch)
     clone_default_branch_flag = False
     msg = ""
+    success = True
 
     try:
         if platform.system() != "Windows":
@@ -244,36 +270,32 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch=""):
             alarm.start()
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
-        if refs_to_checkout != "":
-            try:
-                # gitPython uses the branch argument the same whether you check out to a branch or a tag.
-                repo = Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
-            except GitCommandError as error:
-                error_msg = error.args[2].decode("utf-8")
-                if "Remote branch " + refs_to_checkout + " not found in upstream origin" in error_msg:
-                    # clone default branch, when non-existent branch or tag entered
-                    repo = Repo.clone_from(git_url, target_dir)
-                    clone_default_branch_flag = True
-        else:
-            repo = Repo.clone_from(git_url, target_dir)
-            clone_default_branch_flag = True
 
-        if refs_to_checkout != tag or clone_default_branch_flag:
-            oss_version = repo.active_branch.name
+        if git_url.startswith("ssh:") and not ssh_key:
+            msg = "Private git needs ssh_key"
+            success = False
         else:
-            oss_version = repo.git.describe('--tags')
-        logger.info(f"git checkout: {oss_version}")
+            if ssh_key:
+                logger.info(f"Download git with ssh_key")
+                git_ssh_cmd = f'ssh -i {ssh_key}'
+                with Git().custom_environment(GIT_SSH_COMMAND=git_ssh_cmd):
+                    success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag)
+            else:
+                success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag)
 
-        if platform.system() != "Windows":
-            signal.alarm(0)
-        else:
-            del alarm
+            logger.info(f"git checkout: {oss_version}")
+            refs_to_checkout = oss_version
+
+            if platform.system() != "Windows":
+                signal.alarm(0)
+            else:
+                del alarm
     except Exception as error:
+        success = False
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
-        return False, msg, oss_name, refs_to_checkout
 
-    return True, msg, oss_name, oss_version
+    return success, msg, oss_name, refs_to_checkout
 
 
 def download_wget(link, target_dir, compressed_only):
