@@ -77,7 +77,7 @@ def parse_src_link(src_link):
         if src_link.startswith("git://github.com/"):
             src_link_changed = change_src_link_to_https(src_link_split[0])
         elif src_link.startswith("git@github.com:"):
-            src_link_changed = change_ssh_link_to_https(src_link_split[0])
+            src_link_changed = src_link_split[0]
         else:
             if "rubygems.org" in src_link:
                 src_info["rubygems"] = True
@@ -122,6 +122,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
 
             # General download (git clone, wget)
             success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir, checkout_to, tag, branch, ssh_key)
+            link = change_ssh_link_to_https(link)
             if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
@@ -244,7 +245,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="", s
             success = False
         else:
             if ssh_key:
-                logger.info(f"Download git with ssh_key")
+                logger.info(f"Download git with ssh_key:{git_url}")
                 git_ssh_cmd = f'ssh -i {ssh_key}'
                 with Git().custom_environment(GIT_SSH_COMMAND=git_ssh_cmd):
                     success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag)
