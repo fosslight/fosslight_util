@@ -8,11 +8,12 @@ from fosslight_util.write_excel import write_result_to_excel, write_result_to_cs
 from fosslight_util.write_opossum import write_opossum
 from fosslight_util.write_yaml import write_yaml
 from fosslight_util.write_spdx import write_spdx
+from fosslight_util.write_cyclonedx import write_cyclonedx
 from typing import Tuple
 
 SUPPORT_FORMAT = {'excel': '.xlsx', 'csv': '.csv', 'opossum': '.json', 'yaml': '.yaml',
                   'spdx-yaml': '.yaml', 'spdx-json': '.json', 'spdx-xml': '.xml',
-                  'spdx-tag': '.tag'}
+                  'spdx-tag': '.tag', 'cyclonedx-json': '.json', 'cyclonedx-xml': '.xml'}
 
 
 def check_output_format(output='', format='', customized_format={}):
@@ -182,12 +183,15 @@ def write_output_file(output_file_without_ext: str, file_extension: str, scan_it
             success, msg = write_opossum(result_file, scan_item)
         elif format == 'yaml':
             success, msg, _ = write_yaml(result_file, scan_item, False)
-        elif format.startswith('spdx'):
+        elif format.startswith('spdx') or format.startswith('cyclonedx'):
             if platform.system() == 'Windows' or platform.system() == 'Darwin':
                 success = False
                 msg = f'{platform.system()} not support spdx format.'
             else:
-                success, msg, _ = write_spdx(output_file_without_ext, file_extension, scan_item, spdx_version)
+                if format.startswith('spdx'):
+                    success, msg, _ = write_spdx(output_file_without_ext, file_extension, scan_item, spdx_version)
+                elif format.startswith('cyclonedx'):
+                    success, msg, _ = write_cyclonedx(output_file_without_ext, file_extension, scan_item)
     else:
         if file_extension == '.xlsx':
             success, msg = write_result_to_excel(result_file, scan_item, extended_header, hide_header)

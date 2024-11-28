@@ -15,3 +15,4 @@ numpy>=1.22.2; python_version >= '3.8'
 npm
 requests
 GitPython
+cyclonedx-python-lib==8.5.*;sys_platform=="linux"
