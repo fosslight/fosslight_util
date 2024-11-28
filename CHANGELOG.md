@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.1.2 (28/11/2024)
+## Changes
+## 🚀 Features
+
+- Add params for cloning private git @soimkim (#201)
+- Add function for downloading git with ssh_key @soimkim (#199)
+
+## 🔧 Maintenance
+
+- Don't change prefix for ssh link @soimkim (#200)
+- Print option name with error msg @bjk7119 (#198)
+
+---
+
 ## v2.1.1 (16/10/2024)
 ## Changes
 ## 🔧 Maintenance
@@ -304,11 +318,3 @@
 ## 🐛 Hotfixes
 
 - Fix the windows path for license resource @dd-jy (#114)
-
----
-
-## v1.4.22 (09/05/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the spdx-tools conflict issue @dd-jy (#115)
