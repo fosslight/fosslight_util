@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.3 (28/11/2024)
+## Changes
+## 🚀 Features
+
+- Support cycloneDX format @dd-jy (#202)
+
+---
+
 ## v2.1.2 (28/11/2024)
 ## Changes
 ## 🚀 Features
@@ -310,11 +318,3 @@
 - Fix the support default output format @dd-jy (#118)
 - Modify condition to check output format @bjk7119 (#116)
 - Fix the write_spdx bug @dd-jy (#117)
-
----
-
-## v1.4.23 (11/05/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the windows path for license resource @dd-jy (#114)
