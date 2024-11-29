@@ -106,6 +106,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         datetime.now().strftime('%Y%m%d_%H-%M-%S')+".txt"
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
     link = link.strip()
+    is_rubygems = False
 
     try:
         if not link:
