@@ -17,22 +17,24 @@ from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGH
 from fosslight_util.oss_item import CHECKSUM_NULL, get_checksum_sha1
 from packageurl import PackageURL
 import traceback
-from cyclonedx.builder.this import this_component as cdx_lib_component
-from cyclonedx.exception import MissingOptionalDependencyException
-from cyclonedx.factory.license import LicenseFactory
-from cyclonedx.model import XsUri, ExternalReferenceType
-from cyclonedx.model.bom import Bom
-from cyclonedx.model.component import Component, ComponentType, HashAlgorithm, HashType, ExternalReference
-from cyclonedx.model.contact import OrganizationalEntity
-from cyclonedx.output import make_outputter, BaseOutput
-from cyclonedx.output.json import JsonV1Dot6
-from cyclonedx.schema import OutputFormat, SchemaVersion
-from cyclonedx.validation import make_schemabased_validator
-from cyclonedx.validation.json import JsonStrictValidator
-from cyclonedx.output.json import Json as JsonOutputter
-from cyclonedx.output.xml import Xml as XmlOutputter
-from cyclonedx.validation.xml import XmlValidator
-
+try:
+    from cyclonedx.builder.this import this_component as cdx_lib_component
+    from cyclonedx.exception import MissingOptionalDependencyException
+    from cyclonedx.factory.license import LicenseFactory
+    from cyclonedx.model import XsUri, ExternalReferenceType
+    from cyclonedx.model.bom import Bom
+    from cyclonedx.model.component import Component, ComponentType, HashAlgorithm, HashType, ExternalReference
+    from cyclonedx.model.contact import OrganizationalEntity
+    from cyclonedx.output import make_outputter, BaseOutput
+    from cyclonedx.output.json import JsonV1Dot6
+    from cyclonedx.schema import OutputFormat, SchemaVersion
+    from cyclonedx.validation import make_schemabased_validator
+    from cyclonedx.validation.json import JsonStrictValidator
+    from cyclonedx.output.json import Json as JsonOutputter
+    from cyclonedx.output.xml import Xml as XmlOutputter
+    from cyclonedx.validation.xml import XmlValidator
+except Exception:
+    logger.info('No import cyclonedx-python-lib')
 logger = logging.getLogger(LOGGER_NAME)
 
 
