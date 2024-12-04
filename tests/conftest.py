@@ -36,6 +36,7 @@ def scan_item():
     scan_item.set_cover_comment('This is a test comment')
 
     file_item = FileItem('test_result/excel_and_csv')
+    file_item.checksum = 'af969fc2085b1bb6d31e517d5c456def5cdd7093'
 
     oss_item = OssItem("test_name1", "1.0.0", "Apache-2.0", "https://abc.com")
     oss_item.comment = "test_name comment"

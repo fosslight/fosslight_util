@@ -17,6 +17,9 @@ from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGH
 from fosslight_util.oss_item import CHECKSUM_NULL, get_checksum_sha1
 from packageurl import PackageURL
 import traceback
+
+logger = logging.getLogger(LOGGER_NAME)
+
 try:
     from cyclonedx.builder.this import this_component as cdx_lib_component
     from cyclonedx.exception import MissingOptionalDependencyException
@@ -35,7 +38,6 @@ try:
     from cyclonedx.validation.xml import XmlValidator
 except Exception:
     logger.info('No import cyclonedx-python-lib')
-logger = logging.getLogger(LOGGER_NAME)
 
 
 def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
