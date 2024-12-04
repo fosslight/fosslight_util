@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.1.4 (04/12/2024)
+## Changes
+## 🐛 Hotfixes
+
+- Bug fix related to before assignment @soimkim (#203)
+
+## 🔧 Maintenance
+
+- Fix cyclonedx not supported @dd-jy (#204)
+
+---
+
 ## v2.1.3 (28/11/2024)
 ## Changes
 ## 🚀 Features
@@ -304,17 +316,3 @@
 
 - Fix to check exclude for correcting oss info @dd-jy (#121)
 - Fix to find the sbom-info.yaml file with pattern @dd-jy (#120)
-
----
-
-## v1.4.24 (19/05/2023)
-## Changes
-## 🚀 Features
-
-- Add the correction with sbom-info.yaml @dd-jy (#119)
-
-## 🐛 Hotfixes
-
-- Fix the support default output format @dd-jy (#118)
-- Modify condition to check output format @bjk7119 (#116)
-- Fix the write_spdx bug @dd-jy (#117)
