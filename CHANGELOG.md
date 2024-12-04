@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.5 (04/12/2024)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the logger issue @dd-jy (#205)
+
+---
+
 ## v2.1.4 (04/12/2024)
 ## Changes
 ## 🐛 Hotfixes
@@ -303,16 +311,3 @@
 ## 🐛 Hotfixes
 
 - Fix the issue for correct mode @dd-jy (#123)
-
----
-
-## v1.4.25 (02/06/2023)
-## Changes
-## 🚀 Features
-
-- Add result if path not found in scanner @dd-jy (#122)
-
-## 🔧 Maintenance
-
-- Fix to check exclude for correcting oss info @dd-jy (#121)
-- Fix to find the sbom-info.yaml file with pattern @dd-jy (#120)
