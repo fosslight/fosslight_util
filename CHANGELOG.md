@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.1.6 (05/12/2024)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the import bug @dd-jy (#206)
+- Fix the logger issue @dd-jy (#205)
+- Bug fix related to before assignment @soimkim (#203)
+
+## 🔧 Maintenance
+
+- Fix cyclonedx not supported @dd-jy (#204)
+- Support cycloneDX format @dd-jy (#202)
+---
+
 ## v2.1.5 (04/12/2024)
 ## Changes
 ## 🐛 Hotfixes
@@ -303,11 +317,3 @@
 ## 🐛 Hotfixes
 
 - Fix the index out of range bug @soimkim (#124)
-
----
-
-## v1.4.26 (14/07/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the issue for correct mode @dd-jy (#123)
