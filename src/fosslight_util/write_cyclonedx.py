@@ -15,12 +15,12 @@ from fosslight_util.spdx_licenses import get_spdx_licenses_json, get_license_fro
 from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
                                      FOSSLIGHT_BINARY, FOSSLIGHT_SOURCE)
 from fosslight_util.oss_item import CHECKSUM_NULL, get_checksum_sha1
-from packageurl import PackageURL
 import traceback
 
 logger = logging.getLogger(LOGGER_NAME)
 
 try:
+    from packageurl import PackageURL
     from cyclonedx.builder.this import this_component as cdx_lib_component
     from cyclonedx.exception import MissingOptionalDependencyException
     from cyclonedx.factory.license import LicenseFactory
