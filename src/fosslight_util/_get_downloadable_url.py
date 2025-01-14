@@ -103,31 +103,35 @@ def get_downloadable_url(link):
 
 
 def get_download_location_for_pypi(link):
-    # get the url for downloading source file in pypi.org/project/(oss_name)/(oss_version)/#files
+    # get the url for downloading source file: https://docs.pypi.org/api/ Predictable URLs
     ret = False
     new_link = ''
+    host = 'https://files.pythonhosted.org'
 
     try:
         dn_loc_re = re.findall(r'pypi.org\/project\/?([^\/]*)\/?([^\/]*)', link)
         oss_name = dn_loc_re[0][0]
+        oss_name = re.sub(r"[-_.]+", "-", oss_name).lower()
         oss_version = dn_loc_re[0][1]
 
-        pypi_url = 'https://pypi.org/project/' + oss_name + '/' + oss_version + '/#files'
-
-        content = urlopen(pypi_url).read().decode('utf8')
-        bs_obj = BeautifulSoup(content, 'html.parser')
-
-        card_file_list = bs_obj.findAll('div', {'class': 'card file__card'})
-
-        for card_file in card_file_list:
-            file_code = card_file.find('code').text
-            if file_code.lower() == "source":
-                new_link = card_file.find('a').attrs['href']
+        new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
+        try:
+            res = urlopen(new_link)
+            if res.getcode() == 200:
                 ret = True
-                break
+            else:
+                logger.warning(f'Cannot find the valid link for pypi (url:{new_link}')
+        except Exception as e:
+            oss_name = re.sub(r"[-]+", "_", oss_name).lower()
+            new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
+            res = urlopen(new_link)
+            if res.getcode() == 200:
+                ret = True
+            else:
+                logger.warning(f'Cannot find the valid link for pypi (url:{new_link}')
     except Exception as error:
         ret = False
-        logger.warning('Cannot find the link for pypi (url:'+link+') '+str(error))
+        logger.warning(f'Cannot find the link for pypi (url:{link}({(new_link)})) e:{str(error)}')
 
     return ret, new_link
 
