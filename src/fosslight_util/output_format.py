@@ -157,6 +157,7 @@ def check_output_formats_v2(output='', formats=[], customized_format={}):
     if not output_extensions:
         output_extensions = ['.xlsx']
     if not formats:
+        formats = []
         for ext in output_extensions:
             for key, value in support_format.items():
                 if value == ext:
