@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.8 (17/01/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Fix AttributeError @soimkim (#209)
+
+---
+
 ## v2.1.7 (14/01/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -305,16 +313,3 @@
 ## 🐛 Hotfixes
 
 - Fix the issue for correct mode @dd-jy (#123)
-
----
-
-## v1.4.25 (02/06/2023)
-## Changes
-## 🚀 Features
-
-- Add result if path not found in scanner @dd-jy (#122)
-
-## 🔧 Maintenance
-
-- Fix to check exclude for correcting oss info @dd-jy (#121)
-- Fix to find the sbom-info.yaml file with pattern @dd-jy (#120)
