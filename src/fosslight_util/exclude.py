@@ -13,9 +13,9 @@ def excluding_files(patterns: list[str], path_to_scan: str) -> list[str]:
     # Replace backslash with slash
     normalized_patterns = []
     for pattern in patterns:
+        pattern = pattern.replace('\\', '/')
         if pattern.endswith('/') or pattern.endswith('/*'):
             pattern = pattern.rstrip('/*')
-        pattern = pattern.replace('\\', '/')
         normalized_patterns.append(pattern)
 
     # Traverse directories
