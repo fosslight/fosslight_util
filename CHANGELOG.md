@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.9 (23/01/2025)
+## Changes
+## 🔧 Maintenance
+
+- Add excluding_files @JustinWonjaePark (#207)
+
+---
+
 ## v2.1.8 (17/01/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -305,11 +313,3 @@
 ## 🐛 Hotfixes
 
 - Fix the index out of range bug @soimkim (#124)
-
----
-
-## v1.4.26 (14/07/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the issue for correct mode @dd-jy (#123)
