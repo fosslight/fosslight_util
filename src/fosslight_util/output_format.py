@@ -48,7 +48,8 @@ def check_output_format(output='', format='', customized_format={}):
                 if format:
                     if output_extension != basename_extension:
                         success = False
-                        msg = f"(-o & -f option) Enter the same extension of output file(-o:'{output}') with format(-f:'{format}')."
+                        msg = f"(-o & -f option) Enter the same extension of output file(-o:'{output}') \
+                                with format(-f:'{format}')."
                 else:
                     if basename_extension not in support_format.values():
                         success = False
@@ -96,7 +97,8 @@ def check_output_formats(output='', formats=[], customized_format={}):
                 if formats:
                     if basename_extension not in output_extensions:
                         success = False
-                        msg = f"(-o & -f option) The format of output file(-o:'{output}') should be in the format list(-f:'{formats}')."
+                        msg = f"(-o & -f option) The format of output file(-o:'{output}') \
+                                should be in the format list(-f:'{formats}')."
                 else:
                     if basename_extension not in support_format.values():
                         success = False
@@ -145,7 +147,8 @@ def check_output_formats_v2(output='', formats=[], customized_format={}):
                 if formats:
                     if basename_extension not in output_extensions:
                         success = False
-                        msg = f"(-o & -f option) The format of output file(-o:'{output}') should be in the format list(-f:'{formats}')."
+                        msg = f"(-o & -f option) The format of output file(-o:'{output}') \
+                                should be in the format list(-f:'{formats}')."
                 else:
                     if basename_extension not in support_format.values():
                         success = False
