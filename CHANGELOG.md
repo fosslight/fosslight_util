@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.10 (23/01/2025)
+## Changes
+## 🔧 Maintenance
+
+- Add the flake8 for src dir @dd-jy (#210)
+
+---
+
 ## v2.1.9 (23/01/2025)
 ## Changes
 ## 🔧 Maintenance
@@ -305,11 +313,3 @@
 ## 🔧 Maintenance
 
 - Fix the spdx to validate @dd-jy (#125)
-
----
-
-## v1.4.27 (25/07/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the index out of range bug @soimkim (#124)
