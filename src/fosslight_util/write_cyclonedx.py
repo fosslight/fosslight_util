@@ -5,16 +5,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import sys
 import logging
 import re
-import json
 from pathlib import Path
-from datetime import datetime
-from fosslight_util.spdx_licenses import get_spdx_licenses_json, get_license_from_nick
 from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
-                                     FOSSLIGHT_BINARY, FOSSLIGHT_SOURCE)
-from fosslight_util.oss_item import CHECKSUM_NULL, get_checksum_sha1
+                                     FOSSLIGHT_SOURCE)
 import traceback
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -27,14 +22,11 @@ try:
     from cyclonedx.model import XsUri, ExternalReferenceType
     from cyclonedx.model.bom import Bom
     from cyclonedx.model.component import Component, ComponentType, HashAlgorithm, HashType, ExternalReference
-    from cyclonedx.model.contact import OrganizationalEntity
     from cyclonedx.output import make_outputter, BaseOutput
     from cyclonedx.output.json import JsonV1Dot6
     from cyclonedx.schema import OutputFormat, SchemaVersion
-    from cyclonedx.validation import make_schemabased_validator
     from cyclonedx.validation.json import JsonStrictValidator
     from cyclonedx.output.json import Json as JsonOutputter
-    from cyclonedx.output.xml import Xml as XmlOutputter
     from cyclonedx.validation.xml import XmlValidator
 except Exception:
     logger.info('No import cyclonedx-python-lib')
@@ -66,7 +58,6 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
                                                             type=ComponentType.APPLICATION,
                                                             bom_ref=str(comp_id))
         relation_tree = {}
-        bom_ref_packages = []
 
         output_dir = os.path.dirname(output_file_without_ext)
         Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -113,7 +104,7 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
                             try:
                                 oss_licenses.append(lc_factory.make_from_string(ol))
                             except Exception:
-                                logger.info(f'No spdx license name: {oi}')
+                                logger.info(f'No spdx license name: {ol}')
                         if oss_licenses:
                             comp.licenses = oss_licenses
 
@@ -192,9 +183,9 @@ def write_cyclonedx_json(bom, result_file):
         except MissingOptionalDependencyException as error:
             logger.debug(f'JSON-validation was skipped due to {error}')
     except Exception as e:
+        logger.warning(f'Fail to write cyclonedx json: {e}')
         success = False
     return success
-        
 
 
 def write_cyclonedx_xml(bom, result_file):
@@ -213,5 +204,6 @@ def write_cyclonedx_xml(bom, result_file):
         except MissingOptionalDependencyException as error:
             logger.debug(f'XML-validation was skipped due to {error}')
     except Exception as e:
+        logger.warning(f'Fail to write cyclonedx xml: {e}')
         success = False
     return success

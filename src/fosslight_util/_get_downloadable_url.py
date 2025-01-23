@@ -121,7 +121,7 @@ def get_download_location_for_pypi(link):
                 ret = True
             else:
                 logger.warning(f'Cannot find the valid link for pypi (url:{new_link}')
-        except Exception as e:
+        except Exception:
             oss_name = re.sub(r"[-]+", "_", oss_name).lower()
             new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
             res = urlopen(new_link)

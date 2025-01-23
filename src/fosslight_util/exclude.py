@@ -5,8 +5,10 @@
 
 import os
 import fnmatch
+from typing import List
 
-def excluding_files(patterns: list[str], path_to_scan: str) -> list[str]:
+
+def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
     excluded_paths = set()
 
     # Normalize patterns: e.g., 'sample/', 'sample/*' -> 'sample'
