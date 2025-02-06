@@ -102,7 +102,6 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     msg_wget = ""
     oss_name = ""
     oss_version = ""
-    clone_default_branch_flag = False
     log_file_name = "fosslight_download_" + \
         datetime.now().strftime('%Y%m%d_%H-%M-%S')+".txt"
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
@@ -124,10 +123,10 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            success_git, msg, oss_name, oss_version, clone_default_branch_flag = download_git_clone(link, target_dir,
-                                                                                                    checkout_to,
-                                                                                                    tag, branch,
-                                                                                                    ssh_key, id, git_token)
+            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir,
+                                                                         checkout_to,
+                                                                         tag, branch,
+                                                                         ssh_key, id, git_token)
             link = change_ssh_link_to_https(link)
             if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
@@ -154,7 +153,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         msg = str(error)
 
     logger.info(f"\n* FOSSLight Downloader - Result: {success} ({msg})")
-    return success, msg, oss_name, oss_version, clone_default_branch_flag
+    return success, msg, oss_name, oss_version
 
 
 def get_ref_to_checkout(checkout_to, ref_list):
@@ -208,7 +207,6 @@ def get_github_token(git_url):
 def download_git_repository(refs_to_checkout, git_url, target_dir, tag):
     success = False
     oss_version = ""
-    clone_default_branch_flag = False
 
     logger.info(f"Download git url :{git_url}")
     if refs_to_checkout:
@@ -216,29 +214,21 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag):
             # gitPython uses the branch argument the same whether you check out to a branch or a tag.
             repo = Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
             success = True
+            oss_version = refs_to_checkout
         except GitCommandError as error:
             logger.debug(f"Git checkout error:{error}")
             success = False
 
     if not success:
         repo = Repo.clone_from(git_url, target_dir)
-        clone_default_branch_flag = True
         success = True
-    try:
-        if clone_default_branch_flag:
-            oss_version = repo.active_branch.name
-        else:
-            oss_version = repo.git.describe('--tags')
-    except Exception as error:
-        logger.debug(f"Get tag/branch error:{error}")
-        
-    return success, oss_version, clone_default_branch_flag
+        oss_version = repo.active_branch.name
+    return success, oss_version
 
 
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="", ssh_key="", id="", git_token=""):
     oss_name = get_github_ossname(git_url)
     refs_to_checkout = decide_checkout(checkout_to, tag, branch)
-    clone_default_branch_flag = False
     msg = ""
     success = True
 
@@ -260,7 +250,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="", s
                 logger.info(f"Download git with ssh_key:{git_url}")
                 git_ssh_cmd = f'ssh -i {ssh_key}'
                 with Git().custom_environment(GIT_SSH_COMMAND=git_ssh_cmd):
-                    success, oss_version, clone_default_branch_flag = download_git_repository(refs_to_checkout, git_url, target_dir, tag)
+                    success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag)
             else:
                 if id and git_token:
                     try:
@@ -270,7 +260,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="", s
                             git_url = git_url.replace(protocol, f"{protocol}{id}:{git_token}@")
                     except Exception as error:
                         logger.info(f"Failed to insert id, token to git url:{error}")
-                success, oss_version, clone_default_branch_flag = download_git_repository(refs_to_checkout, git_url, target_dir, tag)
+                success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag)
 
             logger.info(f"git checkout: {oss_version}")
             refs_to_checkout = oss_version
@@ -284,7 +274,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="", s
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
 
-    return success, msg, oss_name, refs_to_checkout, clone_default_branch_flag
+    return success, msg, oss_name, refs_to_checkout
 
 
 def download_wget(link, target_dir, compressed_only):
