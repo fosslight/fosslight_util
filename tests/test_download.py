@@ -23,7 +23,7 @@ def test_download_from_github():
 
 
 @pytest.mark.parametrize("git_url",
-                         ["git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;branch=ci-test",
+                         ["git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;branch=hash-stat2",
                           "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;tag=v32"])
 def test_download_from_github_with_branch_or_tag(git_url):
     # given
@@ -62,7 +62,7 @@ def test_download_git_clone_with_branch():
     # given
     git_url = "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
     target_dir = os.path.join(constants.TEST_RESULT_DIR, "download/example")
-    branch_name = "ci-test"
+    branch_name = "hash-stat2"
 
     # when
     success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", "", branch_name)
