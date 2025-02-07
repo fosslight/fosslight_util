@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.11 (07/02/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Fix a bug that occurs when checking out with a tag @soimkim (#212)
+
+---
+
 ## v2.1.10 (23/01/2025)
 ## Changes
 ## 🔧 Maintenance
@@ -305,11 +313,3 @@
 - Fix the default oss name in oss list @dd-jy (#130)
 - Fix the excel merge bug @dd-jy (#128)
 - Fix the pub download url @dd-jy (#127)
-
----
-
-## v1.4.28 (25/07/2023)
-## Changes
-## 🔧 Maintenance
-
-- Fix the spdx to validate @dd-jy (#125)
