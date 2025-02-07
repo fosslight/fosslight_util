@@ -23,7 +23,7 @@ def test_download_from_github():
 
 
 @pytest.mark.parametrize("git_url",
-                         ["git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;branch=ci-test",
+                         ["git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;branch=hash-stat2",
                           "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;tag=v32"])
 def test_download_from_github_with_branch_or_tag(git_url):
     # given
@@ -62,7 +62,7 @@ def test_download_git_clone_with_branch():
     # given
     git_url = "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
     target_dir = os.path.join(constants.TEST_RESULT_DIR, "download/example")
-    branch_name = "ci-test"
+    branch_name = "hash-stat2"
 
     # when
     success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", "", branch_name)
@@ -94,7 +94,7 @@ def test_download_main_branch_when_any_branch_or_tag_not_entered():
     # given
     git_url = "https://github.com/LGE-OSS/example"
     target_dir = os.path.join(constants.TEST_RESULT_DIR, "download/example")
-    expected_oss_name = "main"
+    expected_oss_ver = ""
 
     # when
     success, _, oss_name, oss_version = download_git_clone(git_url, target_dir)
@@ -103,7 +103,7 @@ def test_download_main_branch_when_any_branch_or_tag_not_entered():
     assert success is True
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == 'LGE-OSS-example'
-    assert oss_version == expected_oss_name
+    assert oss_version == expected_oss_ver
 
 
 def test_download_main_branch_when_non_existent_branch_entered():
@@ -111,7 +111,7 @@ def test_download_main_branch_when_non_existent_branch_entered():
     git_url = "https://github.com/LGE-OSS/example"
     target_dir = os.path.join(constants.TEST_RESULT_DIR, "download/example")
     branch_name = "non-existent-branch"
-    expected_oss_name = "main"
+    expected_oss_ver = ""
 
     # when
     success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", "", branch_name)
@@ -120,7 +120,7 @@ def test_download_main_branch_when_non_existent_branch_entered():
     assert success is True
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == 'LGE-OSS-example'
-    assert oss_version == expected_oss_name
+    assert oss_version == expected_oss_ver
 
 
 def test_download_main_branch_when_non_existent_tag_entered():
@@ -128,7 +128,7 @@ def test_download_main_branch_when_non_existent_tag_entered():
     git_url = "https://github.com/LGE-OSS/example"
     target_dir = os.path.join(constants.TEST_RESULT_DIR, "download/example")
     tag_name = "non-existent-tag"
-    expected_oss_name = "main"
+    expected_oss_ver = ""
 
     # when
     success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", tag_name)
@@ -137,4 +137,4 @@ def test_download_main_branch_when_non_existent_tag_entered():
     assert success is True
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == 'LGE-OSS-example'
-    assert oss_version == expected_oss_name
+    assert oss_version == expected_oss_ver

@@ -123,8 +123,10 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir, checkout_to,
-                                                                         tag, branch, ssh_key, id, git_token)
+            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir,
+                                                                         checkout_to,
+                                                                         tag, branch,
+                                                                         ssh_key, id, git_token)
             link = change_ssh_link_to_https(link)
             if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
@@ -205,27 +207,21 @@ def get_github_token(git_url):
 def download_git_repository(refs_to_checkout, git_url, target_dir, tag):
     success = False
     oss_version = ""
-    clone_default_branch_flag = False
 
     logger.info(f"Download git url :{git_url}")
     if refs_to_checkout:
         try:
             # gitPython uses the branch argument the same whether you check out to a branch or a tag.
-            repo = Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
+            Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
             success = True
+            oss_version = refs_to_checkout
         except GitCommandError as error:
             logger.debug(f"Git checkout error:{error}")
             success = False
 
     if not success:
-        repo = Repo.clone_from(git_url, target_dir)
-        clone_default_branch_flag = True
+        Repo.clone_from(git_url, target_dir)
         success = True
-
-    if refs_to_checkout != tag or clone_default_branch_flag:
-        oss_version = repo.active_branch.name
-    else:
-        oss_version = repo.git.describe('--tags')
     return success, oss_version
 
 
