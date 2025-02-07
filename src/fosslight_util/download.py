@@ -212,7 +212,7 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag):
     if refs_to_checkout:
         try:
             # gitPython uses the branch argument the same whether you check out to a branch or a tag.
-            repo = Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
+            Repo.clone_from(git_url, target_dir, branch=refs_to_checkout)
             success = True
             oss_version = refs_to_checkout
         except GitCommandError as error:
@@ -220,9 +220,8 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag):
             success = False
 
     if not success:
-        repo = Repo.clone_from(git_url, target_dir)
+        Repo.clone_from(git_url, target_dir)
         success = True
-        oss_version = repo.active_branch.name
     return success, oss_version
 
 
