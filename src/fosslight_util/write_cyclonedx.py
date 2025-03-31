@@ -73,7 +73,7 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
                         comp_type = ComponentType.LIBRARY
 
                     for oss_item in file_item.oss_items:
-                        if oss_item.name == '':
+                        if oss_item.name == '' or oss_item.name == '-':
                             if scanner_name == FOSSLIGHT_DEPENDENCY:
                                 continue
                             else:
@@ -93,7 +93,8 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
                         if scanner_name == FOSSLIGHT_DEPENDENCY and file_item.purl:
                             comp.purl = PackageURL.from_string(file_item.purl)
                         if scanner_name != FOSSLIGHT_DEPENDENCY:
-                            comp.hashes = [HashType(alg=HashAlgorithm.SHA_1, content=file_item.checksum)]
+                            if file_item.checksum != '0':
+                                comp.hashes = [HashType(alg=HashAlgorithm.SHA_1, content=file_item.checksum)]
 
                         if oss_item.download_location != '':
                             comp.external_references = [ExternalReference(url=XsUri(oss_item.download_location),
