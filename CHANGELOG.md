@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.1.12 (02/05/2025)
+## Changes
+## 🚀 Features
+
+- Add dep info in ui result @dd-jy (#214)
+
+## 🐛 Hotfixes
+
+- Fix cyclonedx bug @dd-jy (#213)
+
+---
+
 ## v2.1.11 (07/02/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -298,18 +310,3 @@
 - Fix the vulnerability @dd-jy (#133)
 - Fix the vulnerability @dd-jy (#132)
 - [Snyk] Security upgrade setuptools from 39.0.1 to 65.5.1 @dd-jy (#131)
-
----
-
-## v1.4.29 (14/08/2023)
-## Changes
-## 🚀 Features
-
-- Generate ScanCode json result file @dd-jy (#129)
-- Download the latest version of npm @soimkim (#126)
-
-## 🐛 Hotfixes
-
-- Fix the default oss name in oss list @dd-jy (#130)
-- Fix the excel merge bug @dd-jy (#128)
-- Fix the pub download url @dd-jy (#127)
