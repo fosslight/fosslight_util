@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.1.12 (02/05/2025)
+## Changes
+## 🚀 Features
+
+- Add dep info in ui result @dd-jy (#214)
+
+## 🐛 Hotfixes
+
+- Fix cyclonedx bug @dd-jy (#213)
+
+---
 
 ## v2.1.11 (07/02/2025)
 ## Changes
