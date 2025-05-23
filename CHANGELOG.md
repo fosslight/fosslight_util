@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.13 (23/05/2025)
+## Changes
+## 🔧 Maintenance
+
+- Write as a string when exceeding max. url length @bjk7119 (#215)
+
+---
+
 ## v2.1.12 (02/05/2025)
 ## Changes
 ## 🚀 Features
@@ -299,14 +307,3 @@
 ## 🐛 Hotfixes
 
 - Update the requirements.txt @dd-jy (#135)
-
----
-
-## v1.4.30 (30/08/2023)
-## Changes
-## 🔧 Maintenance
-
-- Add the is_binary variable when printing the ScanCode.json file. @soimkim (#134)
-- Fix the vulnerability @dd-jy (#133)
-- Fix the vulnerability @dd-jy (#132)
-- [Snyk] Security upgrade setuptools from 39.0.1 to 65.5.1 @dd-jy (#131)
