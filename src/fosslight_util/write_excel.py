@@ -34,6 +34,7 @@ IDX_FILE = 0
 IDX_EXCLUDE = 7
 logger = logging.getLogger(LOGGER_NAME)
 COVER_SHEET_NAME = 'Scanner Info'
+MAX_EXCEL_URL_LENGTH = 255
 
 
 def get_header_row(sheet_name, extended_header={}):
@@ -181,7 +182,10 @@ def write_result_to_sheet(worksheet, sheet_contents):
     for row_item in sheet_contents:
         worksheet.write(row, 0, row)
         for col_num, value in enumerate(row_item):
-            worksheet.write(row, col_num + 1, str(value))
+            if len(value) > MAX_EXCEL_URL_LENGTH and (value.startswith("http://") or value.startswith("https://")):
+                worksheet.write_string(row, col_num + 1, str(value))
+            else:
+                worksheet.write(row, col_num + 1, str(value))
         row += 1
 
 
