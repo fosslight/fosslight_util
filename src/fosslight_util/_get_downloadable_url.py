@@ -27,7 +27,7 @@ def extract_name_version_from_link(link):
                 origin_name = match.group(1)
                 if (key == "pypi") or (key == "pypi2"):
                     oss_name = f"pypi:{origin_name}"
-                    oss_name = re.sub(r"[-_.]+", "-", oss_name).lower()
+                    oss_name = re.sub(r"[-_.]+", "-", oss_name)
                     oss_version = match.group(2)
                 elif key == "maven":
                     artifact = match.group(2)
@@ -111,7 +111,7 @@ def get_download_location_for_pypi(link):
     try:
         dn_loc_re = re.findall(r'pypi.org\/project\/?([^\/]*)\/?([^\/]*)', link)
         oss_name = dn_loc_re[0][0]
-        oss_name = re.sub(r"[-_.]+", "-", oss_name).lower()
+        oss_name = re.sub(r"[-_.]+", "-", oss_name)
         oss_version = dn_loc_re[0][1]
 
         new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
@@ -122,7 +122,7 @@ def get_download_location_for_pypi(link):
             else:
                 logger.warning(f'Cannot find the valid link for pypi (url:{new_link}')
         except Exception:
-            oss_name = re.sub(r"[-]+", "_", oss_name).lower()
+            oss_name = re.sub(r"[-]+", "_", oss_name)
             new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
             res = urlopen(new_link)
             if res.getcode() == 200:
