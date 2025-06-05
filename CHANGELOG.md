@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.14 (05/06/2025)
+## Changes
+## 🔧 Maintenance
+
+- Remove the lowercase of pypi package name @dd-jy (#216)
+
+---
+
 ## v2.1.13 (23/05/2025)
 ## Changes
 ## 🔧 Maintenance
@@ -299,11 +307,3 @@
 ## 🔧 Maintenance
 
 - Do not add item if None @soimkim (#137)
-
----
-
-## v1.4.31 (30/08/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Update the requirements.txt @dd-jy (#135)
