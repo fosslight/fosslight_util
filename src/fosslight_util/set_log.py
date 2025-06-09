@@ -6,7 +6,6 @@
 import logging
 import os
 from pathlib import Path
-import pkg_resources
 import sys
 import platform
 from . import constant as constant
@@ -14,6 +13,11 @@ from lastversion import lastversion
 import coloredlogs
 from typing import Tuple
 from logging import Logger
+
+try:
+    from importlib.metadata import version, PackageNotFoundError
+except ImportError:
+    from importlib_metadata import version, PackageNotFoundError  # Python <3.8
 
 
 def init_check_latest_version(pkg_version="", main_package_name=""):
@@ -92,9 +96,11 @@ def init_log(log_file: str, create_file: bool = True, stream_log_level: int = lo
     if main_package_name != "":
         pkg_info = main_package_name
         try:
-            pkg_version = pkg_resources.get_distribution(main_package_name).version
+            pkg_version = version(main_package_name)
             init_check_latest_version(pkg_version, main_package_name)
             pkg_info = main_package_name + " v" + pkg_version
+        except PackageNotFoundError:
+            logger.debug('Cannot check the version: Package not found')
         except Exception as error:
             logger.debug('Cannot check the version:' + str(error))
         _result_log["Tool Info"] = pkg_info
