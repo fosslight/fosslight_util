@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.1.15 (11/06/2025)
+## Changes
+## 🚀 Features
+
+- Add func to get downlodable url for go @dd-jy (#218)
+
+## 🔧 Maintenance
+
+- Replace pkg_resources to importlib.metadata @bjk7119 (#217)
+
+---
+
 ## v2.1.14 (05/06/2025)
 ## Changes
 ## 🔧 Maintenance
@@ -299,11 +311,3 @@
 ## 🐛 Hotfixes
 
 - Fix pygit2 installation error on Windows @soimkim (#138)
-
----
-
-## v1.4.32 (01/09/2023)
-## Changes
-## 🔧 Maintenance
-
-- Do not add item if None @soimkim (#137)
