@@ -3,7 +3,10 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import sys
-import pkg_resources
+try:
+    from importlib.metadata import version, PackageNotFoundError
+except ImportError:
+    from importlib_metadata import version, PackageNotFoundError  # Python <3.8
 
 _HELP_MESSAGE_COMMON = """
          _______  _______  _______  _______  ___      ___           __
@@ -50,7 +53,10 @@ class PrintHelpMsg():
 def print_package_version(pkg_name: str, msg: str = "", exitopt: bool = True) -> str:
     if msg == "":
         msg = f"{pkg_name} Version:"
-    cur_version = pkg_resources.get_distribution(pkg_name).version
+    try:
+        cur_version = version(pkg_name)
+    except PackageNotFoundError:
+        cur_version = "unknown"
 
     if exitopt:
         print(f'{msg} {cur_version}')
