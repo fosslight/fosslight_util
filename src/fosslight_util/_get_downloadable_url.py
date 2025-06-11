@@ -42,12 +42,17 @@ def extract_name_version_from_link(link):
                     oss_version = match.group(2)
                 elif key == "cocoapods":
                     oss_name = f"cocoapods:{origin_name}"
+                elif key == "go":
+                    if origin_name.endswith('/'):
+                        origin_name = origin_name[:-1]
+                    oss_name = f"go:{origin_name}"
+                    oss_version = match.group(2)
             except Exception as ex:
                 logger.info(f"extract_name_version_from_link {key}:{ex}")
             if oss_name and (not oss_version):
-                if key in ["pypi", "maven", "npm", "npm2", "pub"]:
+                if key in ["pypi", "maven", "npm", "npm2", "pub", "go"]:
                     oss_version, link = get_latest_package_version(link, key, origin_name)
-                    logger.debug(f'Try to download with the latest version:{link}')
+                    logger.info(f'Try to download with the latest version:{link}')
             break
     return oss_name, oss_version, link, key
 
@@ -76,8 +81,13 @@ def get_latest_package_version(link, pkg_type, oss_name):
             if pub_response.status_code == 200:
                 find_version = pub_response.json().get('latest').get('version')
             link_with_version = f'https://pub.dev/packages/{oss_name}/versions/{find_version}'
+        elif pkg_type == 'go':
+            go_response = requests.get(f'https://proxy.golang.org/{oss_name}/@latest')
+            if go_response.status_code == 200:
+                find_version = go_response.json().get('Version')
+            link_with_version = f'https://pkg.go.dev/{oss_name}@{find_version}'
     except Exception as e:
-        logger.debug(f'Fail to get latest package version({link}:{e})')
+        logger.info(f'Fail to get latest package version({link}:{e})')
     return find_version, link_with_version
 
 
@@ -98,8 +108,40 @@ def get_downloadable_url(link):
         ret, result_link = get_download_location_for_npm(new_link)
     elif pkg_type == "pub":
         ret, result_link = get_download_location_for_pub(new_link)
+    elif pkg_type == "go":
+        ret, result_link = get_download_location_for_go(new_link)
 
     return ret, result_link, oss_name, oss_version
+
+
+def get_download_location_for_go(link):
+    # get the url for downloading source file: https://proxy.golang.org/<module>/@v/VERSION.zip
+    ret = False
+    new_link = ''
+    host = 'https://proxy.golang.org'
+
+    try:
+        dn_loc_re = re.findall(r'pkg.go.dev\/([^\@]+)\@?([^\/]*)', link)
+        if dn_loc_re:
+            oss_name = dn_loc_re[0][0]
+            if oss_name.endswith('/'):
+                oss_name = oss_name[:-1]
+            oss_version = dn_loc_re[0][1]
+
+            new_link = f'{host}/{oss_name}/@v/{oss_version}.zip'
+        try:
+            res = urlopen(new_link)
+            if res.getcode() == 200:
+                ret = True
+            else:
+                logger.warning(f'Cannot find the valid link for go (url:{new_link}')
+        except Exception as e:
+            logger.warning(f'Fail to find the valid link for go (url:{new_link}: {e}')
+    except Exception as error:
+        ret = False
+        logger.warning(f'Cannot find the link for go (url:{link}({(new_link)})): {error}')
+
+    return ret, new_link
 
 
 def get_download_location_for_pypi(link):
