@@ -82,14 +82,15 @@ class OssItem:
         return self._comment
 
     @comment.setter
-    def comment(self, value):
-        if not value:
+    def comment(self, new_comment):
+        if not new_comment:
             self._comment = ""
         else:
             if self._comment:
-                self._comment = f"{self._comment} / {value}"
+                if new_comment.strip() not in self._comment:
+                    self._comment = f"{self._comment}\n{new_comment}"
             else:
-                self._comment = value
+                self._comment = new_comment
 
 
 class FileItem:
