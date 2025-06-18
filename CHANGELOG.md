@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.16 (18/06/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Encode id and key in url to clone git @dd-jy (#220)
+
+---
+
 ## v2.1.15 (11/06/2025)
 ## Changes
 ## 🚀 Features
@@ -303,11 +311,3 @@
 
 - Add the sheet name for dependency scanner @dd-jy (#140)
 - Remove unused log for debugging @soimkim (#139)
-
----
-
-## v1.4.33 (17/10/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Fix pygit2 installation error on Windows @soimkim (#138)
