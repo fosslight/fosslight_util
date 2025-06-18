@@ -26,6 +26,7 @@ import platform
 import subprocess
 import re
 from typing import Tuple
+import urllib.parse
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip", ".jar", ".bz2"}
@@ -256,7 +257,9 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="", s
                         m = re.match(r"^(ht|f)tp(s?)\:\/\/", git_url)
                         protocol = m.group()
                         if protocol:
-                            git_url = git_url.replace(protocol, f"{protocol}{id}:{git_token}@")
+                            encoded_git_token = urllib.parse.quote(git_token, safe='')
+                            encoded_id = urllib.parse.quote(id, safe='')
+                            git_url = git_url.replace(protocol, f"{protocol}{encoded_id}:{encoded_git_token}@")
                     except Exception as error:
                         logger.info(f"Failed to insert id, token to git url:{error}")
                 success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag)
