@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.17 (24/06/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Fix to prevent prompt when calling git clone with API @dd-jy (#221)
+
+---
+
 ## v2.1.16 (18/06/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -298,16 +306,3 @@
 - Replace copyright delimiter to comma for csv output @JustinWonjaePark (#145)
 - Add type annotation @soimkim (#144)
 - Change '%40' to '@' in npm url @dd-jy (#142)
-
----
-
-## v1.4.34 (31/10/2023)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the xlrd issue for python3.11 @dd-jy (#141)
-
-## 🔧 Maintenance
-
-- Add the sheet name for dependency scanner @dd-jy (#140)
-- Remove unused log for debugging @soimkim (#139)
