@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.18 (08/07/2025)
+## Changes
+## 🚀 Features
+
+- Support cargo downloadable url @dd-jy (#222)
+
+---
+
 ## v2.1.17 (24/06/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -296,13 +304,3 @@
 ## 🔧 Maintenance
 
 - Use common github actions @bjk7119 (#146)
-
----
-
-## v1.4.35 (19/01/2024)
-## Changes
-## 🔧 Maintenance
-
-- Replace copyright delimiter to comma for csv output @JustinWonjaePark (#145)
-- Add type annotation @soimkim (#144)
-- Change '%40' to '@' in npm url @dd-jy (#142)
