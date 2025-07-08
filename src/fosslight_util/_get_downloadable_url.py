@@ -47,6 +47,9 @@ def extract_name_version_from_link(link):
                         origin_name = origin_name[:-1]
                     oss_name = f"go:{origin_name}"
                     oss_version = match.group(2)
+                elif key == "cargo":
+                    oss_name = f"cargo:{origin_name}"
+                    oss_version = match.group(2)
             except Exception as ex:
                 logger.info(f"extract_name_version_from_link {key}:{ex}")
             if oss_name and (not oss_version):
@@ -110,8 +113,34 @@ def get_downloadable_url(link):
         ret, result_link = get_download_location_for_pub(new_link)
     elif pkg_type == "go":
         ret, result_link = get_download_location_for_go(new_link)
+    elif pkg_type == "cargo":
+        ret, result_link = get_download_location_for_cargo(new_link)
+    return ret, result_link, oss_name, oss_version, pkg_type
 
-    return ret, result_link, oss_name, oss_version
+
+def get_download_location_for_cargo(link):
+    # get the url for downloading source file: https://crates.io/api/v1/crates/<name>/<version>/download
+    ret = False
+    new_link = ''
+    host = 'https://crates.io/api/v1/crates'
+
+    try:
+        dn_loc_re = re.findall(r'crates.io\/crates\/([^\/]+)\/?([^\/]*)', link)
+        if dn_loc_re:
+            oss_name = dn_loc_re[0][0]
+            oss_version = dn_loc_re[0][1]
+
+            new_link = f'{host}/{oss_name}/{oss_version}/download'
+            res = urlopen(new_link)
+            if res.getcode() == 200:
+                ret = True
+            else:
+                logger.warning(f'Cannot find the valid link for cargo (url:{new_link}')
+    except Exception as error:
+        ret = False
+        logger.warning(f'Cannot find the link for cargo (url:{link}({(new_link)})): {error}')
+
+    return ret, new_link
 
 
 def get_download_location_for_go(link):

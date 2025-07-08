@@ -35,6 +35,7 @@ SHEET_NAME_FOR_SCANNER = {
 # pub: https://pub.dev/packages/(package)/versions/(version)
 # Cocoapods : https://cocoapods.org/(package)
 # go : https://pkg.go.dev/(package_name_with_slash)@(version)
+# cargo : https://crates.io/crates/(crate_name)/(version)
 PKG_PATTERN = {
     "pypi": r'https?:\/\/pypi\.org\/project\/([^\/]+)[\/]?([^\/]*)',
     "pypi2": r'https?:\/\/files\.pythonhosted\.org\/packages\/source\/[\w]\/([^\/]+)\/[\S]+-([^\-]+)\.tar\.gz',
@@ -43,5 +44,6 @@ PKG_PATTERN = {
     "npm2": r'https?:\/\/www\.npmjs\.com\/package\/(\@[^\/]+\/[^\/]+)(?:\/v\/)?([^\/]*)',
     "pub": r'https?:\/\/pub\.dev\/packages\/([^\/]+)(?:\/versions\/)?([^\/]*)',
     "cocoapods": r'https?:\/\/cocoapods\.org\/pods\/([^\/]+)',
-    "go": r'https?:\/\/pkg.go.dev\/([^\@]+)\@?v?([^\/]*)'
+    "go": r'https?:\/\/pkg.go.dev\/([^\@]+)\@?v?([^\/]*)',
+    "cargo": r'https?:\/\/crates\.io\/crates\/([^\/]+)\/?([^\/]*)',
 }

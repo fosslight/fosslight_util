@@ -314,7 +314,7 @@ def download_wget(link, target_dir, compressed_only):
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
-        ret, new_link, oss_name, oss_version = get_downloadable_url(link)
+        ret, new_link, oss_name, oss_version, pkg_type = get_downloadable_url(link)
         if ret and new_link:
             link = new_link
 
@@ -323,6 +323,9 @@ def download_wget(link, target_dir, compressed_only):
                 if link.endswith(ext):
                     success = True
                     break
+            if not success:
+                if pkg_type == 'cargo':
+                    success = True
         else:
             success = True
 
@@ -330,7 +333,11 @@ def download_wget(link, target_dir, compressed_only):
             raise Exception('Not supported compression type (link:{0})'.format(link))
 
         logger.info(f"wget: {link}")
-        downloaded_file = wget.download(link, target_dir)
+        if pkg_type == 'cargo':
+            outfile = os.path.join(target_dir, f'{oss_name}.tar.gz')
+            downloaded_file = wget.download(link, out=outfile)
+        else:
+            downloaded_file = wget.download(link, target_dir)
         if platform.system() != "Windows":
             signal.alarm(0)
         else:
