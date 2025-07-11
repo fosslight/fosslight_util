@@ -5,7 +5,6 @@
 import logging
 import re
 import requests
-from npm.bindings import npm_run
 from lastversion import latest
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
@@ -66,10 +65,11 @@ def get_latest_package_version(link, pkg_type, oss_name):
 
     try:
         if pkg_type in ['npm', 'npm2']:
-            stderr, stdout = npm_run('view', oss_name, 'version')
-            if stdout:
-                find_version = stdout.strip()
-            link_with_version = f'https://www.npmjs.com/package/{oss_name}/v/{find_version}'
+            npm_response = requests.get(f"https://registry.npmjs.org/{oss_name}")
+            if npm_response.status_code == 200:
+                find_version = npm_response.json().get("dist-tags", {}).get("latest")
+            if find_version:
+                link_with_version = f'https://www.npmjs.com/package/{oss_name}/v/{find_version}'
         elif pkg_type == 'pypi':
             find_version = str(latest(oss_name, at='pip', output_format='version', pre_ok=True))
             link_with_version = f'https://pypi.org/project/{oss_name}/{find_version}'
@@ -78,17 +78,20 @@ def get_latest_package_version(link, pkg_type, oss_name):
             if maven_response.status_code == 200:
                 find_version = maven_response.json().get('versions')[-1].get('versionKey').get('version')
             oss_name = oss_name.replace(':', '/')
-            link_with_version = f'https://mvnrepository.com/artifact/{oss_name}/{find_version}'
+            if find_version:
+                link_with_version = f'https://mvnrepository.com/artifact/{oss_name}/{find_version}'
         elif pkg_type == 'pub':
             pub_response = requests.get(f'https://pub.dev/api/packages/{oss_name}')
             if pub_response.status_code == 200:
                 find_version = pub_response.json().get('latest').get('version')
-            link_with_version = f'https://pub.dev/packages/{oss_name}/versions/{find_version}'
+            if find_version:
+                link_with_version = f'https://pub.dev/packages/{oss_name}/versions/{find_version}'
         elif pkg_type == 'go':
             go_response = requests.get(f'https://proxy.golang.org/{oss_name}/@latest')
             if go_response.status_code == 200:
                 find_version = go_response.json().get('Version')
-            link_with_version = f'https://pkg.go.dev/{oss_name}@{find_version}'
+            if find_version:
+                link_with_version = f'https://pkg.go.dev/{oss_name}@{find_version}'
     except Exception as e:
         logger.info(f'Fail to get latest package version({link}:{e})')
     return find_version, link_with_version
