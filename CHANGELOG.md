@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.19 (11/07/2025)
+## Changes
+## 🔧 Maintenance
+
+- Replace npm package with registry.npmjs.org API @dd-jy (#223)
+
+---
+
 ## v2.1.18 (08/07/2025)
 ## Changes
 ## 🚀 Features
@@ -292,15 +300,3 @@
 
 - Add oss version when downloading with git clone @dd-jy (#149)
 - Check the return value when downloading @soimkim (#148)
-
----
-
-## v1.4.36 (29/01/2024)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the pub download url bug @dd-jy (#147)
-
-## 🔧 Maintenance
-
-- Use common github actions @bjk7119 (#146)
