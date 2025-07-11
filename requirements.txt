@@ -12,7 +12,6 @@ spdx-tools==0.8.*;sys_platform=="linux"
 setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
 numpy; python_version < '3.8'
 numpy>=1.22.2; python_version >= '3.8'
-npm
 requests
 GitPython
 cyclonedx-python-lib==8.5.*;sys_platform=="linux"
