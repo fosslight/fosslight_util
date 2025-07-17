@@ -16,6 +16,7 @@ logger = logging.getLogger(constant.LOGGER_NAME)
 def extract_name_version_from_link(link):
     oss_name = ""
     oss_version = ""
+    matched = False
     if link.startswith("www."):
         link = link.replace("www.", "https://www.", 1)
     for key, value in constant.PKG_PATTERN.items():
@@ -55,7 +56,10 @@ def extract_name_version_from_link(link):
                 if key in ["pypi", "maven", "npm", "npm2", "pub", "go"]:
                     oss_version, link = get_latest_package_version(link, key, origin_name)
                     logger.info(f'Try to download with the latest version:{link}')
+            matched = True
             break
+    if not matched:
+        key = ""
     return oss_name, oss_version, link, key
 
 
