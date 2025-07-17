@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.1.20 (17/07/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the url type to null when not matched @dd-jy (#224)
+
+## 🔧 Maintenance
+
+- Update python support ver 3.10~3.12 @dd-jy (#225)
+
+---
+
 ## v2.1.19 (11/07/2025)
 ## Changes
 ## 🔧 Maintenance
@@ -289,14 +301,3 @@
 ## 🔧 Maintenance
 
 -  Compare col name with lower case @bjk7119 (#152)
-
----
-
-## v1.4.37 (18/03/2024)
-## Changes
-- Hide specific column if writing excel @bjk7119 (#151)
-
-## 🔧 Maintenance
-
-- Add oss version when downloading with git clone @dd-jy (#149)
-- Check the return value when downloading @soimkim (#148)
