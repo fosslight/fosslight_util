@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.21 (22/07/2025)
+## Changes
+## 🚀 Features
+
+- Add additional argument fosslight_download @dd-jy (#226)
+
+---
+
 ## v2.1.20 (17/07/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -291,13 +299,3 @@
 ## 🔧 Maintenance
 
 - Add package url pattern in const @dd-jy (#153)
-
----
-
-## v1.4.38 (25/03/2024)
-## Changes
-- Hide specific column if writing excel @bjk7119 (#151)
-
-## 🔧 Maintenance
-
--  Compare col name with lower case @bjk7119 (#152)
