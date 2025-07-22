@@ -27,6 +27,7 @@ import subprocess
 import re
 from typing import Tuple
 import urllib.parse
+import json
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip", ".jar", ".bz2"}
@@ -96,7 +97,8 @@ def parse_src_link(src_link):
 def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
                              compressed_only: bool = False, ssh_key: str = "",
                              id: str = "", git_token: str = "",
-                             called_cli: bool = True) -> Tuple[bool, str, str, str]:
+                             called_cli: bool = True,
+                             output: bool = False) -> Tuple[bool, str, str, str]:
     global logger
 
     success = True
@@ -154,6 +156,17 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     except Exception as error:
         success = False
         msg = str(error)
+
+    if output:
+        output_result = {
+            "success": success,
+            "message": msg,
+            "oss_name": oss_name,
+            "oss_version": oss_version
+        }
+        output_json = os.path.join(log_dir, "fosslight_download_output.json")
+        with open(output_json, 'w') as f:
+            json.dump(output_result, f, indent=4)
 
     logger.info(f"\n* FOSSLight Downloader - Result: {success} ({msg})")
     return success, msg, oss_name, oss_version
@@ -478,10 +491,17 @@ def main():
     parser.add_argument('-s', '--source', help='Source link to download', type=str, dest='source')
     parser.add_argument('-t', '--target_dir', help='Target directory', type=str, dest='target_dir', default="")
     parser.add_argument('-d', '--log_dir', help='Directory to save log file', type=str, dest='log_dir', default="")
+    parser.add_argument('-c', '--checkout_to', help='Checkout to  branch or tag', type=str, dest='checkout_to', default="")
+    parser.add_argument('-z', '--compressed_only', help='Unzip only compressed file',
+                        action='store_true', dest='compressed_only', default=False)
+    parser.add_argument('-o', '--output', help='Generate output file', action='store_true', dest='output', default=False)
 
     src_link = ""
     target_dir = os.getcwd()
     log_dir = os.getcwd()
+    checkout_to = ""
+    compressed_only = False
+    output = False
 
     try:
         args = parser.parse_args()
@@ -496,11 +516,19 @@ def main():
         target_dir = args.target_dir
     if args.log_dir:
         log_dir = args.log_dir
+    if args.checkout_to:
+        checkout_to = args.checkout_to
+    if args.compressed_only:
+        compressed_only = args.compressed_only
+    if args.output:
+        output = args.output
 
     if not src_link:
         print_help_msg_download()
     else:
-        cli_download_and_extract(src_link, target_dir, log_dir)
+        cli_download_and_extract(src_link, target_dir, log_dir, checkout_to,
+                                 compressed_only, "", "", "", False,
+                                 output)
 
 
 if __name__ == '__main__':
