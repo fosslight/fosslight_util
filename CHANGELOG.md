@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.22 (04/08/2025)
+## Changes
+## 🚀 Features
+
+- Support download without ver in url using param @dd-jy (#227)
+
+---
+
 ## v2.1.21 (22/07/2025)
 ## Changes
 ## 🚀 Features
@@ -291,11 +299,3 @@
 ## 🚀 Features
 
 - Add Scanner info cover sheet into xlsx @dd-jy (#156)
-
----
-
-## v1.4.39 (27/03/2024)
-## Changes
-## 🔧 Maintenance
-
-- Add package url pattern in const @dd-jy (#153)
