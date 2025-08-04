@@ -137,7 +137,8 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
 
-                success, downloaded_file, msg_wget, oss_name, oss_version = download_wget(link, target_dir, compressed_only)
+                success, downloaded_file, msg_wget, oss_name, oss_version = download_wget(link, target_dir,
+                                                                                          compressed_only, checkout_to)
                 if success:
                     success = extract_compressed_file(downloaded_file, target_dir, True, compressed_only)
             # Download from rubygems.org
@@ -310,7 +311,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
     return success, msg, oss_name, refs_to_checkout
 
 
-def download_wget(link, target_dir, compressed_only):
+def download_wget(link, target_dir, compressed_only, checkout_to):
     success = False
     msg = ""
     oss_name = ""
@@ -327,7 +328,7 @@ def download_wget(link, target_dir, compressed_only):
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
-        ret, new_link, oss_name, oss_version, pkg_type = get_downloadable_url(link)
+        ret, new_link, oss_name, oss_version, pkg_type = get_downloadable_url(link, checkout_to)
         if ret and new_link:
             link = new_link
 

@@ -13,7 +13,7 @@ import fosslight_util.constant as constant
 logger = logging.getLogger(constant.LOGGER_NAME)
 
 
-def extract_name_version_from_link(link):
+def extract_name_version_from_link(link, checkout_version):
     oss_name = ""
     oss_version = ""
     matched = False
@@ -53,8 +53,12 @@ def extract_name_version_from_link(link):
             except Exception as ex:
                 logger.info(f"extract_name_version_from_link {key}:{ex}")
             if oss_name and (not oss_version):
-                if key in ["pypi", "maven", "npm", "npm2", "pub", "go"]:
-                    oss_version, link = get_latest_package_version(link, key, origin_name)
+                if checkout_version:
+                    oss_version = checkout_version
+                elif key in ["pypi", "maven", "npm", "npm2", "pub", "go"]:
+                    oss_version = get_latest_package_version(link, key, origin_name)
+                if oss_version:
+                    link = get_new_link_with_version(link, key, origin_name, oss_version)
                     logger.info(f'Try to download with the latest version:{link}')
             matched = True
             break
@@ -63,50 +67,56 @@ def extract_name_version_from_link(link):
     return oss_name, oss_version, link, key
 
 
+def get_new_link_with_version(link, pkg_type, oss_name, oss_version):
+    if pkg_type == "pypi":
+        link = f'https://pypi.org/project/{oss_name}/{oss_version}'
+    elif pkg_type == "maven":
+        oss_name = oss_name.replace(':', '/')
+        link = f'https://mvnrepository.com/artifact/{oss_name}/{oss_version}'
+    elif pkg_type == "npm" or pkg_type == "npm2":
+        link = f'https://www.npmjs.com/package/{oss_name}/v/{oss_version}'
+    elif pkg_type == "pub":
+        link = f'https://pub.dev/packages/{oss_name}/versions/{oss_version}'
+    elif pkg_type == "go":
+        link = f'https://pkg.go.dev/{oss_name}@{oss_version}'
+    elif pkg_type == "cargo":
+        link = f'https://crates.io/crates/{oss_name}/{oss_version}'
+    return link
+
+
 def get_latest_package_version(link, pkg_type, oss_name):
     find_version = ''
-    link_with_version = link
 
     try:
         if pkg_type in ['npm', 'npm2']:
             npm_response = requests.get(f"https://registry.npmjs.org/{oss_name}")
             if npm_response.status_code == 200:
                 find_version = npm_response.json().get("dist-tags", {}).get("latest")
-            if find_version:
-                link_with_version = f'https://www.npmjs.com/package/{oss_name}/v/{find_version}'
         elif pkg_type == 'pypi':
             find_version = str(latest(oss_name, at='pip', output_format='version', pre_ok=True))
-            link_with_version = f'https://pypi.org/project/{oss_name}/{find_version}'
         elif pkg_type == 'maven':
             maven_response = requests.get(f'https://api.deps.dev/v3alpha/systems/maven/packages/{oss_name}')
             if maven_response.status_code == 200:
                 find_version = maven_response.json().get('versions')[-1].get('versionKey').get('version')
-            oss_name = oss_name.replace(':', '/')
-            if find_version:
-                link_with_version = f'https://mvnrepository.com/artifact/{oss_name}/{find_version}'
         elif pkg_type == 'pub':
             pub_response = requests.get(f'https://pub.dev/api/packages/{oss_name}')
             if pub_response.status_code == 200:
                 find_version = pub_response.json().get('latest').get('version')
-            if find_version:
-                link_with_version = f'https://pub.dev/packages/{oss_name}/versions/{find_version}'
         elif pkg_type == 'go':
             go_response = requests.get(f'https://proxy.golang.org/{oss_name}/@latest')
             if go_response.status_code == 200:
                 find_version = go_response.json().get('Version')
-            if find_version:
-                link_with_version = f'https://pkg.go.dev/{oss_name}@{find_version}'
     except Exception as e:
         logger.info(f'Fail to get latest package version({link}:{e})')
-    return find_version, link_with_version
+    return find_version
 
 
-def get_downloadable_url(link):
+def get_downloadable_url(link, checkout_version):
 
     ret = False
     result_link = link
 
-    oss_name, oss_version, new_link, pkg_type = extract_name_version_from_link(link)
+    oss_name, oss_version, new_link, pkg_type = extract_name_version_from_link(link, checkout_version)
     new_link = new_link.replace('http://', '')
     new_link = new_link.replace('https://', '')
 
