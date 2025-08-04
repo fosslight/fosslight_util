@@ -34,7 +34,12 @@ _HELP_MESSAGE_DOWNLOAD = """
     Optional:
         -h\t\t      Print help message
         -t\t\t      Output path name
-        -d\t\t      Directory name to save the log file"""
+        -d\t\t      Directory name to save the log file
+        -s\t\t      Source link to download
+        -t\t\t      Directory to download source code
+        -c\t\t      Checkout to branch or tag/ or version
+        -z\t\t      Unzip only compressed file
+        -o\t\t      Generate summary output file with this option"""
 
 
 class PrintHelpMsg():
