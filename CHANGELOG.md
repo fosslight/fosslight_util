@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.24 (14/09/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Fix the whl download bug @dd-jy (#229)
+
+---
+
 ## v2.1.23 (14/09/2025)
 ## Changes
 ## 🚀 Features
@@ -283,19 +291,3 @@
 ## 🚀 Features
 
 - Add functions to clone private repository and ssh url @SeongjunJo (#159)
-
----
-
-## v1.4.41 (07/05/2024)
-## Changes
-## 🚀 Features
-
-- Add depends_on, purl in yaml @dd-jy (#155)
-
-## 🐛 Hotfixes
-
-- Set the default link value when downloading @soimkim (#158)
-
-## 🔧 Maintenance
-
-- Print TLSH, SHA1 to the report @bjk7119 (#160)
