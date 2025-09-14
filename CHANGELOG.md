@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.23 (14/09/2025)
+## Changes
+## 🚀 Features
+
+- Suppor pypi wheel download @dd-jy (#228)
+
+---
+
 ## v2.1.22 (04/08/2025)
 ## Changes
 ## 🚀 Features
@@ -291,11 +299,3 @@
 ## 🔧 Maintenance
 
 - Print TLSH, SHA1 to the report @bjk7119 (#160)
-
----
-
-## v1.4.40 (24/04/2024)
-## Changes
-## 🚀 Features
-
-- Add Scanner info cover sheet into xlsx @dd-jy (#156)
