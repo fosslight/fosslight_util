@@ -400,6 +400,8 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
                 unzip(fname, extract_path)
             elif fname.endswith(".bz2"):
                 decompress_bz2(fname, extract_path)
+            elif fname.endswith(".whl"):
+                unzip(fname, extract_path)
             else:
                 is_compressed_file = False
                 if compressed_only:
