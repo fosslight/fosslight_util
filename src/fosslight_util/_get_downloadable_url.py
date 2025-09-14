@@ -190,6 +190,28 @@ def get_download_location_for_go(link):
     return ret, new_link
 
 
+def get_available_wheel_urls(name, version):
+    try:
+        api_url = f'https://pypi.org/pypi/{name}/{version}/json'
+        response = requests.get(api_url)
+        if response.status_code == 200:
+            data = response.json()
+            wheel_urls = []
+
+            for file_info in data.get('urls', []):
+                if file_info.get('packagetype') == 'bdist_wheel':
+                    wheel_urls.append(file_info.get('url'))
+
+            return wheel_urls
+        else:
+            logger.warning(f'Cannot get PyPI API data for {name}({version})')
+            return []
+
+    except Exception as error:
+        logger.warning(f'Failed to get wheel URLs from PyPI API: {error}')
+        return []
+
+
 def get_download_location_for_pypi(link):
     # get the url for downloading source file: https://docs.pypi.org/api/ Predictable URLs
     ret = False
@@ -202,24 +224,56 @@ def get_download_location_for_pypi(link):
         oss_name = re.sub(r"[-_.]+", "-", oss_name)
         oss_version = dn_loc_re[0][1]
 
+        # 1. Source distribution 시도
         new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
         try:
             res = urlopen(new_link)
             if res.getcode() == 200:
                 ret = True
-            else:
-                logger.warning(f'Cannot find the valid link for pypi (url:{new_link}')
+                return ret, new_link
         except Exception:
             oss_name = re.sub(r"[-]+", "_", oss_name)
             new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
-            res = urlopen(new_link)
-            if res.getcode() == 200:
-                ret = True
-            else:
-                logger.warning(f'Cannot find the valid link for pypi (url:{new_link}')
+            try:
+                res = urlopen(new_link)
+                if res.getcode() == 200:
+                    ret = True
+                    return ret, new_link
+            except Exception:
+                pass
+
+        # 2. Source distribution이 없으면 wheel 파일들을 시도
+        wheel_urls = get_available_wheel_urls(oss_name, oss_version)
+
+        if wheel_urls:
+            # Pure Python wheel을 우선적으로 찾기
+            for wheel_url in wheel_urls:
+                if 'py3-none-any' in wheel_url or 'py2.py3-none-any' in wheel_url:
+                    try:
+                        res = urlopen(wheel_url)
+                        if res.getcode() == 200:
+                            ret = True
+                            new_link = wheel_url
+                            logger.info(f'Using wheel file : {wheel_url}')
+                            return ret, new_link
+                    except Exception:
+                        continue
+
+            # Pure Python wheel이 없으면 첫 번째 wheel 시도
+            if wheel_urls:
+                try:
+                    res = urlopen(wheel_urls[0])
+                    if res.getcode() == 200:
+                        ret = True
+                        new_link = wheel_urls[0]
+                        logger.info(f'Using wheel file : {wheel_urls[0]}')
+                        return ret, new_link
+                except Exception:
+                    pass
+
     except Exception as error:
         ret = False
-        logger.warning(f'Cannot find the link for pypi (url:{link}({(new_link)})) e:{str(error)}')
+        logger.warning(f'Cannot find the link for pypi (url:{link}({new_link})) e:{str(error)}')
 
     return ret, new_link
 
