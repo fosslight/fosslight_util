@@ -62,7 +62,10 @@ class OssItem:
     def copyright(self, value):
         if value != "":
             if isinstance(value, list):
+                value = list(set(value))
                 value = "\n".join(value)
+            else:
+                value = "\n".join(set(value.split("\n")))
             value = value.strip()
         self._copyright = value
 
