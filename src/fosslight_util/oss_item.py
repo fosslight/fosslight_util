@@ -63,10 +63,9 @@ class OssItem:
         if value != "":
             if isinstance(value, list):
                 value = list(set(value))
-                value = "\n".join(value)
             else:
-                value = "\n".join(set(value.split("\n")))
-            value = value.strip()
+                value = set(value.split("\n"))
+            value = "\n".join(value).strip()
         self._copyright = value
 
     @property
