@@ -60,7 +60,7 @@ class OssItem:
 
     @copyright.setter
     def copyright(self, value):
-        if value != "":
+        if value:
             if isinstance(value, list):
                 value = list(set(value))
             else:
