@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1.25 (25/09/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Prevent entering path instead of link @soimkim (#231)
+- Remove duplicated copyright statement @JustinWonjaePark (#230)
+
+---
+
 ## v2.1.24 (14/09/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -283,11 +292,3 @@
 ## 🔧 Maintenance
 
 - Add log and cover item for excluded path @SeongjunJo (#161)
-
----
-
-## v1.4.42 (08/05/2024)
-## Changes
-## 🚀 Features
-
-- Add functions to clone private repository and ssh url @SeongjunJo (#159)
