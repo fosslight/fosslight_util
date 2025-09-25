@@ -119,6 +119,9 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         elif os.path.isfile(target_dir):
             success = False
             msg = f"The target directory exists as a file.: {target_dir}"
+        elif os.path.exists(link) or os.path.isdir(link) or os.path.isfile(link):
+            success = False
+            msg = f"You cannot enter a path instead of a link.: {link}"
         else:
             src_info = parse_src_link(link)
             link = src_info.get("url", "")
