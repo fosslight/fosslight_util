@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.26 (01/10/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Download with latest if version not exists @dd-jy (#232)
+
+---
+
 ## v2.1.25 (25/09/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -284,11 +292,3 @@
 ## 🔧 Maintenance
 
 - Print TLSH, SHA1 to row from loaded yaml @bjk7119 (#162)
-
----
-
-## v1.4.43 (16/05/2024)
-## Changes
-## 🔧 Maintenance
-
-- Add log and cover item for excluded path @SeongjunJo (#161)
