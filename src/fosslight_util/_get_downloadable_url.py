@@ -13,6 +13,43 @@ import fosslight_util.constant as constant
 logger = logging.getLogger(constant.LOGGER_NAME)
 
 
+def version_exists(pkg_type, origin_name, version):
+    try:
+        if pkg_type in ['npm', 'npm2']:
+            r = requests.get(f"https://registry.npmjs.org/{origin_name}", timeout=5)
+            if r.status_code == 200:
+                data = r.json()
+                return version in data.get('versions', {})
+        elif pkg_type == 'pypi':
+            r = requests.get(f"https://pypi.org/pypi/{origin_name}/{version}/json", timeout=5)
+            return r.status_code == 200
+        elif pkg_type == 'maven':
+            r = requests.get(f'https://api.deps.dev/v3alpha/systems/maven/packages/{origin_name}', timeout=5)
+            if r.status_code == 200:
+                versions = r.json().get('versions', [])
+                for vobj in versions:
+                    vkey = vobj.get('versionKey') or {}
+                    if vkey.get('version') == version:
+                        return True
+                return False
+        elif pkg_type == 'pub':
+            r = requests.get(f'https://pub.dev/api/packages/{origin_name}', timeout=5)
+            if r.status_code == 200:
+                versions = r.json().get('versions', [])
+                return any(v.get('version') == version for v in versions if isinstance(v, dict))
+        elif pkg_type == 'go':
+            if not version.startswith('v'):
+                version = f'v{version}'
+            r = requests.get(f'https://proxy.golang.org/{origin_name}/@v/list', timeout=5)
+            if r.status_code == 200:
+                listed = r.text.splitlines()
+                return version in listed
+    except Exception as e:
+        logger.info(f'version_exists check failed ({pkg_type}:{origin_name}:{version}) {e}')
+        return True
+    return False
+
+
 def extract_name_version_from_link(link, checkout_version):
     oss_name = ""
     oss_version = ""
@@ -52,14 +89,36 @@ def extract_name_version_from_link(link, checkout_version):
                     oss_version = match.group(2)
             except Exception as ex:
                 logger.info(f"extract_name_version_from_link {key}:{ex}")
-            if oss_name and (not oss_version):
-                if checkout_version:
-                    oss_version = checkout_version
-                elif key in ["pypi", "maven", "npm", "npm2", "pub", "go"]:
-                    oss_version = get_latest_package_version(link, key, origin_name)
+            if oss_name:
+                # Priority: 1) detected oss_version 2) checkout_version 3) latest
+                need_latest = False
+
+                if not oss_version and checkout_version:
+                    oss_version = checkout_version.strip()
+                if key in ["pypi", "maven", "npm", "npm2", "pub", "go"]:
+                    if oss_version:
+                        try:
+                            if not version_exists(key, origin_name, oss_version):
+                                logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
+                                need_latest = True
+                        except Exception as e:
+                            logger.info(f'Version validation failed ({oss_name}:{oss_version}) {e}; will attempt latest fallback')
+                            need_latest = True
+                    else:
+                        need_latest = True
+                    if need_latest:
+                        latest_ver = get_latest_package_version(link, key, origin_name)
+                        if latest_ver:
+                            if oss_version and latest_ver != oss_version:
+                                logger.info(f'Fallback to latest version {latest_ver} (previous invalid: {oss_version})')
+                            elif not oss_version:
+                                logger.info(f'Using latest version {latest_ver} (no version detected)')
+                            oss_version = latest_ver
                 if oss_version:
-                    link = get_new_link_with_version(link, key, origin_name, oss_version)
-                    logger.info(f'Try to download with the latest version:{link}')
+                    try:
+                        link = get_new_link_with_version(link, key, origin_name, oss_version)
+                    except Exception as _e:
+                        logger.info(f'Failed to build versioned link for {oss_name}:{oss_version} {_e}')
             matched = True
             break
     if not matched:
@@ -78,6 +137,8 @@ def get_new_link_with_version(link, pkg_type, oss_name, oss_version):
     elif pkg_type == "pub":
         link = f'https://pub.dev/packages/{oss_name}/versions/{oss_version}'
     elif pkg_type == "go":
+        if not oss_version.startswith('v'):
+            oss_version = f'v{oss_version}'
         link = f'https://pkg.go.dev/{oss_name}@{oss_version}'
     elif pkg_type == "cargo":
         link = f'https://crates.io/crates/{oss_name}/{oss_version}'
@@ -97,7 +158,10 @@ def get_latest_package_version(link, pkg_type, oss_name):
         elif pkg_type == 'maven':
             maven_response = requests.get(f'https://api.deps.dev/v3alpha/systems/maven/packages/{oss_name}')
             if maven_response.status_code == 200:
-                find_version = maven_response.json().get('versions')[-1].get('versionKey').get('version')
+                versions = maven_response.json().get('versions', [])
+                if versions:
+                    cand = max(versions, key=lambda v: v.get('publishedAt', ''))
+                    find_version = cand.get('versionKey', {}).get('version', '')
         elif pkg_type == 'pub':
             pub_response = requests.get(f'https://pub.dev/api/packages/{oss_name}')
             if pub_response.status_code == 200:
@@ -106,6 +170,8 @@ def get_latest_package_version(link, pkg_type, oss_name):
             go_response = requests.get(f'https://proxy.golang.org/{oss_name}/@latest')
             if go_response.status_code == 200:
                 find_version = go_response.json().get('Version')
+                if find_version.startswith('v'):
+                    find_version = find_version[1:]
     except Exception as e:
         logger.info(f'Fail to get latest package version({link}:{e})')
     return find_version
