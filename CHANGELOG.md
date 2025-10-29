@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.27 (29/10/2025)
+## Changes
+## 🔧 Maintenance
+
+- Add tag/branch resolution via ls-remote @dd-jy (#233)
+
+---
+
 ## v2.1.26 (01/10/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -284,11 +292,3 @@
 ## 🔧 Maintenance
 
 - Modify column name @bjk7119 (#164)
-
----
-
-## v1.4.44 (29/05/2024)
-## Changes
-## 🔧 Maintenance
-
-- Print TLSH, SHA1 to row from loaded yaml @bjk7119 (#162)
