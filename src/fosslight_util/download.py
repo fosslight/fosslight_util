@@ -195,15 +195,60 @@ def get_ref_to_checkout(checkout_to, ref_list):
     return ref_to_checkout
 
 
-def decide_checkout(checkout_to="", tag="", branch=""):
-    if checkout_to:
-        ref_to_checkout = checkout_to
-    else:
-        if branch:
-            ref_to_checkout = branch
-        else:
-            ref_to_checkout = tag
-    return ref_to_checkout
+def get_remote_refs(git_url: str):
+    if not git_url:
+        return {"tags": [], "branches": []}
+    tags = []
+    branches = []
+    try:
+        cp = subprocess.run(["git", "ls-remote", "--tags", "--heads", git_url], capture_output=True, text=True, timeout=30)
+        if cp.returncode == 0:
+            for line in cp.stdout.splitlines():
+                parts = line.split('\t')
+                if len(parts) != 2:
+                    continue
+                ref = parts[1]
+                if ref.startswith('refs/tags/'):
+                    tags.append(ref[len('refs/tags/'):])
+                elif ref.startswith('refs/heads/'):
+                    branches.append(ref[len('refs/heads/'):])
+    except Exception as e:
+        logger.debug(f"get_remote_refs - failed: {e}")
+    return {"tags": tags, "branches": branches}
+
+
+def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
+    base = checkout_to or tag or branch
+    if not base:
+        return ""
+
+    ref_dict = get_remote_refs(git_url)
+    tag_set = set(ref_dict.get("tags", []))
+    branch_set = set(ref_dict.get("branches", []))
+
+    ver_re = re.compile(r'^(?:v\.? ?)?' + re.escape(base) + r'$', re.IGNORECASE)
+
+    # tag: exact -> prefix variant -> endswith
+    if base in tag_set:
+        return base
+    tag_candidates = [c for c in tag_set if ver_re.match(c)]
+    if tag_candidates:
+        return min(tag_candidates, key=lambda x: (len(x), x.lower()))
+    tag_ends = [n for n in tag_set if n.endswith(base)]
+    if tag_ends:
+        return min(tag_ends, key=len)
+
+    # branch: exact -> prefix variant -> endswith
+    if base in branch_set:
+        return base
+    branch_candidates = [c for c in branch_set if ver_re.match(c)]
+    if branch_candidates:
+        return min(branch_candidates, key=lambda x: (len(x), x.lower()))
+    branch_ends = [n for n in branch_set if n.endswith(base)]
+    if branch_ends:
+        return min(branch_ends, key=len)
+
+    return base
 
 
 def get_github_ossname(link):
@@ -263,7 +308,7 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                        ssh_key="", id="", git_token="", called_cli=True):
     oss_name = get_github_ossname(git_url)
-    refs_to_checkout = decide_checkout(checkout_to, tag, branch)
+    refs_to_checkout = decide_checkout(checkout_to, tag, branch, git_url)
     msg = ""
     success = True
 
