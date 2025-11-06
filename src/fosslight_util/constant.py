@@ -40,6 +40,8 @@ PKG_PATTERN = {
     "pypi": r'https?:\/\/pypi\.org\/project\/([^\/]+)[\/]?([^\/]*)',
     "pypi2": r'https?:\/\/files\.pythonhosted\.org\/packages\/source\/[\w]\/([^\/]+)\/[\S]+-([^\-]+)\.tar\.gz',
     "maven": r'https?:\/\/mvnrepository\.com\/artifact\/([^\/]+)\/([^\/]+)\/?([^\/]*)',
+    "maven_repo1": r'https?:\/\/repo1\.maven\.org\/maven2\/(.*)',
+    "maven_google": r'https?:\/\/dl\.google\.com\/android\/maven2\/(.*)',
     "npm": r'https?:\/\/www\.npmjs\.com\/package\/([^\/\@]+)(?:\/v\/)?([^\/]*)',
     "npm2": r'https?:\/\/www\.npmjs\.com\/package\/(\@[^\/]+\/[^\/]+)(?:\/v\/)?([^\/]*)',
     "pub": r'https?:\/\/pub\.dev\/packages\/([^\/]+)(?:\/versions\/)?([^\/]*)',
