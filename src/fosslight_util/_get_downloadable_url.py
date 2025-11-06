@@ -54,76 +54,185 @@ def extract_name_version_from_link(link, checkout_version):
     oss_name = ""
     oss_version = ""
     matched = False
+    direct_maven = False
+
     if link.startswith("www."):
         link = link.replace("www.", "https://www.", 1)
-    for key, value in constant.PKG_PATTERN.items():
-        p = re.compile(value)
-        match = p.match(link)
-        if match:
-            try:
-                origin_name = match.group(1)
-                if (key == "pypi") or (key == "pypi2"):
-                    oss_name = f"pypi:{origin_name}"
-                    oss_name = re.sub(r"[-_.]+", "-", oss_name)
-                    oss_version = match.group(2)
-                elif key == "maven":
-                    artifact = match.group(2)
-                    oss_name = f"{origin_name}:{artifact}"
-                    origin_name = oss_name
-                    oss_version = match.group(3)
-                elif key == "npm" or key == "npm2":
-                    oss_name = f"npm:{origin_name}"
-                    oss_version = match.group(2)
-                elif key == "pub":
-                    oss_name = f"pub:{origin_name}"
-                    oss_version = match.group(2)
-                elif key == "cocoapods":
-                    oss_name = f"cocoapods:{origin_name}"
-                elif key == "go":
-                    if origin_name.endswith('/'):
-                        origin_name = origin_name[:-1]
-                    oss_name = f"go:{origin_name}"
-                    oss_version = match.group(2)
-                elif key == "cargo":
-                    oss_name = f"cargo:{origin_name}"
-                    oss_version = match.group(2)
-            except Exception as ex:
-                logger.info(f"extract_name_version_from_link {key}:{ex}")
-            if oss_name:
-                # Priority: 1) detected oss_version 2) checkout_version 3) latest
-                need_latest = False
 
-                if not oss_version and checkout_version:
-                    oss_version = checkout_version.strip()
-                if key in ["pypi", "maven", "npm", "npm2", "pub", "go"]:
-                    if oss_version:
-                        try:
-                            if not version_exists(key, origin_name, oss_version):
-                                logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
-                                need_latest = True
-                        except Exception as e:
-                            logger.info(f'Version validation failed ({oss_name}:{oss_version}) {e}; will attempt latest fallback')
-                            need_latest = True
-                    else:
-                        need_latest = True
-                    if need_latest:
-                        latest_ver = get_latest_package_version(link, key, origin_name)
-                        if latest_ver:
-                            if oss_version and latest_ver != oss_version:
-                                logger.info(f'Fallback to latest version {latest_ver} (previous invalid: {oss_version})')
-                            elif not oss_version:
-                                logger.info(f'Using latest version {latest_ver} (no version detected)')
-                            oss_version = latest_ver
-                if oss_version:
-                    try:
-                        link = get_new_link_with_version(link, key, origin_name, oss_version)
-                    except Exception as _e:
-                        logger.info(f'Failed to build versioned link for {oss_name}:{oss_version} {_e}')
+    if (not matched and (
+        link.startswith('https://repo1.maven.org/maven2/') or
+        link.startswith('https://dl.google.com/android/maven2/')
+    )):
+        parsed = parse_direct_maven_url(link)
+        if parsed:
+            origin_name, parsed_version = parsed
+            oss_name = origin_name  # groupId:artifactId
+            oss_version = parsed_version or ""
             matched = True
-            break
+            direct_maven = True
+            pkg_type = 'maven'
+
+    for direct_key in ["maven_repo1", "maven_google"]:
+        pattern = constant.PKG_PATTERN.get(direct_key)
+        if pattern and re.match(pattern, link):
+            parsed = parse_direct_maven_url(link)
+            if parsed:
+                origin_name, parsed_version = parsed
+                oss_name = origin_name
+                oss_version = parsed_version or ""
+                matched = True
+                direct_maven = True
+                pkg_type = 'maven'
+                break
+
     if not matched:
-        key = ""
-    return oss_name, oss_version, link, key
+        for key, value in constant.PKG_PATTERN.items():
+            if key in ["maven_repo1", "maven_google"]:
+                continue
+            p = re.compile(value)
+            match = p.match(link)
+            if match:
+                try:
+                    pkg_type = key
+                    origin_name = match.group(1)
+                    if (key == "pypi") or (key == "pypi2"):
+                        oss_name = f"pypi:{origin_name}"
+                        oss_name = re.sub(r"[-_.]+", "-", oss_name)
+                        oss_version = match.group(2)
+                        pkg_type = 'pypi'
+                    elif key == "maven":
+                        artifact = match.group(2)
+                        oss_name = f"{origin_name}:{artifact}"
+                        origin_name = oss_name
+                        oss_version = match.group(3)
+                    elif key == "npm" or key == "npm2":
+                        oss_name = f"npm:{origin_name}"
+                        oss_version = match.group(2)
+                    elif key == "pub":
+                        oss_name = f"pub:{origin_name}"
+                        oss_version = match.group(2)
+                    elif key == "cocoapods":
+                        oss_name = f"cocoapods:{origin_name}"
+                    elif key == "go":
+                        if origin_name.endswith('/'):
+                            origin_name = origin_name[:-1]
+                        oss_name = f"go:{origin_name}"
+                        oss_version = match.group(2)
+                    elif key == "cargo":
+                        oss_name = f"cargo:{origin_name}"
+                        oss_version = match.group(2)
+                except Exception as ex:
+                    logger.info(f"extract_name_version_from_link {key}:{ex}")
+                if oss_name:
+                    matched = True
+                break
+
+    if not matched:
+        return "", "", link, ""
+    else:
+        need_latest = False
+        if not oss_version and checkout_version:
+            oss_version = checkout_version.strip()
+        if pkg_type in ["pypi", "maven", "npm", "npm2", "pub", "go"]:
+            if oss_version:
+                try:
+                    if not version_exists(pkg_type, origin_name, oss_version):
+                        logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
+                        need_latest = True
+                except Exception as e:
+                    logger.info(f'Version validation failed ({oss_name}:{oss_version}) {e}; will attempt latest fallback')
+                    need_latest = True
+            else:
+                need_latest = True
+        if need_latest:
+            latest_ver = get_latest_package_version(link, pkg_type, origin_name)
+            if latest_ver:
+                if oss_version and latest_ver != oss_version:
+                    logger.info(f'Fallback to latest version {latest_ver} (previous invalid: {oss_version})')
+                elif not oss_version:
+                    logger.info(f'Using latest version {latest_ver} (no version detected)')
+                oss_version = latest_ver
+
+    try:
+        if oss_version:
+            if pkg_type == 'maven' and direct_maven:
+                # Skip if oss_name malformed
+                if ':' in oss_name:
+                    parts = oss_name.split(':', 1)
+                    group_id, artifact_id = parts[0], parts[1]
+                    group_path = group_id.replace('.', '/')
+                    if (
+                        link.startswith('https://repo1.maven.org/maven2/') or
+                        link.startswith('http://repo1.maven.org/maven2/')
+                    ):
+                        if not re.search(r'/\d[^/]*/*$', link.rstrip('/')):
+                            link = (
+                                f'https://repo1.maven.org/maven2/{group_path}/'
+                                f'{artifact_id}/{oss_version}'
+                            )
+                    elif (
+                        link.startswith('https://dl.google.com/android/maven2/') or
+                        link.startswith('http://dl.google.com/android/maven2/')
+                    ):
+                        if not re.search(r'/\d[^/]*/*$', link.rstrip('/')):
+                            link = (
+                                f'https://dl.google.com/android/maven2/{group_path}/'
+                                f'{artifact_id}/{oss_version}/{artifact_id}-{oss_version}-sources.jar'
+                            )
+                else:
+                    logger.debug(f'Skip maven normalization due to invalid oss_name: {oss_name}')
+            else:
+                link = get_new_link_with_version(link, pkg_type, origin_name, oss_version)
+    except Exception as _e:
+        logger.info(f'Failed to build versioned link for {oss_name or origin_name}:{oss_version} {_e}')
+
+    return oss_name, oss_version, link, pkg_type
+
+
+def parse_direct_maven_url(url):
+    try:
+        clean_url = url.replace('https://', '').replace('http://', '')
+        if clean_url.startswith('repo1.maven.org/maven2/'):
+            base_path = clean_url[len('repo1.maven.org/maven2/'):]
+        elif clean_url.startswith('dl.google.com/android/maven2/'):
+            base_path = clean_url[len('dl.google.com/android/maven2/'):]
+        else:
+            return None
+
+        base_path = base_path.rstrip('/')
+        # Strip file name if ends with known artifact extension.
+        if any(base_path.endswith(ext) for ext in ['.jar', '.pom', '.aar']):
+            base_path = '/'.join(base_path.split('/')[:-1])
+
+        parts = base_path.split('/')
+        if len(parts) < 2:
+            return None
+
+        version = None
+        artifact_id = None
+        if len(parts) >= 3:
+            potential_version = parts[-1]
+            potential_artifact = parts[-2]
+            if re.search(r'\d', potential_version):
+                version = potential_version
+                artifact_id = potential_artifact
+                group_parts = parts[:-2]
+            else:
+                artifact_id = parts[-1]
+                group_parts = parts[:-1]
+        else:
+            artifact_id = parts[-1]
+            group_parts = parts[:-1]
+
+        group_id = '.'.join(group_parts)
+        if not group_id or not artifact_id:
+            return None
+
+        maven_name = f"{group_id}:{artifact_id}"
+        return maven_name, version
+    except Exception as e:
+        logger.debug(f'Failed to parse direct Maven URL {url}: {e}')
+        return None
 
 
 def get_new_link_with_version(link, pkg_type, oss_name, oss_version):
@@ -160,7 +269,45 @@ def get_latest_package_version(link, pkg_type, oss_name):
             if maven_response.status_code == 200:
                 versions = maven_response.json().get('versions', [])
                 if versions:
-                    cand = max(versions, key=lambda v: v.get('publishedAt', ''))
+                    # Some version entries may miss publishedAt; fallback to semantic version ordering.
+                    def sem_key(vstr: str):
+                        # Parse semantic version with optional prerelease label
+                        # Examples: 1.9.0, 1.10.0-alpha, 2.0.0-rc
+                        m = re.match(r'^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-.]([A-Za-z0-9]+))?$', vstr)
+                        if not m:
+                            return (0, 0, 0, 999)
+                        major = int(m.group(1) or 0)
+                        minor = int(m.group(2) or 0)
+                        patch = int(m.group(3) or 0)
+                        label = (m.group(4) or '').lower()
+                        # Assign label weights: stable > rc > beta > alpha
+                        label_weight_map = {
+                            'alpha': -3,
+                            'beta': -2,
+                            'rc': -1
+                        }
+                        weight = label_weight_map.get(label, 0 if label == '' else -4)
+                        return (major, minor, patch, weight)
+
+                    with_pub = [v for v in versions if v.get('publishedAt')]
+                    if with_pub:
+                        cand = max(with_pub, key=lambda v: v.get('publishedAt'))
+                    else:
+                        decorated = []
+                        for v in versions:
+                            vkey = v.get('versionKey', {})
+                            ver = vkey.get('version', '')
+                            if ver:
+                                decorated.append((sem_key(ver), ver, v))
+                        if decorated:
+                            decorated.sort(key=lambda t: t[0])
+                            stable_candidates = [t for t in decorated if t[0][3] == 0]
+                            if stable_candidates:
+                                cand = stable_candidates[-1][2]
+                            else:
+                                cand = decorated[-1][2]
+                        else:
+                            cand = versions[-1]
                     find_version = cand.get('versionKey', {}).get('version', '')
         elif pkg_type == 'pub':
             pub_response = requests.get(f'https://pub.dev/api/packages/{oss_name}')
@@ -188,7 +335,7 @@ def get_downloadable_url(link, checkout_version):
 
     if pkg_type == "pypi":
         ret, result_link = get_download_location_for_pypi(new_link)
-    elif pkg_type == "maven" or new_link.startswith('repo1.maven.org/'):
+    elif pkg_type == "maven" or new_link.startswith('repo1.maven.org/') or new_link.startswith('dl.google.com/android/maven2/'):
         ret, result_link = get_download_location_for_maven(new_link)
     elif (pkg_type in ["npm", "npm2"]) or new_link.startswith('registry.npmjs.org/'):
         ret, result_link = get_download_location_for_npm(new_link)
@@ -360,6 +507,13 @@ def get_download_location_for_maven(link):
             dn_loc_split = link.replace('repo1.maven.org/maven2/', '').split('/')
 
             if link.endswith('.tar.gz') or link.endswith('.jar') or link.endswith('.tar.xz'):
+                new_link = 'https://' + link
+                ret = True
+                return ret, new_link
+            else:
+                dn_loc = 'https://' + link
+        elif link.startswith('dl.google.com/android/maven2/'):
+            if link.endswith('.jar'):
                 new_link = 'https://' + link
                 ret = True
                 return ret, new_link
