@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.28 (06/11/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Add maven source downloadable format @dd-jy (#234)
+
+---
+
 ## v2.1.27 (29/10/2025)
 ## Changes
 ## 🔧 Maintenance
@@ -280,15 +288,3 @@
 ## 🔧 Maintenance
 
 - Fix to add sbom info one time @dd-jy (#167)
-
----
-
-## v1.4.45 (10/06/2024)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the download alarm error @dd-jy (#163)
-
-## 🔧 Maintenance
-
-- Modify column name @bjk7119 (#164)
