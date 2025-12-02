@@ -402,8 +402,6 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
                 if link.endswith(ext):
                     success = True
                     break
-            if not success and pkg_type == 'cargo':
-                success = True
         else:
             # If get_downloadable_url found a downloadable file, proceed
             if ret:
@@ -422,11 +420,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
                 raise Exception('Not a downloadable link (link:{0})'.format(link))
 
         logger.info(f"wget: {link}")
-        if pkg_type == 'cargo':
-            outfile = os.path.join(target_dir, f'{oss_name}.tar.gz')
-            downloaded_file = download_file(link, outfile)
-        else:
-            downloaded_file = download_file(link, target_dir)
+        downloaded_file = download_file(link, target_dir)
         if platform.system() != "Windows":
             signal.alarm(0)
         else:
@@ -446,16 +440,30 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
 def download_file(url, target_dir):
     local_path = ""
     try:
-        with requests.get(url, stream=True) as r:
+        try:
+            h = requests.head(url, allow_redirects=True)
+            final_url = h.url or url
+            headers = h.headers
+        except Exception:
+            final_url = url
+            headers = {}
+
+        with requests.get(final_url, stream=True, allow_redirects=True) as r:
             r.raise_for_status()
 
             filename = ""
-            if "Content-Disposition" in r.headers:
-                content_disposition = r.headers["Content-Disposition"]
-                if "filename=" in content_disposition:
-                    filename = content_disposition.split("filename=")[1].split(";")[0].strip('"\'')
+            cd = r.headers.get("Content-Disposition") or headers.get("Content-Disposition")
+            if cd:
+                m_star = re.search(r"filename\*=(?:UTF-8'')?([^;\r\n]+)", cd)
+                if m_star:
+                    filename = urllib.parse.unquote(m_star.group(1).strip('"\''))
+                else:
+                    m = re.search(r"filename=([^;\r\n]+)", cd)
+                    if m:
+                        filename = m.group(1).strip('"\'')
             if not filename:
-                filename = os.path.basename(urllib.parse.urlparse(url).path)
+                final_for_name = r.url or final_url
+                filename = os.path.basename(urllib.parse.urlparse(final_for_name).path)
                 if not filename:
                     filename = "downloaded_file"
             if os.path.isdir(target_dir):
@@ -506,6 +514,9 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
                 decompress_bz2(fname, extract_path)
             elif fname.endswith(".whl"):
                 unzip(fname, extract_path)
+            elif fname.endswith(".crate"):
+                with contextlib.closing(tarfile.open(fname, "r:gz")) as t:
+                    t.extractall(path=extract_path)
             else:
                 is_compressed_file = False
                 if compressed_only:
