@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 import sys
-import wget
+import requests
 import tarfile
 import zipfile
 import logging
@@ -56,6 +56,22 @@ class TimeOutException(Exception):
 def alarm_handler(signum, frame):
     logger.warning("download timeout! (%d sec)", SIGNAL_TIMEOUT)
     raise TimeOutException(f'Timeout ({SIGNAL_TIMEOUT} sec)', 1)
+
+
+def is_downloadable(url):
+    try:
+        h = requests.head(url, allow_redirects=True)
+        header = h.headers
+        content_type = header.get('content-type')
+        if 'text/html' in content_type.lower():
+            return False
+        content_disposition = header.get('content-disposition')
+        if content_disposition and 'attachment' in content_disposition.lower():
+            return True
+        return True
+    except Exception as e:
+        logger.warning(f"is_downloadable - failed: {e}")
+        return False
 
 
 def change_src_link_to_https(src_link):
@@ -381,25 +397,30 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
             link = new_link
 
         if compressed_only:
+            # Check if link ends with known compression extensions
             for ext in compression_extension:
                 if link.endswith(ext):
                     success = True
                     break
-            if not success:
-                if pkg_type == 'cargo':
-                    success = True
         else:
-            success = True
+            # If get_downloadable_url found a downloadable file, proceed
+            if ret:
+                success = True
+            else:
+                # No downloadable file found in package repositories, verify link is downloadable
+                if not is_downloadable(link):
+                    raise Exception('Not a downloadable link (link:{0})'.format(link))
+                success = True
 
+        # Fallback: verify link is downloadable for compressed_only case
         if not success:
-            raise Exception('Not supported compression type (link:{0})'.format(link))
+            if is_downloadable(link):
+                success = True
+            else:
+                raise Exception('Not a downloadable link (link:{0})'.format(link))
 
         logger.info(f"wget: {link}")
-        if pkg_type == 'cargo':
-            outfile = os.path.join(target_dir, f'{oss_name}.tar.gz')
-            downloaded_file = wget.download(link, out=outfile)
-        else:
-            downloaded_file = wget.download(link, target_dir)
+        downloaded_file = download_file(link, target_dir)
         if platform.system() != "Windows":
             signal.alarm(0)
         else:
@@ -414,6 +435,49 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
         logger.warning(f"wget - failed: {error}")
 
     return success, downloaded_file, msg, oss_name, oss_version
+
+
+def download_file(url, target_dir):
+    local_path = ""
+    try:
+        try:
+            h = requests.head(url, allow_redirects=True)
+            final_url = h.url or url
+            headers = h.headers
+        except Exception:
+            final_url = url
+            headers = {}
+
+        with requests.get(final_url, stream=True, allow_redirects=True) as r:
+            r.raise_for_status()
+
+            filename = ""
+            cd = r.headers.get("Content-Disposition") or headers.get("Content-Disposition")
+            if cd:
+                m_star = re.search(r"filename\*=(?:UTF-8'')?([^;\r\n]+)", cd)
+                if m_star:
+                    filename = urllib.parse.unquote(m_star.group(1).strip('"\''))
+                else:
+                    m = re.search(r"filename=([^;\r\n]+)", cd)
+                    if m:
+                        filename = m.group(1).strip('"\'')
+            if not filename:
+                final_for_name = r.url or final_url
+                filename = os.path.basename(urllib.parse.urlparse(final_for_name).path)
+                if not filename:
+                    filename = "downloaded_file"
+            if os.path.isdir(target_dir):
+                local_path = os.path.join(target_dir, filename)
+            else:
+                local_path = target_dir
+
+            with open(local_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+    except Exception as e:
+        logger.warning(f"download_file - failed: {e}")
+        return None
+    return local_path
 
 
 def extract_compressed_dir(src_dir, target_dir, remove_after_extract=True):
@@ -450,6 +514,9 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
                 decompress_bz2(fname, extract_path)
             elif fname.endswith(".whl"):
                 unzip(fname, extract_path)
+            elif fname.endswith(".crate"):
+                with contextlib.closing(tarfile.open(fname, "r:gz")) as t:
+                    t.extractall(path=extract_path)
             else:
                 is_compressed_file = False
                 if compressed_only:

@@ -5,7 +5,7 @@ progress
 PyYAML
 lastversion
 coloredlogs
-python3-wget
+
 beautifulsoup4
 jsonmerge
 spdx-tools==0.8.*;sys_platform=="linux"
