@@ -499,13 +499,39 @@ def get_download_location_for_maven(link):
 
     try:
         if link.startswith('mvnrepository.com/artifact/'):
-            dn_loc_split = link.replace('mvnrepository.com/', '').split('/')
-            group_id = dn_loc_split[1].replace('.', '/')
-            dn_loc = 'https://repo1.maven.org/maven2/' + group_id + '/' + dn_loc_split[2] + '/' + dn_loc_split[3]
+            parts = link.replace('mvnrepository.com/artifact/', '').split('/')
+            if len(parts) < 2:
+                raise Exception('invalid mvnrepository artifact url')
+            group_raw = parts[0]
+            artifact_id = parts[1]
+            version = parts[2] if len(parts) > 2 and parts[2] else ''
+            group_path = group_raw.replace('.', '/')
+
+            repo_base = f'https://repo1.maven.org/maven2/{group_path}/{artifact_id}'
+            try:
+                urlopen(repo_base)
+                if version:
+                    dn_loc = f'{repo_base}/{version}'
+                else:
+                    new_link = repo_base
+                    ret = True
+                    return ret, new_link
+            except Exception:
+                google_base = f'https://dl.google.com/android/maven2/{group_path}/{artifact_id}'
+                if version:
+                    google_sources = f'{google_base}/{version}/{artifact_id}-{version}-sources.jar'
+                    try:
+                        res_g = urlopen(google_sources)
+                        if res_g.getcode() == 200:
+                            ret = True
+                            return ret, google_sources
+                    except Exception:
+                        pass
+                new_link = google_base
+                ret = True
+                return ret, new_link
 
         elif link.startswith('repo1.maven.org/maven2/'):
-            dn_loc_split = link.replace('repo1.maven.org/maven2/', '').split('/')
-
             if link.endswith('.tar.gz') or link.endswith('.jar') or link.endswith('.tar.xz'):
                 new_link = 'https://' + link
                 ret = True
