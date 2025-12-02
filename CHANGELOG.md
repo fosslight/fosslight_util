@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.1.29 (02/12/2025)
+## Changes
+## 🐛 Hotfixes
+
+- Fix: Prevent HTML page download when no file found @soimkim (#235)
+
+## 🔧 Maintenance
+
+- Add maven downloadable url fallback routine @dd-jy (#236)
+
+---
+
 ## v2.1.28 (06/11/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -276,15 +288,3 @@
 ## 🐛 Hotfixes
 
 - Fix default file extension bug @JustinWonjaePark (#168)
-
----
-
-## v1.4.46 (10/07/2024)
-## Changes
-## 🚀 Features
-
-- Enable multiple input for -f and -o option @JustinWonjaePark (#166)
-
-## 🔧 Maintenance
-
-- Fix to add sbom info one time @dd-jy (#167)
