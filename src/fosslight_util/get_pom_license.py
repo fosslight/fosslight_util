@@ -109,7 +109,7 @@ def get_license_from_pom(group_id: str = None,
             pg, pa, pv = extract_parent_info(root)
             if pg and pa and pv:
                 return find_license_in_pom_recursive(pg, pa, pv, check_parent)
-            
+
             logger.debug(f"No license info found in local POM: {pom_path}, Retry with remote fetch.")
 
         if not (group_id and artifact_id and version):
