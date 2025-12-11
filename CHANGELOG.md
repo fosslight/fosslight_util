@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.30 (11/12/2025)
+## Changes
+## 🚀 Features
+
+- Get license from pom @dd-jy (#237)
+
+---
+
 ## v2.1.29 (02/12/2025)
 ## Changes
 ## 🐛 Hotfixes
@@ -280,11 +288,3 @@
 ## 🔧 Maintenance
 
 - Update CoverItem init for dynamic package versions @YongGoose (#173)
-
----
-
-## v1.4.47 (16/07/2024)
-## Changes
-## 🐛 Hotfixes
-
-- Fix default file extension bug @JustinWonjaePark (#168)
