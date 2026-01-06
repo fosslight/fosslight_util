@@ -3,22 +3,55 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import sys
+import os
 try:
     from importlib.metadata import version, PackageNotFoundError
 except ImportError:
     from importlib_metadata import version, PackageNotFoundError  # Python <3.8
 
-_HELP_MESSAGE_COMMON = """
-         _______  _______  _______  _______  ___      ___           __
-        |       ||       ||       ||       ||   |    |___|         |  |         _
-        |    ___||   _   ||  _____||  _____||   |     ___          |  |____  __| |__
-        |   |___ |  | |  || |_____ | |_____ |   |    |   | _______ |   _   ||__   __|
-        |    ___||  |_|  ||_____  ||_____  ||   |___ |   ||   _   ||  | |  |   | |
-        |   |    |       | _____| | _____| ||       ||   ||  |_|  ||  | |  |   | |__
-        |___|    |_______||_______||_______||_______||___||____   ||__| |__|   |____|
-                                                               |  |
-                                                           ____|  |
-                                                          |_______|
+
+def _supports_color():
+    """Check if the terminal supports color."""
+    # Check if output is redirected or if NO_COLOR environment variable is set
+    if not hasattr(sys.stdout, 'isatty') or not sys.stdout.isatty():
+        return False
+    if os.environ.get('NO_COLOR'):
+        return False
+    # Windows cmd.exe support (Windows 10+)
+    if sys.platform == 'win32':
+        return True
+    # Unix-like systems
+    return True
+
+
+if _supports_color():
+    _RESET = "\033[0m"
+    _BOLD = "\033[1m"
+    _C1 = "\033[1;38;2;230;140;165m"  # Toned Down Light Pink
+    _C2 = "\033[1;38;2;217;115;153m"  # Toned Down Pink
+    _C3 = "\033[1;38;2;242;115;166m"  # Medium Light Pink
+    _C4 = "\033[1;38;2;230;77;140m"   # Pink
+    _C5 = "\033[1;38;2;217;38;115m"   # Pink-Red
+    _C6 = "\033[1;38;2;191;19;89m"    # Medium Red
+    _C7 = "\033[1;38;2;165;0;52m"     # Burgundy (#A50034) - Middle
+    _C8 = "\033[1;38;2;140;0;44m"     # Dark Burgundy
+    _C9 = "\033[1;38;2;115;0;36m"     # Darker Burgundy
+    _C10 = "\033[1;38;2;89;0;28m"     # Very Dark Burgundy
+    _STAR = "\033[1;38;5;226m"  # Bright Yellow for stars
+else:
+    # No color support
+    _RESET = _BOLD = _C1 = _C2 = _C3 = _C4 = _C5 = _C6 = _C7 = _C8 = _C9 = _C10 = _STAR = ""
+
+_HELP_MESSAGE_COMMON = f"""
+{_STAR} ═════════════════════════════════════════════════════════════════════{_RESET}
+{_C1} ███████╗ {_C1}██████╗ {_C2}███████╗ {_C2}███████╗{_C3}██╗     {_C3}██╗ {_C4}██████╗ {_C5}██╗  {_C5}██╗{_C6}████████╗{_RESET}
+{_C1} ██╔════╝{_C2}██╔═══██╗{_C2}██╔════╝ {_C3}██╔════╝{_C3}██║     {_C4}██║{_C4}██╔════╝ {_C5}██║  {_C6}██║{_C6}╚══██╔══╝{_RESET}
+{_C2} █████╗  {_C2}██║   ██║{_C3}███████╗ {_C3}███████╗{_C4}██║     {_C5}██║{_C5}██║  ███╗{_C6}███████║{_C7}   {_C7}██║   {_RESET}
+{_C3} ██╔══╝  {_C3}██║   ██║{_C4}╚════██║ {_C4}╚════██║{_C5}██║     {_C6}██║{_C6}██║   ██║{_C7}██╔══██║{_C8}   {_C8}██║   {_RESET}
+{_C3} ██║     {_C4}╚██████╔╝{_C5}███████║ {_C5}███████║{_C6}███████╗{_C7}██║{_C7}╚██████╔╝{_C8}██║  {_C9}██║   {_C9}██║   {_RESET}
+{_C4} ╚═╝      {_C5}╚═════╝ {_C5}╚══════╝ {_C6}╚══════╝{_C7}╚══════╝{_C8}╚═╝ {_C8}╚═════╝ {_C9}╚═╝  {_C10}╚═╝ {_C10}╚═╝ {_RESET}
+{_STAR} ═════════════════════════════════════════════════════════════════════{_RESET}
+{_STAR}                   ✨ Open Source Analysis Tool ✨{_RESET}
 """
 
 
