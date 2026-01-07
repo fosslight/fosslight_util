@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.1.31 (07/01/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Add defusedxml in requirements.txt @dd-jy (#239)
+
+## 🔧 Maintenance
+
+- Change 'FOSSLight' help msg style @bjk7119 (#238)
+
+---
+
 ## v2.1.30 (11/12/2025)
 ## Changes
 ## 🚀 Features
@@ -276,15 +288,3 @@
 - Refactoring OssItem @dd-jy (#175)
 - Adding external calling function parameter type hints @MoonJeWoong (#177)
 - Alter modules xlrd to pandas @cjho0316 (#174)
-
----
-
-## v1.4.48 (22/07/2024)
-## Changes
-## 🐛 Hotfixes
-
-- Fix csv format column name bug @Hosim33 (#171)
-
-## 🔧 Maintenance
-
-- Update CoverItem init for dynamic package versions @YongGoose (#173)
