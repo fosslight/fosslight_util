@@ -14,3 +14,4 @@ numpy
 requests
 GitPython
 cyclonedx-python-lib==8.5.*;sys_platform=="linux"
+defusedxml
