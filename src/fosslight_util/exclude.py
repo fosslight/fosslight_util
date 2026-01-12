@@ -76,29 +76,30 @@ def _has_parent_in_exclude_list(rel_path: str, path_to_exclude: list) -> bool:
     return False
 
 
-def is_exclude_dir(rel_path: str) -> bool:
+def is_exclude_dir(rel_path: str) -> tuple:
     dir_name = os.path.basename(rel_path).replace('\\', '/')
     if '/' in dir_name:
         dir_name = dir_name.split('/')[-1]
     
     if dir_name.startswith('.'):
-        return True
+        return True, True
     
     dir_name_lower = dir_name.lower()
     
     for exclude_dir in EXCLUDE_DIRECTORY:
         if dir_name_lower == exclude_dir.lower():
-            return True
+            return True, False
     
     for package_dir in PACKAGE_DIRECTORY:
         if dir_name_lower == package_dir.lower():
-            return True
+            return True, False
     
-    return False
+    return False, False
 
 
-def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], exclude_file_extension: list = []) -> list:
+def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], exclude_file_extension: list = []) -> tuple:
     path_to_exclude = custom_excluded_paths.copy()
+    path_to_exclude_with_dot = []
     abs_path_to_scan = os.path.abspath(path_to_scan)
     custom_excluded_normalized = [p.replace('\\', '/') for p in custom_excluded_paths]
     exclude_extensions_lower = [ext.lower().lstrip('.') for ext in exclude_file_extension]
@@ -108,8 +109,11 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
             dir_path = os.path.join(root, dir_name)
             rel_path = os.path.relpath(dir_path, abs_path_to_scan)
             if not _has_parent_in_exclude_list(rel_path, path_to_exclude):
-                if is_exclude_dir(rel_path):
+                is_exclude, has_dot = is_exclude_dir(rel_path)
+                if is_exclude:
                     path_to_exclude.append(rel_path)
+                    if has_dot:
+                        path_to_exclude_with_dot.append(rel_path)
 
         for file_name in files:
             file_path = os.path.join(root, file_name)
@@ -124,4 +128,5 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
                         if rel_path not in path_to_exclude:
                             path_to_exclude.append(rel_path)
 
-    return path_to_exclude
+    path_to_exclude_without_dot = [p for p in path_to_exclude if p not in path_to_exclude_with_dot]
+    return path_to_exclude, path_to_exclude_without_dot
