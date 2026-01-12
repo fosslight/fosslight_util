@@ -99,7 +99,7 @@ def is_exclude_dir(rel_path: str) -> tuple:
 
 
 def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], exclude_file_extension: list = []) -> tuple:
-    path_to_exclude = custom_excluded_paths.copy()
+    path_to_exclude = []
     path_to_exclude_with_dot = []
     excluded_files = []
     abs_path_to_scan = os.path.abspath(path_to_scan)
@@ -109,13 +109,16 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
     for root, dirs, files in os.walk(path_to_scan):
         for dir_name in dirs:
             dir_path = os.path.join(root, dir_name)
-            rel_path = os.path.relpath(dir_path, abs_path_to_scan)
+            rel_path = os.path.relpath(dir_path, abs_path_to_scan).replace('\\', '/')
             if not _has_parent_in_exclude_list(rel_path, path_to_exclude):
                 is_exclude, has_dot = is_exclude_dir(rel_path)
                 if is_exclude:
                     path_to_exclude.append(rel_path)
                     if has_dot:
                         path_to_exclude_with_dot.append(rel_path)
+                elif rel_path in custom_excluded_normalized:
+                    if rel_path not in path_to_exclude:
+                        path_to_exclude.append(rel_path)
 
         for file_name in files:
             file_path = os.path.join(root, file_name)
