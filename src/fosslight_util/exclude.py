@@ -10,6 +10,7 @@ from typing import List
 EXCLUDE_DIRECTORY = ["test", "tests", "doc", "docs"]
 PACKAGE_DIRECTORY = ["node_modules", "venv", "Pods", "Carthage"]
 
+
 def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
     excluded_paths = set()
 
@@ -80,20 +81,20 @@ def is_exclude_dir(rel_path: str) -> tuple:
     dir_name = os.path.basename(rel_path).replace('\\', '/')
     if '/' in dir_name:
         dir_name = dir_name.split('/')[-1]
-    
+
     if dir_name.startswith('.'):
         return True, True
-    
+
     dir_name_lower = dir_name.lower()
-    
+
     for exclude_dir in EXCLUDE_DIRECTORY:
         if dir_name_lower == exclude_dir.lower():
             return True, False
-    
+
     for package_dir in PACKAGE_DIRECTORY:
         if dir_name_lower == package_dir.lower():
             return True, False
-    
+
     return False, False
 
 
