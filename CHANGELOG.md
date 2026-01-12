@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.32 (12/01/2026)
+## Changes
+## 🔧 Maintenance
+
+- Use 256 color for 'FOSSLight' ASCII art @bjk7119 (#240)
+
+---
+
 ## v2.1.31 (07/01/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -275,16 +283,3 @@
 - Improving download performance when cloning based on specific branches or tags @MoonJeWoong (#190)
 - Refactor existing tox test to pytest @MoonJeWoong (#189)
 - Fix tox version & delete tox-wheel @bjk7119 (#186)
----
-
-## v2.0.0 (06/09/2024)
-## Changes
-## 🐛 Hotfixes
-
-- Fix printing windows version @s-cu-bot (#179)
-
-## 🔧 Maintenance
-
-- Refactoring OssItem @dd-jy (#175)
-- Adding external calling function parameter type hints @MoonJeWoong (#177)
-- Alter modules xlrd to pandas @cjho0316 (#174)
