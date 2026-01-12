@@ -137,6 +137,7 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
                 elif file_name.startswith('.'):
                     if rel_path not in path_to_exclude:
                         path_to_exclude.append(rel_path)
+                        path_to_exclude_with_dot.append(rel_path)
                     if rel_path not in excluded_files:
                         excluded_files.append(rel_path)
                 elif exclude_extensions_lower:
@@ -150,5 +151,5 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
                 if rel_path not in excluded_files:
                     excluded_files.append(rel_path)
 
-    path_to_exclude_without_dot = [p for p in path_to_exclude if p not in path_to_exclude_with_dot]
+    path_to_exclude_without_dot = list(set(path_to_exclude) - set(path_to_exclude_with_dot))
     return path_to_exclude, path_to_exclude_without_dot, excluded_files
