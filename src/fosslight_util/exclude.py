@@ -100,6 +100,7 @@ def is_exclude_dir(rel_path: str) -> tuple:
 def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], exclude_file_extension: list = []) -> tuple:
     path_to_exclude = custom_excluded_paths.copy()
     path_to_exclude_with_dot = []
+    excluded_files = []
     abs_path_to_scan = os.path.abspath(path_to_scan)
     custom_excluded_normalized = [p.replace('\\', '/') for p in custom_excluded_paths]
     exclude_extensions_lower = [ext.lower().lstrip('.') for ext in exclude_file_extension]
@@ -122,11 +123,18 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
                 if rel_path in custom_excluded_normalized:
                     if rel_path not in path_to_exclude:
                         path_to_exclude.append(rel_path)
+                    if rel_path not in excluded_files:
+                        excluded_files.append(rel_path)
                 elif exclude_extensions_lower:
                     file_ext = os.path.splitext(file_name)[1].lstrip('.').lower()
                     if file_ext in exclude_extensions_lower:
                         if rel_path not in path_to_exclude:
                             path_to_exclude.append(rel_path)
+                        if rel_path not in excluded_files:
+                            excluded_files.append(rel_path)
+            else:
+                if rel_path not in excluded_files:
+                    excluded_files.append(rel_path)
 
     path_to_exclude_without_dot = [p for p in path_to_exclude if p not in path_to_exclude_with_dot]
-    return path_to_exclude, path_to_exclude_without_dot
+    return path_to_exclude, path_to_exclude_without_dot, excluded_files
