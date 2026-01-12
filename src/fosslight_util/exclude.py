@@ -129,6 +129,11 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
                         path_to_exclude.append(rel_path)
                     if rel_path not in excluded_files:
                         excluded_files.append(rel_path)
+                elif file_name in custom_excluded_normalized:
+                    if rel_path not in path_to_exclude:
+                        path_to_exclude.append(rel_path)
+                    if rel_path not in excluded_files:
+                        excluded_files.append(rel_path)
                 elif file_name.startswith('.'):
                     if rel_path not in path_to_exclude:
                         path_to_exclude.append(rel_path)
