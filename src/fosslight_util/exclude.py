@@ -144,6 +144,7 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
                         path_to_exclude_with_dot.append(rel_path)
                     excluded_files.add(rel_path)
             else:
+                should_exclude = True
                 excluded_files.add(rel_path)
             if not should_exclude:
                 cnt_file_except_skipped += 1
