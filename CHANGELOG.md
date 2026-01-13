@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.33 (13/01/2026)
+## Changes
+## 🔧 Maintenance
+
+- Add function for getting excluded path @soimkim (#241)
+
+---
+
 ## v2.1.32 (12/01/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -264,22 +272,3 @@
 - Remove spdx for macos @dd-jy (#197)
 - Update compare yaml test case @dd-jy (#196)
 - Remove unnecessary req-dev.txt @dd-jy (#195)
-
----
-
-## v2.1.0 (08/10/2024)
-## Changes
-## 🚀 Features
-
-- Update spdx function @dd-jy (#192)
-
-## 🐛 Hotfixes
-
-- Fix the spdx bug @dd-jy (#193, #194)
-- Fix the tox bug @dd-jy (#188)
-
-## 🔧 Maintenance
-
-- Improving download performance when cloning based on specific branches or tags @MoonJeWoong (#190)
-- Refactor existing tox test to pytest @MoonJeWoong (#189)
-- Fix tox version & delete tox-wheel @bjk7119 (#186)
