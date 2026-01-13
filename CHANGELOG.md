@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.34 (13/01/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Fix a bug related to count files @soimkim (#242)
+
+---
+
 ## v2.1.33 (13/01/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -262,13 +270,3 @@
 
 - Don't change prefix for ssh link @soimkim (#200)
 - Print option name with error msg @bjk7119 (#198)
-
----
-
-## v2.1.1 (16/10/2024)
-## Changes
-## 🔧 Maintenance
-
-- Remove spdx for macos @dd-jy (#197)
-- Update compare yaml test case @dd-jy (#196)
-- Remove unnecessary req-dev.txt @dd-jy (#195)
