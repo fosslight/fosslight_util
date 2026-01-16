@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.35 (16/01/2026)
+## Changes
+## 🔧 Maintenance
+
+- Exclude paths ending with / @bjk7119 (#243)
+
+---
+
 ## v2.1.34 (13/01/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -257,16 +265,3 @@
 
 - Fix cyclonedx not supported @dd-jy (#204)
 - Support cycloneDX format @dd-jy (#202)
----
-
-## v2.1.2 (28/11/2024)
-## Changes
-## 🚀 Features
-
-- Add params for cloning private git @soimkim (#201)
-- Add function for downloading git with ssh_key @soimkim (#199)
-
-## 🔧 Maintenance
-
-- Don't change prefix for ssh link @soimkim (#200)
-- Print option name with error msg @bjk7119 (#198)
