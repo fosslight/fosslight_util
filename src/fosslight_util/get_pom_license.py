@@ -8,6 +8,12 @@ import logging
 import urllib.request
 from urllib.error import URLError, HTTPError
 from defusedxml.ElementTree import fromstring as xml_fromstring
+import ssl
+# certifi is optional: if unavailable, use the default SSL context
+try:
+    import certifi  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    certifi = None
 import fosslight_util.constant as constant
 
 logger = logging.getLogger(constant.LOGGER_NAME)
@@ -19,6 +25,15 @@ def get_license_from_pom(group_id: str = None,
                          pom_path: str = None,
                          check_parent: bool = True) -> str:
 
+    def get_ssl_context():
+        try:
+            if certifi is not None:
+                return ssl.create_default_context(cafile=certifi.where())
+            return ssl.create_default_context()
+        except Exception as e:
+            logger.debug(f"Failed to create SSL context: {e}")
+            return None
+
     def build_urls(g, a, v):
         group_path = g.replace('.', '/')
         name = f"{a}-{v}.pom"
@@ -27,11 +42,30 @@ def get_license_from_pom(group_id: str = None,
         return [repo1, google]
 
     def fetch_pom(g, a, v):
+        ssl_ctx = get_ssl_context()
         for url in build_urls(g, a, v):
             try:
+                if ssl_ctx is not None:
+                    with urllib.request.urlopen(url, context=ssl_ctx) as resp:
+                        return resp.read().decode('utf-8')
                 with urllib.request.urlopen(url) as resp:
                     return resp.read().decode('utf-8')
-            except (HTTPError, URLError):
+            except ssl.SSLError as e:
+                logger.warning(f"SSL error fetching POM from {url}: {e}")
+                # On SSL certificate verification failure, log a warning and retry with verification disabled
+                try:
+                    unverified_ctx = ssl._create_unverified_context()
+                    with urllib.request.urlopen(url, context=unverified_ctx) as resp:
+                        logger.warning(f"SSL verification disabled while fetching: {url}")
+                        return resp.read().decode('utf-8')
+                except Exception as e2:
+                    logger.warning(f"Retry with SSL verification disabled failed for {url}: {e2}")
+                    continue
+            except (HTTPError, URLError) as e:
+                logger.warning(f"Failed to fetch POM from {url}: {e}")
+                continue
+            except Exception as e:
+                logger.warning(f"Unexpected error fetching POM from {url}: {e}")
                 continue
         return None
 
@@ -66,10 +100,12 @@ def get_license_from_pom(group_id: str = None,
         visited.add(key)
         content = fetch_pom(g, a, v)
         if not content:
+            logger.warning(f"Failed to obtain POM content for {g}:{a}:{v} from remote sources.")
             return ''
         try:
             root = xml_fromstring(content)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to parse POM for {g}:{a}:{v}: {e}")
             return ''
         licenses = extract_licenses(root)
         if licenses:
