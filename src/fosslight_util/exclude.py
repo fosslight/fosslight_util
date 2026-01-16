@@ -117,7 +117,7 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
                     path_to_exclude.append(rel_path)
                     if has_dot:
                         path_to_exclude_with_dot.append(rel_path)
-                elif rel_path in custom_excluded_normalized:
+                elif rel_path in custom_excluded_normalized or rel_path + '/' in custom_excluded_normalized:
                     path_to_exclude.append(rel_path)
 
         for file_name in files:
