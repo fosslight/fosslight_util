@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.36 (19/01/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Handle SSL verification failures at get_license_from_pom @JustinWonjaePark (#244)
+
+---
+
 ## v2.1.35 (16/01/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -250,18 +258,3 @@
 ## 🐛 Hotfixes
 
 - Fix the pypi downloadable url @dd-jy (#208)
-
----
-
-## v2.1.6 (05/12/2024)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the import bug @dd-jy (#206)
-- Fix the logger issue @dd-jy (#205)
-- Bug fix related to before assignment @soimkim (#203)
-
-## 🔧 Maintenance
-
-- Fix cyclonedx not supported @dd-jy (#204)
-- Support cycloneDX format @dd-jy (#202)
