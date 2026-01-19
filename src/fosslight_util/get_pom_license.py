@@ -51,16 +51,11 @@ def get_license_from_pom(group_id: str = None,
                 with urllib.request.urlopen(url) as resp:
                     return resp.read().decode('utf-8')
             except ssl.SSLError as e:
-                logger.warning(f"SSL error fetching POM from {url}: {e}")
-                # On SSL certificate verification failure, log a warning and retry with verification disabled
-                try:
-                    unverified_ctx = ssl._create_unverified_context()
-                    with urllib.request.urlopen(url, context=unverified_ctx) as resp:
-                        logger.warning(f"SSL verification disabled while fetching: {url}")
-                        return resp.read().decode('utf-8')
-                except Exception as e2:
-                    logger.warning(f"Retry with SSL verification disabled failed for {url}: {e2}")
-                    continue
+                logger.warning(
+                    f"SSL certificate verification failed for {url}. "
+                    f"Please fix system certificates or use certifi. (error: {e})"
+                )
+                continue
             except (HTTPError, URLError) as e:
                 logger.warning(f"Failed to fetch POM from {url}: {e}")
                 continue
