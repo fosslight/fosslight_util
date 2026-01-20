@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.37 (20/01/2026)
+## Changes
+## 🔧 Maintenance
+
+- Exclude scanner specific files / @soimkim  (#245)
+
+---
+
 ## v2.1.36 (19/01/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -250,11 +258,3 @@
 ## 🐛 Hotfixes
 
 - Fix AttributeError @soimkim (#209)
-
----
-
-## v2.1.7 (14/01/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the pypi downloadable url @dd-jy (#208)
