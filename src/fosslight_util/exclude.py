@@ -7,8 +7,14 @@ import os
 import fnmatch
 from typing import List
 
-EXCLUDE_DIRECTORY = ["test", "tests", "doc", "docs"]
+EXCLUDE_DIRECTORY = ["test", "tests", "doc", "docs", "intermediates"]
 PACKAGE_DIRECTORY = ["node_modules", "venv", "Pods", "Carthage"]
+EXCLUDE_FILENAME = ["changelog", "config.guess", "config.sub", "changes", "ltmain.sh",
+                    "configure", "configure.ac", "depcomp", "compile", "missing", "makefile",
+                    'fosslight_bin', 'fosslight_bin.exe']
+EXCLUDE_FILE_EXTENSION = ['qm', 'xlsx', 'pdf', 'pptx', 'jfif', 'docx', 'doc', 'whl',
+                          'xls', 'xlsm', 'ppt', 'mp4', 'pyc', 'plist', 'dat',
+                          "m4", "in", "po", "class"]
 
 
 def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
@@ -98,13 +104,12 @@ def is_exclude_dir(rel_path: str) -> tuple:
     return False, False
 
 
-def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], exclude_file_extension: list = []) -> tuple:
+def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], custom_exclude_extension: list = []) -> tuple:
     path_to_exclude = []
     path_to_exclude_with_dot = []
     excluded_files = set()  # Use set for O(1) operations
     abs_path_to_scan = os.path.abspath(path_to_scan)
     custom_excluded_normalized = [p.replace('\\', '/') for p in custom_excluded_paths]
-    exclude_extensions_lower = [ext.lower().lstrip('.') for ext in exclude_file_extension]
     cnt_file_except_skipped = 0
 
     for root, dirs, files in os.walk(path_to_scan):
@@ -124,23 +129,30 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], excl
             file_path = os.path.join(root, file_name)
             rel_path = os.path.relpath(file_path, abs_path_to_scan).replace('\\', '/')
             should_exclude = False
-            has_dot = False
+            except_info_sheet = False
             if not _has_parent_in_exclude_list(rel_path, path_to_exclude):
+                file_ext = os.path.splitext(file_name)[1].lstrip('.').lower()
                 if rel_path in custom_excluded_normalized:
                     should_exclude = True
                 elif file_name in custom_excluded_normalized:
                     should_exclude = True
                 elif file_name.startswith('.'):
                     should_exclude = True
-                    has_dot = True
-                elif exclude_extensions_lower:
-                    file_ext = os.path.splitext(file_name)[1].lstrip('.').lower()
-                    if file_ext in exclude_extensions_lower:
-                        should_exclude = True
+                    except_info_sheet = True
+                elif file_ext and file_ext in custom_exclude_extension:
+                    should_exclude = True
+                elif file_name.lower() in EXCLUDE_FILENAME:
+                    should_exclude = True
+                    except_info_sheet = True
+                    cnt_file_except_skipped += 1
+                elif file_ext and file_ext in EXCLUDE_FILE_EXTENSION:
+                    should_exclude = True
+                    except_info_sheet = True
+                    cnt_file_except_skipped += 1
 
                 if should_exclude:
                     path_to_exclude.append(rel_path)
-                    if has_dot:
+                    if except_info_sheet:
                         path_to_exclude_with_dot.append(rel_path)
                     excluded_files.add(rel_path)
             else:
