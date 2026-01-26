@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1.38 (26/01/2026)
+## Changes
+- Sort scanner info comment order @dd-jy (#246)
+
+---
+
 ## v2.1.37 (20/01/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -250,11 +256,3 @@
 ## 🔧 Maintenance
 
 - Add excluding_files @JustinWonjaePark (#207)
-
----
-
-## v2.1.8 (17/01/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Fix AttributeError @soimkim (#209)
