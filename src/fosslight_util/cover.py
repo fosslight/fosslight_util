@@ -18,8 +18,8 @@ class CoverItem:
 
     PKG_NAMES = [
         "fosslight_scanner",
-        "fosslight_source",
         "fosslight_dependency",
+        "fosslight_source",
         "fosslight_binary"
     ]
 
@@ -47,6 +47,24 @@ class CoverItem:
 
     def __del__(self):
         pass
+
+    def get_sort_order(self):
+        for idx, pkg_name in enumerate(self.PKG_NAMES[1:], start=0):
+            if pkg_name in self.tool_name:
+                return idx
+        return 999
+
+    def __lt__(self, other):
+        return self.get_sort_order() < other.get_sort_order()
+
+    def create_merged_comment(self, cover_items):
+        if not cover_items:
+            return ""
+        sorted_items = sorted(cover_items)
+        comments = []
+        for ci in sorted_items:
+            comments.append(f'[{ci.tool_name}] {ci.comment}')
+        return '\n'.join(comments)
 
     def get_print_json(self):
         json_item = {}
