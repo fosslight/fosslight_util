@@ -8,7 +8,7 @@ coloredlogs
 
 beautifulsoup4
 jsonmerge
-spdx-tools==0.8.*;sys_platform=="linux"
+spdx-tools==0.8.2;sys_platform=="linux"
 setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
 numpy
 requests
