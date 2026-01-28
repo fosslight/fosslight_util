@@ -109,7 +109,13 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], cust
     path_to_exclude_with_dot = []
     excluded_files = set()  # Use set for O(1) operations
     abs_path_to_scan = os.path.abspath(path_to_scan)
-    custom_excluded_normalized = [p.replace('\\', '/') for p in custom_excluded_paths]
+    # Normalize: backslash to slash; trailing /* -> / so directory matching works without special case
+    custom_excluded_normalized = []
+    for p in custom_excluded_paths:
+        p = p.replace('\\', '/')
+        if p.endswith('/*'):
+            p = p[:-2] + '/'
+        custom_excluded_normalized.append(p)
     cnt_file_except_skipped = 0
 
     for root, dirs, files in os.walk(path_to_scan):
@@ -124,6 +130,11 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], cust
                         path_to_exclude_with_dot.append(rel_path)
                 elif rel_path in custom_excluded_normalized or rel_path + '/' in custom_excluded_normalized:
                     path_to_exclude.append(rel_path)
+                elif any(
+                    fnmatch.fnmatch(rel_path, pattern)
+                    for pattern in custom_excluded_normalized
+                ):
+                    path_to_exclude.append(rel_path)
 
         for file_name in files:
             file_path = os.path.join(root, file_name)
@@ -132,9 +143,11 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], cust
             except_info_sheet = False
             if not _has_parent_in_exclude_list(rel_path, path_to_exclude):
                 file_ext = os.path.splitext(file_name)[1].lstrip('.').lower()
-                if rel_path in custom_excluded_normalized:
-                    should_exclude = True
-                elif file_name in custom_excluded_normalized:
+                if any(
+                    fnmatch.fnmatch(rel_path, pattern)
+                    or fnmatch.fnmatch(file_name, pattern)
+                    for pattern in custom_excluded_normalized
+                ):
                     should_exclude = True
                 elif file_name.startswith('.'):
                     should_exclude = True
