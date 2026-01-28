@@ -9,7 +9,7 @@ import logging
 import os
 import pandas as pd
 from pathlib import Path
-from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER, FOSSLIGHT_BINARY
+from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER, FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SOURCE
 from jsonmerge import merge
 
 _HEADER = {'BIN (': ['ID', 'Binary Path', 'Source Code Path',
@@ -121,7 +121,12 @@ def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_hea
         workbook = xlsxwriter.Workbook(out_file_name)
         write_cover_sheet(workbook, scan_item.cover)
         if scan_item.file_items and len(scan_item.file_items.keys()) > 0:
-            for scanner_name, _ in scan_item.file_items.items():
+            sheet_order = [FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SOURCE, FOSSLIGHT_BINARY]
+            all_scanners = list(scan_item.file_items.keys())
+            priority = {name.lower(): idx for idx, name in enumerate(sheet_order)}
+            sorted_scanner_names = sorted(all_scanners,
+                                          key=lambda x: priority.get(x.lower(), len(priority)))
+            for scanner_name in sorted_scanner_names:
                 sheet_name = ""
                 if scanner_name.lower() in SHEET_NAME_FOR_SCANNER:
                     sheet_name = SHEET_NAME_FOR_SCANNER[scanner_name.lower()]
