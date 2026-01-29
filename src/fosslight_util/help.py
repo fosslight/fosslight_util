@@ -55,23 +55,35 @@ _HELP_MESSAGE_COMMON = f"""
 
 
 _HELP_MESSAGE_DOWNLOAD = """
-    FOSSLight Downloader is a tool to download the package via input URL
+    📖 Usage
+    ────────────────────────────────────────────────────────────────────
+    fosslight_download [options] <arguments>
 
-    Usage: fosslight_download [option1] <arg1> [options2] <arg2>
-     ex) fosslight_download -s http://github.com/fosslight/fosslight -t output_dir -d log_dir
+    📝 Description
+    ────────────────────────────────────────────────────────────────────
+    FOSSLight Downloader is a tool to download a package or source code from a given URL.
 
-    Required:
-        -s\t\t      URL of the package to be downloaded
+    ⚙️  General Options
+    ────────────────────────────────────────────────────────────────────
+    -s <url>              URL of the package or source to download (required)
+    -t <path>             Output directory to save the downloaded files
+    -d <log_dir>          Directory to save the log file
+    -c <branch/tag>       Checkout to branch, tag, or version after download
+    -z                    Unzip only compressed file
+    -o                    Generate summary output file
+    -h                    Show this help message
 
-    Optional:
-        -h\t\t      Print help message
-        -t\t\t      Output path name
-        -d\t\t      Directory name to save the log file
-        -s\t\t      Source link to download
-        -t\t\t      Directory to download source code
-        -c\t\t      Checkout to branch or tag/ or version
-        -z\t\t      Unzip only compressed file
-        -o\t\t      Generate summary output file with this option"""
+    💡 Examples
+    ────────────────────────────────────────────────────────────────────
+    # Download a GitHub repository to output_dir and save log
+    fosslight_download -s https://github.com/fosslight/fosslight -t output_dir -d log_dir
+
+    # Download and checkout to a specific branch
+    fosslight_download -s https://github.com/fosslight/fosslight -t output_dir -c develop
+
+    # Download and unzip a compressed file
+    fosslight_download -s https://example.com/archive.zip -z -t output_dir
+"""
 
 
 class PrintHelpMsg():
