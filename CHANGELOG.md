@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.1.39 (30/01/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Fix a bug that causes github's login prompt to be activated @soimkim (#247)
+
+## 🔧 Maintenance
+
+- Update help message @bjk7119 (#249)
+- Modify excel sheet order (DEP,SRC,BIN) @dd-jy (#251)
+- Fix spdx-tools==0.8.2 @bjk7119 (#248)
+
+---
+
 ## v2.1.38 (26/01/2026)
 ## Changes
 - Sort scanner info comment order @dd-jy (#246)
@@ -248,11 +262,3 @@
 ## 🔧 Maintenance
 
 - Add the flake8 for src dir @dd-jy (#210)
-
----
-
-## v2.1.9 (23/01/2025)
-## Changes
-## 🔧 Maintenance
-
-- Add excluding_files @JustinWonjaePark (#207)
