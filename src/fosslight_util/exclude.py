@@ -83,6 +83,21 @@ def _has_parent_in_exclude_list(rel_path: str, path_to_exclude: list) -> bool:
     return False
 
 
+def _matches_pattern(path: str, patterns: list, is_directory: bool = False) -> bool:
+    for pattern in patterns:
+        # Skip file-only patterns when matching directories
+        if is_directory and pattern.endswith('/*'):
+            continue
+        # Exact match
+        if path == pattern or path == pattern + '/':
+            return True
+
+        # Use fnmatch for glob pattern matching
+        if fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(path, pattern + '/*'):
+            return True
+    return False
+
+
 def is_exclude_dir(rel_path: str) -> tuple:
     dir_name = os.path.basename(rel_path).replace('\\', '/')
     if '/' in dir_name:
@@ -124,6 +139,8 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], cust
                         path_to_exclude_with_dot.append(rel_path)
                 elif rel_path in custom_excluded_normalized or rel_path + '/' in custom_excluded_normalized:
                     path_to_exclude.append(rel_path)
+                elif _matches_pattern(rel_path, custom_excluded_normalized, is_directory=True):
+                    path_to_exclude.append(rel_path)
 
         for file_name in files:
             file_path = os.path.join(root, file_name)
@@ -132,9 +149,9 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], cust
             except_info_sheet = False
             if not _has_parent_in_exclude_list(rel_path, path_to_exclude):
                 file_ext = os.path.splitext(file_name)[1].lstrip('.').lower()
-                if rel_path in custom_excluded_normalized:
+                if _matches_pattern(rel_path, custom_excluded_normalized):
                     should_exclude = True
-                elif file_name in custom_excluded_normalized:
+                elif _matches_pattern(file_name, custom_excluded_normalized):
                     should_exclude = True
                 elif file_name.startswith('.'):
                     should_exclude = True
