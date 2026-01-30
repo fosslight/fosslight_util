@@ -10,7 +10,7 @@ import zipfile
 import logging
 import argparse
 import shutil
-from git import Repo, GitCommandError, Git
+from git import Git
 import bz2
 import contextlib
 from datetime import datetime
@@ -217,7 +217,19 @@ def get_remote_refs(git_url: str):
     tags = []
     branches = []
     try:
-        cp = subprocess.run(["git", "ls-remote", "--tags", "--heads", git_url], capture_output=True, text=True, timeout=30)
+        env = os.environ.copy()
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        env["GIT_ASKPASS"] = "echo"
+        env["GIT_CREDENTIAL_HELPER"] = ""
+        if "GIT_SSH_COMMAND" not in env:
+            env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o StrictHostKeyChecking=no"
+        else:
+            env["GIT_SSH_COMMAND"] = env["GIT_SSH_COMMAND"] + " -o BatchMode=yes"
+        cp = subprocess.run(
+            ["git", "-c", "credential.helper=", "-c", "credential.helper=!",
+             "ls-remote", "--tags", "--heads", git_url],
+            env=env, capture_output=True, text=True, timeout=30,
+            stdin=subprocess.DEVNULL)
         if cp.returncode == 0:
             for line in cp.stdout.splitlines():
                 parts = line.split('\t')
@@ -291,32 +303,84 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
 
     logger.info(f"Download git url :{git_url}")
     env = os.environ.copy()
-    if not called_cli:
-        env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    if platform.system() == "Windows":
+        env["GIT_ASKPASS"] = "echo"
+    else:
+        env["GIT_ASKPASS"] = "/bin/echo"
+    env["GIT_CREDENTIAL_HELPER"] = ""
+    # Disable credential helper via config
+    if "GIT_CONFIG_COUNT" not in env:
+        env["GIT_CONFIG_COUNT"] = "1"
+        env["GIT_CONFIG_KEY_0"] = "credential.helper"
+        env["GIT_CONFIG_VALUE_0"] = ""
+    if "GIT_SSH_COMMAND" not in env:
+        env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o StrictHostKeyChecking=no"
+    else:
+        env["GIT_SSH_COMMAND"] = env["GIT_SSH_COMMAND"] + " -o BatchMode=yes"
+
     if refs_to_checkout:
         try:
-            # gitPython uses the branch argument the same whether you check out to a branch or a tag.
-            Repo.clone_from(git_url, target_dir, branch=refs_to_checkout, env=env)
-            if any(Path(target_dir).iterdir()):
-                success = True
-                oss_version = refs_to_checkout
-                logger.info(f"Files found in {target_dir} after clone.")
+            # For tags, we need full history. For branches, shallow clone is possible but
+            # we use full clone to ensure compatibility with all cases
+            # Use subprocess to ensure environment variables are properly passed
+            cmd = ["git", "-c", "credential.helper=", "-c", "credential.helper=!", "clone", git_url, target_dir]
+            result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=600, stdin=subprocess.DEVNULL)
+            if result.returncode == 0:
+                # Checkout the specific branch or tag
+                checkout_cmd = ["git", "-C", target_dir, "checkout", refs_to_checkout]
+                checkout_result = subprocess.run(
+                    checkout_cmd, env=env, capture_output=True, text=True,
+                    timeout=60, stdin=subprocess.DEVNULL)
+                if checkout_result.returncode == 0:
+                    if any(Path(target_dir).iterdir()):
+                        success = True
+                        oss_version = refs_to_checkout
+                        logger.info(f"Files found in {target_dir} after clone and checkout.")
+                    else:
+                        logger.info(f"No files found in {target_dir} after clone.")
+                        success = False
+                else:
+                    logger.info(f"Git checkout error: {checkout_result.stderr}")
+                    # Clone succeeded but checkout failed (e.g. non-existent ref):
+                    # repo has default branch; treat as success with empty version
+                    if any(Path(target_dir).iterdir()):
+                        success = True
+                        oss_version = ""
+                        logger.info("Checkout failed; keeping default branch.")
             else:
-                logger.info(f"No files found in {target_dir} after clone.")
+                logger.info(f"Git clone error: {result.stderr}")
                 success = False
-        except GitCommandError as error:
-            logger.info(f"Git checkout error:{error}")
+        except subprocess.TimeoutExpired:
+            logger.info("Git clone timeout")
             success = False
         except Exception as e:
-            logger.info(f"Repo.clone_from error:{e}")
+            logger.info(f"Git clone error:{e}")
             success = False
 
     if not success:
-        Repo.clone_from(git_url, target_dir, env=env)
-        if any(Path(target_dir).iterdir()):
-            success = True
-        else:
-            logger.info(f"No files found in {target_dir} after clone.")
+        try:
+            # Use subprocess to ensure environment variables are properly passed
+            # No checkout needed, so shallow clone is sufficient
+            cmd = [
+                "git", "-c", "credential.helper=", "-c", "credential.helper=!",
+                "clone", "--depth", "1", git_url, target_dir
+            ]
+            result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=600, stdin=subprocess.DEVNULL)
+            if result.returncode == 0:
+                if any(Path(target_dir).iterdir()):
+                    success = True
+                else:
+                    logger.info(f"No files found in {target_dir} after clone.")
+                    success = False
+            else:
+                logger.info(f"Git clone error: {result.stderr}")
+                success = False
+        except subprocess.TimeoutExpired:
+            logger.info("Git clone timeout")
+            success = False
+        except Exception as e:
+            logger.info(f"Git clone error:{e}")
             success = False
     return success, oss_version
 
