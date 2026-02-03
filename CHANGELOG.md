@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.40 (03/02/2026)
+## Changes
+## 🔧 Maintenance
+
+- Apply glob pattern matching for excluding @soimkim (#252)
+
+---
+
 ## v2.1.39 (30/01/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -254,11 +262,3 @@
 ## 🐛 Hotfixes
 
 - Fix a bug that occurs when checking out with a tag @soimkim (#212)
-
----
-
-## v2.1.10 (23/01/2025)
-## Changes
-## 🔧 Maintenance
-
-- Add the flake8 for src dir @dd-jy (#210)
