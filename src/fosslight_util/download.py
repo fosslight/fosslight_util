@@ -254,28 +254,58 @@ def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
     tag_set = set(ref_dict.get("tags", []))
     branch_set = set(ref_dict.get("branches", []))
 
-    ver_re = re.compile(r'^(?:v\.? ?)?' + re.escape(base) + r'$', re.IGNORECASE)
+    # Prefix variant matching: ignore v/v./v in base and use only the version part
+    base_normalized = re.sub(r'^(?:v\.? ?)?', '', base.strip(), flags=re.IGNORECASE)
+    ver_re = re.compile(r'^(?:v\.? ?)?' + re.escape(base_normalized) + r'$', re.IGNORECASE)
+    ref_set = tag_set | branch_set
 
-    # tag: exact -> prefix variant -> endswith
-    if base in tag_set:
+    # Priority: exact -> prefix variant (e.g. v1.0) -> major.minor -> endswith
+    if base in ref_set:
         return base
-    tag_candidates = [c for c in tag_set if ver_re.match(c)]
-    if tag_candidates:
-        return min(tag_candidates, key=lambda x: (len(x), x.lower()))
-    tag_ends = [n for n in tag_set if n.endswith(base)]
-    if tag_ends:
-        return min(tag_ends, key=len)
+    candidates = [c for c in ref_set if ver_re.match(c)]
+    if candidates:
+        return min(candidates, key=lambda x: (len(x), x.lower()))
 
-    # branch: exact -> prefix variant -> endswith
-    if base in branch_set:
-        return base
-    branch_candidates = [c for c in branch_set if ver_re.match(c)]
-    if branch_candidates:
-        return min(branch_candidates, key=lambda x: (len(x), x.lower()))
-    branch_ends = [n for n in branch_set if n.endswith(base)]
-    if branch_ends:
-        return min(branch_ends, key=len)
+    # Match by major.minor (Semantic Versioning 2.0.0: major.minor.patch[-prerelease][+build])
+    # base: e.g. v1.0 / 1.0.0 / 1.0.0-beta -> extract major, minor, patch (patch defaults to 0)
+    _v = re.match(
+        r'^(?:v\.? ?)?(\d+)\.(\d+)(?:\.(\d+))?(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$',
+        base.strip(), re.IGNORECASE
+    )
+    if _v:
+        base_major, base_minor = int(_v.group(1)), int(_v.group(2))
+        base_patch = int(_v.group(3)) if _v.group(3) else 0
+        same_maj_min = []
+        # Extract semver 2.0.0 from ref: major.minor.patch[-prerelease][+build] (allow prefix v/ or Name-)
+        _semver_in_ref = re.compile(
+            r'(?:^v\.? ?|[-_])'
+            r'(\d+)\.(\d+)\.(\d+)'
+            r'(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?'
+            r'(?=[-_]|$)',
+            re.IGNORECASE
+        )
+        _semver_at_start = re.compile(
+            r'^(\d+)\.(\d+)\.(\d+)'
+            r'(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?'
+            r'(?=[-_]|$)',
+            re.IGNORECASE
+        )
+        for c in ref_set:
+            s = c.strip()
+            m = _semver_in_ref.search(s) or _semver_at_start.match(s)
+            if m and int(m.group(1)) == base_major and int(m.group(2)) == base_minor:
+                patch = int(m.group(3))
+                same_maj_min.append((c, patch))
+        if same_maj_min:
+            # Prefer exact major.minor.patch match with base; otherwise take max patch
+            exact_patch = [x for x in same_maj_min if x[1] == base_patch]
+            if exact_patch:
+                return min(exact_patch, key=lambda x: (len(x[0]), x[0].lower()))[0]
+            return max(same_maj_min, key=lambda x: x[1])[0]
 
+    ends = [n for n in ref_set if n.endswith(base)]
+    if ends:
+        return min(ends, key=len)
     return base
 
 
@@ -301,7 +331,7 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
     success = False
     oss_version = ""
 
-    logger.info(f"Download git url :{git_url}")
+    logger.info(f"Download git url :{git_url}, version:{refs_to_checkout}")
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
     if platform.system() == "Windows":
@@ -424,7 +454,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                         logger.info(f"Failed to insert id, token to git url:{error}")
                 success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_cli)
 
-            logger.info(f"git checkout: {oss_version}")
+            logger.info(f"git checkout version: {oss_version}")
             refs_to_checkout = oss_version
 
             if platform.system() != "Windows":
