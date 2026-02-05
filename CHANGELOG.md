@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.41 (05/02/2026)
+## Changes
+## 🚀 Features
+
+- download: improve decide_checkout ref resolution @soimkim (#253)
+
+---
+
 ## v2.1.40 (03/02/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -254,11 +262,3 @@
 ## 🐛 Hotfixes
 
 - Fix cyclonedx bug @dd-jy (#213)
-
----
-
-## v2.1.11 (07/02/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Fix a bug that occurs when checking out with a tag @soimkim (#212)
