@@ -100,4 +100,4 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           body: "이 PR에는 리뷰할 코드 변경이 없습니다."
           edit-mode: replace
-          comment-title: "🤖 LLM 리뷰 요약"
+          comment-title: "🤖 LLM 리뷰"
