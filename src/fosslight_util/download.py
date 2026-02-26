@@ -127,6 +127,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
     link = link.strip()
     is_rubygems = False
+    declared_version = ""
 
     try:
         if not link:
@@ -146,11 +147,9 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir,
-                                                                         checkout_to,
-                                                                         tag, branch,
-                                                                         ssh_key, id, git_token,
-                                                                         called_cli)
+            success_git, msg, oss_name, oss_version, declared_version = download_git_clone(
+                link, target_dir, checkout_to, tag, branch,
+                ssh_key, id, git_token, called_cli)
             link = change_ssh_link_to_https(link)
             if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
@@ -176,13 +175,13 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     except Exception as error:
         success = False
         msg = str(error)
-
     if output:
         output_result = {
             "success": success,
             "message": msg,
             "oss_name": oss_name,
-            "oss_version": oss_version
+            "oss_version": oss_version,
+            "declared_version": declared_version or oss_version
         }
         output_json = os.path.join(log_dir, "fosslight_download_output.json")
         with open(output_json, 'w') as f:
@@ -248,7 +247,7 @@ def get_remote_refs(git_url: str):
 def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
     base = checkout_to or tag or branch
     if not base:
-        return ""
+        return "", ""
 
     ref_dict = get_remote_refs(git_url)
     tag_set = set(ref_dict.get("tags", []))
@@ -259,24 +258,31 @@ def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
     ver_re = re.compile(r'^(?:v\.? ?)?' + re.escape(base_normalized) + r'$', re.IGNORECASE)
     ref_set = tag_set | branch_set
 
-    # Priority: exact -> prefix variant (e.g. v1.0) -> major.minor -> endswith
+    # Priority: exact -> prefix variant (e.g. v1.0) -> major.minor
     if base in ref_set:
-        return base
+        return base, base
     candidates = [c for c in ref_set if ver_re.match(c)]
     if candidates:
-        return min(candidates, key=lambda x: (len(x), x.lower()))
+        ref = min(candidates, key=lambda x: (len(x), x.lower()))
+        declared = re.sub(r'^(?:v\.? ?)?', '', ref.strip(), flags=re.IGNORECASE)
+        return ref, declared
 
-    # Match by major.minor (Semantic Versioning 2.0.0: major.minor.patch[-prerelease][+build])
-    # base: e.g. v1.0 / 1.0.0 / 1.0.0-beta -> extract major, minor, patch (patch defaults to 0)
-    _v = re.match(
-        r'^(?:v\.? ?)?(\d+)\.(\d+)(?:\.(\d+))?(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$',
-        base.strip(), re.IGNORECASE
-    )
+    # Match by major.minor: extract (d).(d).(d) or fallback to (d).(d) in base
+    # e.g. v1.0.0, 1.0.0_r13, @scope/name@5.9.6 / 1.0, v1.0
+    _v = re.search(r'(\d+)\.(\d+)\.(\d+)', base.strip())
     if _v:
-        base_major, base_minor = int(_v.group(1)), int(_v.group(2))
-        base_patch = int(_v.group(3)) if _v.group(3) else 0
+        base_major, base_minor, base_patch = (
+            int(_v.group(1)), int(_v.group(2)), int(_v.group(3))
+        )
+    else:
+        _v = re.search(r'(\d+)\.(\d+)', base.strip())
+        if _v:
+            base_major, base_minor, base_patch = (
+                int(_v.group(1)), int(_v.group(2)), 0
+            )
+    if _v:
         same_maj_min = []
-        # Extract semver 2.0.0 from ref: major.minor.patch[-prerelease][+build] (allow prefix v/ or Name-)
+        # Extract semver from ref: major.minor.patch or major.minor (patch=0)
         _semver_in_ref = re.compile(
             r'(?:^v\.? ?|[-_])'
             r'(\d+)\.(\d+)\.(\d+)'
@@ -290,23 +296,30 @@ def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
             r'(?=[-_]|$)',
             re.IGNORECASE
         )
+        _two_in_ref = re.compile(
+            r'(?:^v\.? ?|[-_])(\d+)\.(\d+)(?=[.-_]|$)',
+            re.IGNORECASE
+        )
+        _two_at_start = re.compile(r'^(\d+)\.(\d+)(?=[.-_]|$)')
         for c in ref_set:
             s = c.strip()
             m = _semver_in_ref.search(s) or _semver_at_start.match(s)
             if m and int(m.group(1)) == base_major and int(m.group(2)) == base_minor:
-                patch = int(m.group(3))
-                same_maj_min.append((c, patch))
+                same_maj_min.append((c, int(m.group(3))))
+            else:
+                m2 = _two_in_ref.search(s) or _two_at_start.match(s)
+                if m2 and int(m2.group(1)) == base_major and int(m2.group(2)) == base_minor:
+                    same_maj_min.append((c, 0))
         if same_maj_min:
             # Prefer exact major.minor.patch match with base; otherwise take max patch
             exact_patch = [x for x in same_maj_min if x[1] == base_patch]
             if exact_patch:
-                return min(exact_patch, key=lambda x: (len(x[0]), x[0].lower()))[0]
-            return max(same_maj_min, key=lambda x: x[1])[0]
+                ref = min(exact_patch, key=lambda x: (len(x[0]), x[0].lower()))[0]
+                return ref, f"{base_major}.{base_minor}.{base_patch}"
+            ref = max(same_maj_min, key=lambda x: x[1])[0]
+            return ref, f"{base_major}.{base_minor}"
 
-    ends = [n for n in ref_set if n.endswith(base)]
-    if ends:
-        return min(ends, key=len)
-    return base
+    return base, base
 
 
 def get_github_ossname(link):
@@ -418,7 +431,9 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                        ssh_key="", id="", git_token="", called_cli=True):
     oss_name = get_github_ossname(git_url)
-    refs_to_checkout = decide_checkout(checkout_to, tag, branch, git_url)
+    refs_to_checkout, declared_version = decide_checkout(
+        checkout_to, tag, branch, git_url
+    )
     msg = ""
     success = True
 
@@ -466,7 +481,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
 
-    return success, msg, oss_name, refs_to_checkout
+    return success, msg, oss_name, refs_to_checkout, declared_version
 
 
 def download_wget(link, target_dir, compressed_only, checkout_to):
