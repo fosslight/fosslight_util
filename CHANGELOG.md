@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1.42 (05/03/2026)
+## Changes
+## 🔧 Maintenance
+
+- Remove "Type of change" section from PR default template @woocheol-lge (#257)
+- Update CodeRabbit config @soimkim (#256)
+
+---
+
 ## v2.1.41 (05/02/2026)
 ## Changes
 ## 🚀 Features
@@ -250,15 +259,3 @@
 ## 🔧 Maintenance
 
 - Write as a string when exceeding max. url length @bjk7119 (#215)
-
----
-
-## v2.1.12 (02/05/2025)
-## Changes
-## 🚀 Features
-
-- Add dep info in ui result @dd-jy (#214)
-
-## 🐛 Hotfixes
-
-- Fix cyclonedx bug @dd-jy (#213)
