@@ -60,15 +60,14 @@ def alarm_handler(signum, frame):
 
 def is_downloadable(url):
     try:
-        h = requests.head(url, allow_redirects=True)
-        header = h.headers
-        content_type = header.get('content-type')
-        if 'text/html' in content_type.lower():
-            return False
-        content_disposition = header.get('content-disposition')
-        if content_disposition and 'attachment' in content_disposition.lower():
+        with requests.get(url, stream=True, allow_redirects=True, timeout=10) as r:
+            if r.status_code >= 400:
+                return False
+            content_type = r.headers.get('content-type', '').lower()
+            if 'text/html' in content_type:
+                logger.warning(f"Content-Type is text/html, not a downloadable link: {url}")
+                return False
             return True
-        return True
     except Exception as e:
         logger.warning(f"is_downloadable - failed: {e}")
         return False
