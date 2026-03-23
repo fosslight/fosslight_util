@@ -611,10 +611,22 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
                 with contextlib.closing(tarfile.open(fname, "r:gz")) as t:
                     t.extractall(path=extract_path)
             else:
-                is_compressed_file = False
-                if compressed_only:
+                try:
+                    if zipfile.is_zipfile(fname):
+                        unzip(fname, extract_path)
+                    elif tarfile.is_tarfile(fname):
+                        with contextlib.closing(tarfile.open(fname, "r:*")) as tar:
+                            tar.extraction_filter = getattr(tarfile, 'data_filter', (lambda member, path: member))
+                            tar.extractall(path=extract_path)
+                    else:
+                        is_compressed_file = False
+                        if compressed_only:
+                            success = False
+                        logger.warning(f"Unsupported file extension: {fname}")
+                except Exception as e:
                     success = False
-                logger.warning(f"Unsupported file extension: {fname}")
+                    is_compressed_file = False
+                    logger.debug(f"Magic bytes detection failed: {e}")
 
             if remove_after_extract and is_compressed_file:
                 logger.debug(f"Remove - extracted file: {fname}")
