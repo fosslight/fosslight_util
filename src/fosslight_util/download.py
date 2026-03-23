@@ -60,15 +60,14 @@ def alarm_handler(signum, frame):
 
 def is_downloadable(url):
     try:
-        h = requests.head(url, allow_redirects=True)
-        header = h.headers
-        content_type = header.get('content-type')
-        if 'text/html' in content_type.lower():
-            return False
-        content_disposition = header.get('content-disposition')
-        if content_disposition and 'attachment' in content_disposition.lower():
+        with requests.get(url, stream=True, allow_redirects=True, timeout=10) as r:
+            if r.status_code >= 400:
+                return False
+            content_type = r.headers.get('content-type', '').lower()
+            if 'text/html' in content_type:
+                logger.warning(f"Content-Type is text/html, not a downloadable link: {url}")
+                return False
             return True
-        return True
     except Exception as e:
         logger.warning(f"is_downloadable - failed: {e}")
         return False
@@ -612,10 +611,22 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
                 with contextlib.closing(tarfile.open(fname, "r:gz")) as t:
                     t.extractall(path=extract_path)
             else:
-                is_compressed_file = False
-                if compressed_only:
+                try:
+                    if zipfile.is_zipfile(fname):
+                        unzip(fname, extract_path)
+                    elif tarfile.is_tarfile(fname):
+                        with contextlib.closing(tarfile.open(fname, "r:*")) as tar:
+                            tar.extraction_filter = getattr(tarfile, 'data_filter', (lambda member, path: member))
+                            tar.extractall(path=extract_path)
+                    else:
+                        is_compressed_file = False
+                        if compressed_only:
+                            success = False
+                        logger.warning(f"Unsupported file extension: {fname}")
+                except Exception as e:
                     success = False
-                logger.warning(f"Unsupported file extension: {fname}")
+                    is_compressed_file = False
+                    logger.debug(f"Magic bytes detection failed: {e}")
 
             if remove_after_extract and is_compressed_file:
                 logger.debug(f"Remove - extracted file: {fname}")
