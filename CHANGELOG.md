@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.43 (23/03/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Improve downloadability check and compressed file detection @dd-jy (#258)
+
+---
+
 ## v2.1.42 (05/03/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -251,11 +259,3 @@
 ## 🔧 Maintenance
 
 - Remove the lowercase of pypi package name @dd-jy (#216)
-
----
-
-## v2.1.13 (23/05/2025)
-## Changes
-## 🔧 Maintenance
-
-- Write as a string when exceeding max. url length @bjk7119 (#215)
