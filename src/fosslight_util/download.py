@@ -300,7 +300,11 @@ def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
             exact_patch = [x for x in same_maj_min if x[1] == base_patch]
             if exact_patch:
                 return min(exact_patch, key=lambda x: (len(x[0]), x[0].lower()))[0]
+            if _v.group(3):
+                return ""
             return max(same_maj_min, key=lambda x: x[1])[0]
+        elif _v.group(3):
+            return ""
 
     ends = [n for n in ref_set if n.endswith(base)]
     if ends:
