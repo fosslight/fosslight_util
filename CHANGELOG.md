@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.44 (24/03/2026)
+## Changes
+## 🔧 Maintenance
+
+- Modified to search for a version that matches all major.minor.patch when provided as input @soimkim (#259)
+
+---
+
 ## v2.1.43 (23/03/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -251,11 +259,3 @@
 ## 🔧 Maintenance
 
 - Replace pkg_resources to importlib.metadata @bjk7119 (#217)
-
----
-
-## v2.1.14 (05/06/2025)
-## Changes
-## 🔧 Maintenance
-
-- Remove the lowercase of pypi package name @dd-jy (#216)
