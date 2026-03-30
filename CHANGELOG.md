@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.45 (30/03/2026)
+## 🔧 Maintenance
+
+* fosslight_download > Retry version check without leading v when registry lookup fails.
+
+
+---
+
 ## v2.1.44 (24/03/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -247,15 +255,3 @@
 ## 🐛 Hotfixes
 
 - Encode id and key in url to clone git @dd-jy (#220)
-
----
-
-## v2.1.15 (11/06/2025)
-## Changes
-## 🚀 Features
-
-- Add func to get downlodable url for go @dd-jy (#218)
-
-## 🔧 Maintenance
-
-- Replace pkg_resources to importlib.metadata @bjk7119 (#217)
