@@ -137,8 +137,12 @@ def extract_name_version_from_link(link, checkout_version):
             if oss_version:
                 try:
                     if not version_exists(pkg_type, origin_name, oss_version):
-                        logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
-                        need_latest = True
+                        if oss_version.startswith('v') and version_exists(pkg_type, origin_name, oss_version[1:]):
+                            logger.info(f'Version {oss_version} not found; using without leading v: {oss_version[1:]}')
+                            oss_version = oss_version[1:]
+                        else:
+                            logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
+                            need_latest = True
                 except Exception as e:
                     logger.info(f'Version validation failed ({oss_name}:{oss_version}) {e}; will attempt latest fallback')
                     need_latest = True
