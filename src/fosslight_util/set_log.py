@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import shutil
 import os
 from pathlib import Path
 import sys
@@ -110,3 +111,44 @@ def init_log(log_file: str, create_file: bool = True, stream_log_level: int = lo
         _result_log["Path to exclude"] = ", ".join(path_to_exclude)
 
     return logger, _result_log
+
+
+def move_log_file(prev_log_path, final_log_path):
+    logger = logging.getLogger(constant.LOGGER_NAME)
+    target_handler = None
+
+    prev_abs = os.path.abspath(prev_log_path)
+    for handler in logger.handlers[:]:
+        if isinstance(handler, logging.FileHandler) and os.path.abspath(handler.baseFilename) == prev_abs:
+            handler.flush()
+            handler.close()
+            logger.removeHandler(handler)
+            target_handler = handler
+            break
+
+    os.makedirs(os.path.dirname(final_log_path) or ".", exist_ok=True)
+    try:
+        shutil.move(prev_log_path, final_log_path)
+        new_handler = logging.FileHandler(final_log_path, mode='a')
+        if target_handler is not None:
+            new_handler.setLevel(target_handler.level)
+            if target_handler.formatter is not None:
+                new_handler.setFormatter(target_handler.formatter)
+        else:
+            new_handler.setLevel(logging.DEBUG)
+            new_handler.setFormatter(logging.Formatter('[%(levelname)7s] %(message)s'))
+        logger.addHandler(new_handler)
+    except Exception:
+        # restore previous logging path when relocation fails
+        fallback = logging.FileHandler(prev_log_path, mode='a')
+        if target_handler is not None:
+            fallback.setLevel(target_handler.level)
+            if target_handler.formatter is not None:
+                fallback.setFormatter(target_handler.formatter)
+        else:
+            fallback.setLevel(logging.DEBUG)
+            fallback.setFormatter(logging.Formatter('[%(levelname)7s] %(message)s'))
+        logger.addHandler(fallback)
+        raise
+
+    logger.info("Moved log file to final path")
