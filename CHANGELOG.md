@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.46 (03/04/2026)
+## Changes
+## 🔧 Maintenance
+
+- feat(python): support Python 3.13/3.14 and migrate from setup.py to pyproject.toml @dd-jy (#261)
+
+---
+
 ## v2.1.45 (30/03/2026)
 ## 🔧 Maintenance
 
@@ -247,11 +255,3 @@
 ## 🐛 Hotfixes
 
 - Fix to prevent prompt when calling git clone with API @dd-jy (#221)
-
----
-
-## v2.1.16 (18/06/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Encode id and key in url to clone git @dd-jy (#220)
