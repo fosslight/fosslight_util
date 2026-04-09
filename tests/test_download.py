@@ -15,7 +15,7 @@ def test_download_from_github():
     log_dir = "test_result/download_log/example"
 
     # when
-    success, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
+    success, _, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
 
     # then
     assert success is True
@@ -31,7 +31,7 @@ def test_download_from_github_with_branch_or_tag(git_url):
     log_dir = "test_result/download_log/example"
 
     # when
-    success, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
+    success, _, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
 
     # then
     assert success is True
@@ -51,7 +51,7 @@ def test_download_from_wget(project_name, project_url):
                            os.path.join("download_log" + project_name))
 
     # when
-    success, _, _, _ = cli_download_and_extract(project_url, target_dir, log_dir)
+    success, _, _, _, _ = cli_download_and_extract(project_url, target_dir, log_dir)
 
     # then
     assert success is True
@@ -65,13 +65,15 @@ def test_download_git_clone_with_branch():
     branch_name = "hash-stat2"
 
     # when
-    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", "", branch_name)
+    success, _, oss_name, oss_version, clarified_version = download_git_clone(
+        git_url, target_dir, "", "", branch_name)
 
     # then
     assert success is True
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == ''
     assert oss_version == branch_name
+    assert clarified_version == ""
 
 
 def test_download_git_clone_with_tag():
@@ -81,13 +83,15 @@ def test_download_git_clone_with_tag():
     tag_name = "v32"
 
     # when
-    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", tag_name)
+    success, _, oss_name, oss_version, clarified_version = download_git_clone(
+        git_url, target_dir, "", tag_name)
 
     # then
     assert success is True
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == ''
     assert oss_version == tag_name
+    assert clarified_version == "32"
 
 
 def test_download_main_branch_when_any_branch_or_tag_not_entered():
@@ -97,13 +101,15 @@ def test_download_main_branch_when_any_branch_or_tag_not_entered():
     expected_oss_ver = ""
 
     # when
-    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir)
+    success, _, oss_name, oss_version, clarified_version = download_git_clone(
+        git_url, target_dir)
 
     # then
     assert success is True
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == 'LGE-OSS-example'
     assert oss_version == expected_oss_ver
+    assert clarified_version == ""
 
 
 def test_download_main_branch_when_non_existent_branch_entered():
@@ -114,13 +120,15 @@ def test_download_main_branch_when_non_existent_branch_entered():
     expected_oss_ver = ""
 
     # when
-    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", "", branch_name)
+    success, _, oss_name, oss_version, clarified_version = download_git_clone(
+        git_url, target_dir, "", "", branch_name)
 
     # then
     assert success is True
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == 'LGE-OSS-example'
     assert oss_version == expected_oss_ver
+    assert clarified_version == ""
 
 
 def test_download_main_branch_when_non_existent_tag_entered():
@@ -131,10 +139,12 @@ def test_download_main_branch_when_non_existent_tag_entered():
     expected_oss_ver = ""
 
     # when
-    success, _, oss_name, oss_version = download_git_clone(git_url, target_dir, "", tag_name)
+    success, _, oss_name, oss_version, clarified_version = download_git_clone(
+        git_url, target_dir, "", tag_name)
 
     # then
     assert success is True
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == 'LGE-OSS-example'
     assert oss_version == expected_oss_ver
+    assert clarified_version == ""
