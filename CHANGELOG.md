@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.1.47 (09/04/2026)
+## Changes
+- Security upgrade pyopenssl from 25.3.0 to 26.0.0 @bjk7119 (#263)
+
+## 🔧 Maintenance
+
+- Improve checkout resolution and clarified_version @soimkim (#264)
+
+---
+
 ## v2.1.46 (03/04/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -11,7 +21,7 @@
 ## v2.1.45 (30/03/2026)
 ## 🔧 Maintenance
 
-* fosslight_download > Retry version check without leading v when registry lookup fails.
+* fosslight_download > Retry version check without leading v when registry lookup fails. @soimkim (#260 )
 
 
 ---
@@ -247,11 +257,3 @@
 ## 🚀 Features
 
 - Support cargo downloadable url @dd-jy (#222)
-
----
-
-## v2.1.17 (24/06/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Fix to prevent prompt when calling git clone with API @dd-jy (#221)
