@@ -25,7 +25,7 @@ import threading
 import platform
 import subprocess
 import re
-from typing import Tuple
+from typing import List, Optional, Tuple
 import urllib.parse
 import json
 
@@ -113,7 +113,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                              compressed_only: bool = False, ssh_key: str = "",
                              id: str = "", git_token: str = "",
                              called_cli: bool = True,
-                             output: bool = False) -> Tuple[bool, str, str, str]:
+                             output: bool = False) -> Tuple[bool, str, str, str, str]:
     global logger
 
     success = True
@@ -145,11 +145,9 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
 
             # General download (git clone, wget)
-            success_git, msg, oss_name, oss_version = download_git_clone(link, target_dir,
-                                                                         checkout_to,
-                                                                         tag, branch,
-                                                                         ssh_key, id, git_token,
-                                                                         called_cli)
+            success_git, msg, oss_name, oss_version, _ = download_git_clone(
+                link, target_dir, checkout_to, tag, branch,
+                ssh_key, id, git_token, called_cli)
             link = change_ssh_link_to_https(link)
             if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
@@ -176,19 +174,21 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         success = False
         msg = str(error)
 
+    clarified_version = clarified_version_from_oss_version(oss_version)
+    output_result = {
+        "success": success,
+        "message": msg,
+        "oss_name": oss_name,
+        "oss_version": oss_version,
+        "clarified_version": clarified_version,
+    }
     if output:
-        output_result = {
-            "success": success,
-            "message": msg,
-            "oss_name": oss_name,
-            "oss_version": oss_version
-        }
         output_json = os.path.join(log_dir, "fosslight_download_output.json")
         with open(output_json, 'w') as f:
             json.dump(output_result, f, indent=4)
 
-    logger.info(f"\n* FOSSLight Downloader - Result: {success} ({msg})")
-    return success, msg, oss_name, oss_version
+    logger.info(f"\n* FOSSLight Downloader - Result: {output_result})")
+    return success, msg, oss_name, oss_version, clarified_version
 
 
 def get_ref_to_checkout(checkout_to, ref_list):
@@ -244,72 +244,138 @@ def get_remote_refs(git_url: str):
     return {"tags": tags, "branches": branches}
 
 
+_BASE_SEMVER_FOR_CHECKOUT = re.compile(
+    r'^(?:v\.? ?)?(\d+)\.(\d+)(?:\.(\d+))?(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$',
+    re.IGNORECASE,
+)
+_SEMVER_IN_REF = re.compile(
+    r'(?:^v\.? ?|[-_])'
+    r'(\d+)\.(\d+)\.(\d+)'
+    r'(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?'
+    r'(?=[-_]|$)',
+    re.IGNORECASE,
+)
+_SEMVER_AT_REF_START = re.compile(
+    r'^(\d+)\.(\d+)\.(\d+)'
+    r'(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?'
+    r'(?=[-_]|$)',
+    re.IGNORECASE,
+)
+_CLARIFIED_MAJOR_ONLY_FULL = re.compile(r'^(?:v\.? ?)?(\d+)$', re.IGNORECASE)
+# Two-part x.y not followed by .digit (avoids taking "1.2" from "1.2.3")
+_CLARIFIED_TWO_IN_STR = re.compile(r'(\d+)\.(\d+)(?!\.\d)')
+_CLARIFIED_MAJOR_IN_STR = re.compile(
+    r'(?:^|[-_/])(?:v\.? ?)?(\d+)(?=[^.\d]|$)', re.IGNORECASE
+)
+
+
+def clarified_version_from_oss_version(oss_version: str) -> str:
+    """Extract major, major.minor, or major.minor.patch from oss_version/ref string."""
+    s = (oss_version or "").strip()
+    if not s:
+        return ""
+    m = _BASE_SEMVER_FOR_CHECKOUT.match(s)
+    if m:
+        if m.group(3):
+            return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
+        return f"{m.group(1)}.{m.group(2)}"
+    m = _CLARIFIED_MAJOR_ONLY_FULL.match(s)
+    if m:
+        return m.group(1)
+    m = _SEMVER_IN_REF.search(s) or _SEMVER_AT_REF_START.match(s)
+    if m:
+        return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
+    m = _CLARIFIED_TWO_IN_STR.search(s)
+    if m:
+        return f"{m.group(1)}.{m.group(2)}"
+    m = _CLARIFIED_MAJOR_IN_STR.search(s)
+    if m:
+        return m.group(1)
+    return ""
+
+
+def _strip_leading_v_prefix(s: str) -> str:
+    return re.sub(r'^(?:v\.? ?)?', '', s.strip(), flags=re.IGNORECASE)
+
+
+def _match_exact_or_v_prefix_ref(base: str, ref_set: set) -> Optional[str]:
+    """Exact ref match, or ref equal to base after optional leading v/v./v."""
+    if base in ref_set:
+        return base
+    base_normalized = _strip_leading_v_prefix(base)
+    ver_re = re.compile(
+        r'^(?:v\.? ?)?' + re.escape(base_normalized) + r'$', re.IGNORECASE
+    )
+    candidates = [c for c in ref_set if ver_re.match(c)]
+    if candidates:
+        return min(candidates, key=lambda x: (len(x), x.lower()))
+    return None
+
+
+def _collect_same_major_minor_refs(
+    ref_set: set, base_major: int, base_minor: int
+) -> List[Tuple[str, int]]:
+    same_maj_min: List[Tuple[str, int]] = []
+    for c in ref_set:
+        s = c.strip()
+        m = _SEMVER_IN_REF.search(s) or _SEMVER_AT_REF_START.match(s)
+        if m and int(m.group(1)) == base_major and int(m.group(2)) == base_minor:
+            same_maj_min.append((c, int(m.group(3))))
+    return same_maj_min
+
+
+def _try_semver_checkout(base: str, ref_set: set) -> Tuple[bool, str, str]:
+    """Return (resolved, ref_or_empty, clarified_version from base semver logic)."""
+    _v = _BASE_SEMVER_FOR_CHECKOUT.match(base.strip())
+    if not _v:
+        return False, "", ""
+    base_major, base_minor = int(_v.group(1)), int(_v.group(2))
+    base_patch = int(_v.group(3)) if _v.group(3) else 0
+    same_maj_min = _collect_same_major_minor_refs(ref_set, base_major, base_minor)
+    if same_maj_min:
+        exact_patch = [x for x in same_maj_min if x[1] == base_patch]
+        if exact_patch:
+            ref = min(exact_patch, key=lambda x: (len(x[0]), x[0].lower()))[0]
+            clar = (
+                f"{base_major}.{base_minor}.{base_patch}"
+                if _v.group(3)
+                else f"{base_major}.{base_minor}"
+            )
+            return True, ref, clar
+        if _v.group(3):
+            return True, "", ""
+        ref = max(same_maj_min, key=lambda x: x[1])[0]
+        return True, ref, f"{base_major}.{base_minor}"
+    if _v.group(3):
+        return True, "", ""
+    return False, "", ""
+
+
 def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
+    """Return (ref_to_checkout, clarified_version). clarified_version may be ''."""
     base = checkout_to or tag or branch
     if not base:
-        return ""
+        return "", ""
 
     ref_dict = get_remote_refs(git_url)
     tag_set = set(ref_dict.get("tags", []))
     branch_set = set(ref_dict.get("branches", []))
-
-    # Prefix variant matching: ignore v/v./v in base and use only the version part
-    base_normalized = re.sub(r'^(?:v\.? ?)?', '', base.strip(), flags=re.IGNORECASE)
-    ver_re = re.compile(r'^(?:v\.? ?)?' + re.escape(base_normalized) + r'$', re.IGNORECASE)
     ref_set = tag_set | branch_set
 
     # Priority: exact -> prefix variant (e.g. v1.0) -> major.minor -> endswith
-    if base in ref_set:
-        return base
-    candidates = [c for c in ref_set if ver_re.match(c)]
-    if candidates:
-        return min(candidates, key=lambda x: (len(x), x.lower()))
+    hit = _match_exact_or_v_prefix_ref(base, ref_set)
+    if hit is not None:
+        return hit, clarified_version_from_oss_version(hit)
 
-    # Match by major.minor (Semantic Versioning 2.0.0: major.minor.patch[-prerelease][+build])
-    # base: e.g. v1.0 / 1.0.0 / 1.0.0-beta -> extract major, minor, patch (patch defaults to 0)
-    _v = re.match(
-        r'^(?:v\.? ?)?(\d+)\.(\d+)(?:\.(\d+))?(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$',
-        base.strip(), re.IGNORECASE
-    )
-    if _v:
-        base_major, base_minor = int(_v.group(1)), int(_v.group(2))
-        base_patch = int(_v.group(3)) if _v.group(3) else 0
-        same_maj_min = []
-        # Extract semver 2.0.0 from ref: major.minor.patch[-prerelease][+build] (allow prefix v/ or Name-)
-        _semver_in_ref = re.compile(
-            r'(?:^v\.? ?|[-_])'
-            r'(\d+)\.(\d+)\.(\d+)'
-            r'(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?'
-            r'(?=[-_]|$)',
-            re.IGNORECASE
-        )
-        _semver_at_start = re.compile(
-            r'^(\d+)\.(\d+)\.(\d+)'
-            r'(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?'
-            r'(?=[-_]|$)',
-            re.IGNORECASE
-        )
-        for c in ref_set:
-            s = c.strip()
-            m = _semver_in_ref.search(s) or _semver_at_start.match(s)
-            if m and int(m.group(1)) == base_major and int(m.group(2)) == base_minor:
-                patch = int(m.group(3))
-                same_maj_min.append((c, patch))
-        if same_maj_min:
-            # Prefer exact major.minor.patch match with base; otherwise take max patch
-            exact_patch = [x for x in same_maj_min if x[1] == base_patch]
-            if exact_patch:
-                return min(exact_patch, key=lambda x: (len(x[0]), x[0].lower()))[0]
-            if _v.group(3):
-                return ""
-            return max(same_maj_min, key=lambda x: x[1])[0]
-        elif _v.group(3):
-            return ""
+    resolved, ref, clar = _try_semver_checkout(base, ref_set)
+    if resolved:
+        return ref, clar
 
     ends = [n for n in ref_set if n.endswith(base)]
     if ends:
-        return min(ends, key=len)
-    return base
+        r = min(ends, key=len)
+        return r, clarified_version_from_oss_version(r)
+    return base, clarified_version_from_oss_version(base)
 
 
 def get_github_ossname(link):
@@ -421,9 +487,12 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                        ssh_key="", id="", git_token="", called_cli=True):
     oss_name = get_github_ossname(git_url)
-    refs_to_checkout = decide_checkout(checkout_to, tag, branch, git_url)
+    refs_to_checkout, decided_clarified = decide_checkout(
+        checkout_to, tag, branch, git_url
+    )
     msg = ""
     success = True
+    oss_version = ""
 
     try:
         if platform.system() != "Windows":
@@ -469,7 +538,13 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
 
-    return success, msg, oss_name, refs_to_checkout
+    if oss_version:
+        clarified_version = decided_clarified or clarified_version_from_oss_version(
+            refs_to_checkout
+        )
+    else:
+        clarified_version = ""
+    return success, msg, oss_name, refs_to_checkout, clarified_version
 
 
 def download_wget(link, target_dir, compressed_only, checkout_to):
