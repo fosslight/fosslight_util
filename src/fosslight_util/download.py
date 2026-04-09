@@ -351,18 +351,8 @@ def _try_semver_checkout(base: str, ref_set: set) -> Tuple[bool, str, str]:
     return False, "", ""
 
 
-def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
-    """Return (ref_to_checkout, clarified_version). clarified_version may be ''."""
-    base = checkout_to or tag or branch
-    if not base:
-        return "", ""
-
-    ref_dict = get_remote_refs(git_url)
-    tag_set = set(ref_dict.get("tags", []))
-    branch_set = set(ref_dict.get("branches", []))
-    ref_set = tag_set | branch_set
-
-    # Priority: exact -> prefix variant (e.g. v1.0) -> major.minor -> endswith
+def _try_resolve_checkout_base(base: str, ref_set: set) -> Tuple[Optional[str], Optional[str]]:
+    """Match one base against ref_set. Returns (ref, clarified); use (None, None) to try next hint."""
     hit = _match_exact_or_v_prefix_ref(base, ref_set)
     if hit is not None:
         return hit, clarified_version_from_oss_version(hit)
@@ -370,12 +360,30 @@ def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
     resolved, ref, clar = _try_semver_checkout(base, ref_set)
     if resolved:
         return ref, clar
+    return None, None
 
-    ends = [n for n in ref_set if n.endswith(base)]
-    if ends:
-        r = min(ends, key=len)
-        return r, clarified_version_from_oss_version(r)
-    return base, clarified_version_from_oss_version(base)
+
+def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
+    """Return (ref_to_checkout, clarified_version). clarified_version may be ''.
+
+    Try tag, then branch, then checkout_to; only if a hint finds no match in refs
+    (same as former final ``return base, clarified_version_from_oss_version(base)``)
+    is the next hint used.
+    """
+    ref_dict = get_remote_refs(git_url)
+    tag_set = set(ref_dict.get("tags", []))
+    branch_set = set(ref_dict.get("branches", []))
+    ref_set = tag_set | branch_set
+
+    for raw in (tag, branch, checkout_to):
+        b = (raw or "").strip()
+        if not b:
+            continue
+        ref, clar = _try_resolve_checkout_base(b, ref_set)
+        if ref is not None:
+            return ref, clar
+
+    return "", ""
 
 
 def get_github_ossname(link):
