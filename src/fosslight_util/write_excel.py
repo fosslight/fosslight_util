@@ -9,7 +9,15 @@ import logging
 import os
 import pandas as pd
 from pathlib import Path
-from fosslight_util.constant import LOGGER_NAME, SHEET_NAME_FOR_SCANNER, FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SOURCE
+from fosslight_util.constant import (
+    LOGGER_NAME,
+    SHEET_NAME_FOR_SCANNER,
+    FOSSLIGHT_BINARY,
+    FOSSLIGHT_DEPENDENCY,
+    FOSSLIGHT_OCI,
+    FOSSLIGHT_OCI_BINARY,
+    FOSSLIGHT_SOURCE,
+)
 from jsonmerge import merge
 
 _HEADER = {'BIN (': ['ID', 'Binary Path', 'Source Code Path',
@@ -38,9 +46,20 @@ MAX_EXCEL_URL_LENGTH = 255
 
 
 def get_header_row(sheet_name, extended_header={}):
-    selected_header = []
-
     merged_headers = merge(_HEADER, extended_header)
+    su = sheet_name.upper()
+
+    # BIN_FL_* (e.g. BIN_FL_OCI, BIN_FL_Binary): same columns as binary scanner BIN sheet
+    if su.startswith("BIN_FL"):
+        h = merged_headers.get("BIN_FL_Binary") or merged_headers.get("BIN")
+        if h:
+            return h
+
+    # DEP_FL_* (e.g. DEP_FL_OCI, DEP_FL_Dependency): same columns as dependency DEP sheet
+    if su.startswith("DEP_FL"):
+        h = merged_headers.get("DEP_FL_Dependency") or merged_headers.get("DEP")
+        if h:
+            return h
 
     selected_header = merged_headers.get(sheet_name, [])
     if not selected_header:
@@ -121,7 +140,13 @@ def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_hea
         workbook = xlsxwriter.Workbook(out_file_name)
         write_cover_sheet(workbook, scan_item.cover)
         if scan_item.file_items and len(scan_item.file_items.keys()) > 0:
-            sheet_order = [FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SOURCE, FOSSLIGHT_BINARY]
+            sheet_order = [
+                FOSSLIGHT_DEPENDENCY,
+                FOSSLIGHT_SOURCE,
+                FOSSLIGHT_BINARY,
+                FOSSLIGHT_OCI,
+                FOSSLIGHT_OCI_BINARY,
+            ]
             all_scanners = list(scan_item.file_items.keys())
             priority = {name.lower(): idx for idx, name in enumerate(sheet_order)}
             sorted_scanner_names = sorted(all_scanners,
@@ -142,7 +167,10 @@ def write_result_to_excel(out_file_name, scan_item, extended_header={}, hide_hea
                 if sheet_name:
                     worksheet = create_worksheet(workbook, sheet_name, selected_header)
                     write_result_to_sheet(worksheet, sheet_content_without_header)
-                    if (scanner_name == FOSSLIGHT_BINARY) and (not hide_header):
+                    if scanner_name in (
+                        FOSSLIGHT_BINARY,
+                        FOSSLIGHT_OCI_BINARY,
+                    ) and (not hide_header):
                         hide_header = BIN_HIDE_HEADER
                     if hide_header:
                         hide_column(worksheet, selected_header, hide_header)
