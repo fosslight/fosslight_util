@@ -19,11 +19,15 @@ FOSSLIGHT_SCANNER = 'fosslight_scanner'
 FOSSLIGHT_SOURCE = 'fosslight_source'
 FOSSLIGHT_DEPENDENCY = 'fosslight_dependency'
 FOSSLIGHT_BINARY = 'fosslight_binary'
+FOSSLIGHT_OCI = 'fosslight_oci'
+FOSSLIGHT_OCI_BINARY = 'fosslight_oci_binary'
 
 SHEET_NAME_FOR_SCANNER = {
     FOSSLIGHT_SOURCE: 'SRC_FL_Source',
     FOSSLIGHT_BINARY: 'BIN_FL_Binary',
-    FOSSLIGHT_DEPENDENCY: 'DEP_FL_Dependency'
+    FOSSLIGHT_DEPENDENCY: 'DEP_FL_Dependency',
+    FOSSLIGHT_OCI: 'DEP_FL_OCI',
+    FOSSLIGHT_OCI_BINARY: 'BIN_FL_OCI',
 }
 
 # Github : https://github.com/(owner)/(repo)
