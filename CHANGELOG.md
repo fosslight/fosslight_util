@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.48 (15/04/2026)
+## Changes
+## 🔧 Maintenance
+
+- Pick worksheet title when extended_header has multiple keys @soimkim (#265)
+
+---
+
 ## v2.1.47 (09/04/2026)
 ## Changes
 - Security upgrade pyopenssl from 25.3.0 to 26.0.0 @bjk7119 (#263)
@@ -249,11 +257,3 @@
 ## 🔧 Maintenance
 
 - Replace npm package with registry.npmjs.org API @dd-jy (#223)
-
----
-
-## v2.1.18 (08/07/2025)
-## Changes
-## 🚀 Features
-
-- Support cargo downloadable url @dd-jy (#222)
