@@ -269,6 +269,28 @@ _CLARIFIED_MAJOR_IN_STR = re.compile(
 )
 
 
+def _semver_maj_min_pat_from_ref(s: str) -> Optional[Tuple[int, int, int]]:
+    """Parse major.minor.patch from a ref using dotted or underscore semver (e.g. v_1_2_3)."""
+    s = (s or "").strip()
+    if not s:
+        return None
+    m = _SEMVER_IN_REF.search(s) or _SEMVER_AT_REF_START.match(s)
+    if m:
+        return int(m.group(1)), int(m.group(2)), int(m.group(3))
+    m = re.match(r"^(?:v_?)?(\d+)_(\d+)_(\d+)$", s, re.IGNORECASE)
+    if m:
+        return int(m.group(1)), int(m.group(2)), int(m.group(3))
+    m = re.search(
+        r"(?:^|[-_/])(?:v_?)?(\d+)_(\d+)_(\d+)(?=[/_-]|$)", s, re.IGNORECASE
+    )
+    if m:
+        return int(m.group(1)), int(m.group(2)), int(m.group(3))
+    m = re.match(r"^(?:v_?)?(\d+)_(\d+)$", s, re.IGNORECASE)
+    if m:
+        return int(m.group(1)), int(m.group(2)), 0
+    return None
+
+
 def clarified_version_from_oss_version(oss_version: str) -> str:
     """Extract major, major.minor, or major.minor.patch from oss_version/ref string."""
     s = (oss_version or "").strip()
@@ -282,6 +304,12 @@ def clarified_version_from_oss_version(oss_version: str) -> str:
     m = _CLARIFIED_MAJOR_ONLY_FULL.match(s)
     if m:
         return m.group(1)
+    parsed = _semver_maj_min_pat_from_ref(s)
+    if parsed:
+        maj, min_, pat = parsed
+        if re.match(r"^(?:v_?)?\d+_\d+$", s, re.IGNORECASE):
+            return f"{maj}.{min_}"
+        return f"{maj}.{min_}.{pat}"
     m = _SEMVER_IN_REF.search(s) or _SEMVER_AT_REF_START.match(s)
     if m:
         return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
@@ -307,6 +335,20 @@ def _match_exact_or_v_prefix_ref(base: str, ref_set: set) -> Optional[str]:
         r'^(?:v\.? ?)?' + re.escape(base_normalized) + r'$', re.IGNORECASE
     )
     candidates = [c for c in ref_set if ver_re.match(c)]
+    mco = _BASE_SEMVER_FOR_CHECKOUT.match(base_normalized)
+    if mco:
+        p1, p2, p3 = mco.group(1), mco.group(2), mco.group(3)
+        if p3:
+            us_re = re.compile(
+                rf"^(?:v_?)?{re.escape(p1)}_{re.escape(p2)}_{re.escape(p3)}$",
+                re.IGNORECASE,
+            )
+        else:
+            us_re = re.compile(
+                rf"^(?:v_?)?{re.escape(p1)}_{re.escape(p2)}$",
+                re.IGNORECASE,
+            )
+        candidates.extend([c for c in ref_set if us_re.match(c)])
     if candidates:
         return min(candidates, key=lambda x: (len(x), x.lower()))
     return None
@@ -317,10 +359,9 @@ def _collect_same_major_minor_refs(
 ) -> List[Tuple[str, int]]:
     same_maj_min: List[Tuple[str, int]] = []
     for c in ref_set:
-        s = c.strip()
-        m = _SEMVER_IN_REF.search(s) or _SEMVER_AT_REF_START.match(s)
-        if m and int(m.group(1)) == base_major and int(m.group(2)) == base_minor:
-            same_maj_min.append((c, int(m.group(3))))
+        parsed = _semver_maj_min_pat_from_ref(c)
+        if parsed and parsed[0] == base_major and parsed[1] == base_minor:
+            same_maj_min.append((c, parsed[2]))
     return same_maj_min
 
 
