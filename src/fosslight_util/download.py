@@ -311,6 +311,16 @@ _ARCHIVE_VERSION_TAIL = re.compile(
     r'-((?:\d+\.)+\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?)$',
     re.IGNORECASE,
 )
+# crates.io: API download URL ends with .../name/VERSION/download (basename must not be used as version)
+_CRATES_IO_API_VERSION = re.compile(
+    r'/api/v1/crates/[^/]+/([^/]+)/download/?$',
+    re.IGNORECASE,
+)
+# crates.io: .../crates/CRATE_NAME/VERSION
+_CRATES_IO_WEB_VERSION = re.compile(
+    r'/crates/[^/]+/([^/?#]+)/?(?:$|[?#])',
+    re.IGNORECASE,
+)
 
 
 def clarified_version_from_oss_version(oss_version: str) -> str:
@@ -366,6 +376,15 @@ def _version_string_from_archive_stem(stem: str) -> str:
 
 def _oss_version_hint_from_wget_link(link: str, downloaded_file: str) -> str:
     """Version string from last URL path segment or saved filename for clarified_version."""
+    if link:
+        path = urllib.parse.urlparse(link).path or ""
+        m = _CRATES_IO_API_VERSION.search(path)
+        if m:
+            return m.group(1)
+        m = _CRATES_IO_WEB_VERSION.search(path)
+        if m:
+            return m.group(1)
+
     for src in (link, downloaded_file):
         if not src:
             continue
@@ -377,8 +396,9 @@ def _oss_version_hint_from_wget_link(link: str, downloaded_file: str) -> str:
         if not base:
             continue
         stem = _strip_known_archive_suffixes(base)
-        if stem:
-            return _version_string_from_archive_stem(stem)
+        if not stem or stem.lower() == "download":
+            continue
+        return _version_string_from_archive_stem(stem)
     return ""
 
 
