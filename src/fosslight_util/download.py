@@ -34,6 +34,32 @@ compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip
 prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 
+# Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests / wget default
+# User-Agent, or 200 with a small text/html interstitial. Retry with browser UA, then
+# curl-like UA (often allowed for direct tarball GET).
+_HTTP_BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+_HTTP_CURL_LIKE_USER_AGENT = "curl/8.7.1"
+
+
+class _HtmlWhenBinaryExpected(Exception):
+    """Server returned HTML for a URL that should be a binary archive; try another client."""
+
+
+def _url_looks_like_binary_archive(url: str) -> bool:
+    path = urllib.parse.urlparse(url).path.lower()
+    return any(path.endswith(ext) for ext in compression_extension)
+
+
+def _download_http_header_attempts():
+    return [
+        None,
+        {"User-Agent": _HTTP_BROWSER_USER_AGENT},
+        {"User-Agent": _HTTP_CURL_LIKE_USER_AGENT, "Accept": "*/*"},
+    ]
+
 
 class Alarm(threading.Thread):
     def __init__(self, timeout):
@@ -59,18 +85,31 @@ def alarm_handler(signum, frame):
 
 
 def is_downloadable(url):
-    try:
-        with requests.get(url, stream=True, allow_redirects=True, timeout=10) as r:
-            if r.status_code >= 400:
-                return False
-            content_type = r.headers.get('content-type', '').lower()
-            if 'text/html' in content_type:
-                logger.warning(f"Content-Type is text/html, not a downloadable link: {url}")
-                return False
-            return True
-    except Exception as e:
-        logger.warning(f"is_downloadable - failed: {e}")
-        return False
+    """Probe URL; retry with alternate User-Agents on 403 or HTML body for archive URLs."""
+    attempts = _download_http_header_attempts()
+    last_i = len(attempts) - 1
+    for i, headers in enumerate(attempts):
+        try:
+            with requests.get(
+                url, stream=True, allow_redirects=True, timeout=10, headers=headers
+            ) as r:
+                if r.status_code == 403 and i < last_i:
+                    continue
+                if r.status_code >= 400:
+                    return False
+                content_type = r.headers.get('content-type', '').lower()
+                if 'text/html' in content_type:
+                    if _url_looks_like_binary_archive(url) and i < last_i:
+                        continue
+                    logger.warning(
+                        f"Content-Type is text/html, not a downloadable link: {url}"
+                    )
+                    return False
+                return True
+        except Exception as e:
+            logger.warning(f"is_downloadable - failed: {e}")
+            return False
+    return False
 
 
 def change_src_link_to_https(src_link):
@@ -617,47 +656,98 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
     return success, downloaded_file, msg, oss_name, oss_version
 
 
-def download_file(url, target_dir):
-    local_path = ""
+def _download_file_once(url, target_dir, request_headers=None):
+    """One HTTP download attempt. Raises requests.HTTPError on HTTP failure."""
+    final_url = url
+    head_headers = {}
     try:
-        try:
-            h = requests.head(url, allow_redirects=True)
-            final_url = h.url or url
-            headers = h.headers
-        except Exception:
+        h = requests.head(
+            url, allow_redirects=True, timeout=30, headers=request_headers
+        )
+        final_url = h.url or url
+        head_headers = h.headers
+        if h.status_code >= 400:
             final_url = url
-            headers = {}
+            head_headers = {}
+    except Exception:
+        final_url = url
+        head_headers = {}
 
-        with requests.get(final_url, stream=True, allow_redirects=True) as r:
-            r.raise_for_status()
+    with requests.get(
+        final_url,
+        stream=True,
+        allow_redirects=True,
+        timeout=SIGNAL_TIMEOUT,
+        headers=request_headers,
+    ) as r:
+        r.raise_for_status()
+        content_type = (r.headers.get("content-type") or "").lower()
+        if "text/html" in content_type and _url_looks_like_binary_archive(url):
+            raise _HtmlWhenBinaryExpected()
 
-            filename = ""
-            cd = r.headers.get("Content-Disposition") or headers.get("Content-Disposition")
-            if cd:
-                m_star = re.search(r"filename\*=(?:UTF-8'')?([^;\r\n]+)", cd)
-                if m_star:
-                    filename = urllib.parse.unquote(m_star.group(1).strip('"\''))
-                else:
-                    m = re.search(r"filename=([^;\r\n]+)", cd)
-                    if m:
-                        filename = m.group(1).strip('"\'')
-            if not filename:
-                final_for_name = r.url or final_url
-                filename = os.path.basename(urllib.parse.urlparse(final_for_name).path)
-                if not filename:
-                    filename = "downloaded_file"
-            if os.path.isdir(target_dir):
-                local_path = os.path.join(target_dir, filename)
+        filename = ""
+        cd = r.headers.get("Content-Disposition") or head_headers.get(
+            "Content-Disposition"
+        )
+        if cd:
+            m_star = re.search(r"filename\*=(?:UTF-8'')?([^;\r\n]+)", cd)
+            if m_star:
+                filename = urllib.parse.unquote(m_star.group(1).strip('"\''))
             else:
-                local_path = target_dir
+                m = re.search(r"filename=([^;\r\n]+)", cd)
+                if m:
+                    filename = m.group(1).strip('"\'')
+        if not filename:
+            final_for_name = r.url or final_url
+            filename = os.path.basename(urllib.parse.urlparse(final_for_name).path)
+            if not filename:
+                filename = "downloaded_file"
+        if os.path.isdir(target_dir):
+            local_path = os.path.join(target_dir, filename)
+        else:
+            local_path = target_dir
 
-            with open(local_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-    except Exception as e:
-        logger.warning(f"download_file - failed: {e}")
-        return None
+        with open(local_path, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
     return local_path
+
+
+def download_file(url, target_dir):
+    """Download via HTTP(S); retry on 403 or HTML interstitial for archive URLs."""
+    attempts = _download_http_header_attempts()
+    last_i = len(attempts) - 1
+    for i, req_headers in enumerate(attempts):
+        try:
+            return _download_file_once(url, target_dir, req_headers)
+        except requests.exceptions.HTTPError as e:
+            if (
+                e.response is not None
+                and e.response.status_code == 403
+                and i < last_i
+            ):
+                logger.info(
+                    "download_file: HTTP 403; retrying with alternate User-Agent"
+                )
+                continue
+            logger.warning(f"download_file - failed: {e}")
+            return None
+        except _HtmlWhenBinaryExpected:
+            if i < last_i:
+                logger.info(
+                    "download_file: archive URL returned HTML; retrying with "
+                    "alternate User-Agent"
+                )
+                continue
+            logger.warning(
+                "download_file: archive URL still returned HTML after retries"
+            )
+            return None
+        except Exception as e:
+            logger.warning(f"download_file - failed: {e}")
+            return None
+    logger.warning("download_file: failed after User-Agent retries")
+    return None
 
 
 def extract_compressed_dir(src_dir, target_dir, remove_after_extract=True):
