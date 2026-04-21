@@ -306,6 +306,11 @@ _CLARIFIED_TWO_IN_STR = re.compile(r'(\d+)\.(\d+)(?!\.\d)')
 _CLARIFIED_MAJOR_IN_STR = re.compile(
     r'(?:^|[-_/])(?:v\.? ?)?(\d+)(?=[^.\d]|$)', re.IGNORECASE
 )
+# Trailing tarball version: ...-1.2.3 or ...-4.19.1.1-release (GNU / GitHub archive names)
+_ARCHIVE_VERSION_TAIL = re.compile(
+    r'-((?:\d+\.)+\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?)$',
+    re.IGNORECASE,
+)
 
 
 def clarified_version_from_oss_version(oss_version: str) -> str:
@@ -330,6 +335,50 @@ def clarified_version_from_oss_version(oss_version: str) -> str:
     m = _CLARIFIED_MAJOR_IN_STR.search(s)
     if m:
         return m.group(1)
+    return ""
+
+
+def _strip_known_archive_suffixes(filename: str) -> str:
+    """Remove trailing compression/archive extensions (e.g. bison-3.8.2.tar.xz -> bison-3.8.2)."""
+    name = filename
+    while name:
+        low = name.lower()
+        stripped = False
+        for ext in sorted(compression_extension, key=len, reverse=True):
+            if low.endswith(ext):
+                name = name[: -len(ext)]
+                stripped = True
+                break
+        if not stripped:
+            break
+    return name
+
+
+def _version_string_from_archive_stem(stem: str) -> str:
+    """Take trailing version segment from name-version stems (e.g. bison-3.8.2 -> 3.8.2)."""
+    if not stem:
+        return ""
+    m = _ARCHIVE_VERSION_TAIL.search(stem)
+    if m:
+        return m.group(1)
+    return stem
+
+
+def _oss_version_hint_from_wget_link(link: str, downloaded_file: str) -> str:
+    """Version string from last URL path segment or saved filename for clarified_version."""
+    for src in (link, downloaded_file):
+        if not src:
+            continue
+        if isinstance(src, str) and src.startswith(("http://", "https://")):
+            path = urllib.parse.urlparse(src).path
+            base = os.path.basename(path.rstrip("/"))
+        else:
+            base = os.path.basename(str(src))
+        if not base:
+            continue
+        stem = _strip_known_archive_suffixes(base)
+        if stem:
+            return _version_string_from_archive_stem(stem)
     return ""
 
 
@@ -647,6 +696,9 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
 
         if downloaded_file:
             success = True
+            hint = _oss_version_hint_from_wget_link(link, downloaded_file)
+            if hint:
+                oss_version = hint
             logger.debug(f"wget - downloaded: {downloaded_file}")
     except Exception as error:
         success = False
