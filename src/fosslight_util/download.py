@@ -321,6 +321,10 @@ _CRATES_IO_WEB_VERSION = re.compile(
     r'/crates/[^/]+/([^/?#]+)/?(?:$|[?#])',
     re.IGNORECASE,
 )
+_MAVEN_CLASSIFIER_SUFFIX_VERSION = re.compile(
+    r'^(\d+(?:\.\d+){1,3})-(?:sources?|src|javadoc)(?:[-.].*)?$',
+    re.IGNORECASE,
+)
 
 
 def clarified_version_from_oss_version(oss_version: str) -> str:
@@ -370,7 +374,13 @@ def _version_string_from_archive_stem(stem: str) -> str:
         return ""
     m = _ARCHIVE_VERSION_TAIL.search(stem)
     if m:
-        return m.group(1)
+        version = m.group(1)
+        # Maven source/javadoc artifact names can include classifier suffixes
+        # (e.g. 2.12-sources). Keep the base numeric version for checkout hint.
+        classifier = _MAVEN_CLASSIFIER_SUFFIX_VERSION.match(version)
+        if classifier:
+            return classifier.group(1)
+        return version
     return stem
 
 
@@ -717,7 +727,9 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
         if downloaded_file:
             success = True
             hint = _oss_version_hint_from_wget_link(link, downloaded_file)
-            if hint:
+            # Keep version resolved by get_downloadable_url() when present.
+            # File-name hint is only a fallback when no version was detected.
+            if hint and not oss_version:
                 oss_version = hint
             logger.debug(f"wget - downloaded: {downloaded_file}")
     except Exception as error:
