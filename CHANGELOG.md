@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.51 (22/04/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Keep get_downloadable_url version and parse Maven x.y.z.qualifier as x.y.z @soimkim (#269)
+
+---
+
 ## v2.1.50 (22/04/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -249,11 +257,3 @@
 ## 🚀 Features
 
 - Support download without ver in url using param @dd-jy (#227)
-
----
-
-## v2.1.21 (22/07/2025)
-## Changes
-## 🚀 Features
-
-- Add additional argument fosslight_download @dd-jy (#226)
