@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.50 (22/04/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Avoid overwriting get_downloadable_url version with archive filename @soimkim (#268)
+
+---
+
 ## v2.1.49 (22/04/2026)
 ## Changes
 ## 🚀 Features
@@ -249,15 +257,3 @@
 ## 🚀 Features
 
 - Add additional argument fosslight_download @dd-jy (#226)
-
----
-
-## v2.1.20 (17/07/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the url type to null when not matched @dd-jy (#224)
-
-## 🔧 Maintenance
-
-- Update python support ver 3.10~3.12 @dd-jy (#225)
