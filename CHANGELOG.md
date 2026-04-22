@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.1.49 (22/04/2026)
+## Changes
+## 🚀 Features
+
+- Retry with browser and curl-like UA on mirror blocks @soimkim (#266)
+
+## 🐛 Hotfixes
+
+- Parse crates.io version from API/web URL for oss_version @soimkim (#267)
+
+---
+
 ## v2.1.48 (15/04/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -249,11 +261,3 @@
 ## 🔧 Maintenance
 
 - Update python support ver 3.10~3.12 @dd-jy (#225)
-
----
-
-## v2.1.19 (11/07/2025)
-## Changes
-## 🔧 Maintenance
-
-- Replace npm package with registry.npmjs.org API @dd-jy (#223)
