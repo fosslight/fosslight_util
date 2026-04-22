@@ -284,20 +284,28 @@ def get_remote_refs(git_url: str):
 
 
 _BASE_SEMVER_FOR_CHECKOUT = re.compile(
-    r'^(?:v\.? ?)?(\d+)\.(\d+)(?:\.(\d+))?(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$',
+    r'^(?:v\.? ?)?(\d+)\.(\d+)(?:\.(\d+))?'
+    r'(?:(?:-[0-9A-Za-z.-]+)|(?:\.[A-Za-z][0-9A-Za-z.-]*))?'
+    r'(?:\+[0-9A-Za-z.-]+)?$',
     re.IGNORECASE,
 )
 _SEMVER_IN_REF = re.compile(
     r'(?:^v\.? ?|[-_])'
     r'(\d+)\.(\d+)\.(\d+)'
-    r'(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?'
+    r'(?:(?:-[0-9A-Za-z.-]+)|(?:\.[A-Za-z][0-9A-Za-z.-]*))?'
+    r'(?:\+[0-9A-Za-z.-]+)?'
     r'(?=[-_]|$)',
     re.IGNORECASE,
 )
 _SEMVER_AT_REF_START = re.compile(
     r'^(\d+)\.(\d+)\.(\d+)'
-    r'(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?'
+    r'(?:(?:-[0-9A-Za-z.-]+)|(?:\.[A-Za-z][0-9A-Za-z.-]*))?'
+    r'(?:\+[0-9A-Za-z.-]+)?'
     r'(?=[-_]|$)',
+    re.IGNORECASE,
+)
+_SEMVER_DOT_QUALIFIER_IN_STR = re.compile(
+    r'(\d+)\.(\d+)\.(\d+)\.[A-Za-z][0-9A-Za-z.-]*',
     re.IGNORECASE,
 )
 _CLARIFIED_MAJOR_ONLY_FULL = re.compile(r'^(?:v\.? ?)?(\d+)$', re.IGNORECASE)
@@ -341,6 +349,9 @@ def clarified_version_from_oss_version(oss_version: str) -> str:
     if m:
         return m.group(1)
     m = _SEMVER_IN_REF.search(s) or _SEMVER_AT_REF_START.match(s)
+    if m:
+        return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
+    m = _SEMVER_DOT_QUALIFIER_IN_STR.search(s)
     if m:
         return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
     m = _CLARIFIED_TWO_IN_STR.search(s)
