@@ -13,6 +13,103 @@ import fosslight_util.constant as constant
 logger = logging.getLogger(constant.LOGGER_NAME)
 
 
+def _absolute_packages_debian_url(href: str) -> str:
+    if not href:
+        return ""
+    href = href.strip()
+    if href.startswith("http://") or href.startswith("https://"):
+        return href
+    if href.startswith("/"):
+        return f"https://packages.debian.org{href}"
+    return f"https://packages.debian.org/{href}"
+
+
+def _version_tokens_for_match(checkout_version: str) -> list[str]:
+    v = (checkout_version or "").strip()
+    if not v:
+        return []
+    tokens = [v]
+    if ":" in v:
+        tokens.append(v.split(":", 1)[1])
+    no_epoch = tokens[-1]
+    if "-" in no_epoch:
+        tokens.append(no_epoch.split("-", 1)[0])
+    return [t for t in dict.fromkeys(tokens) if t]
+
+
+def _resolve_debian_search_to_source_tarball(
+    search_url: str, checkout_version: str = ""
+) -> str:
+    """Resolve Debian search URL to stable source tarball URL if possible."""
+    try:
+        r = requests.get(search_url, timeout=10)
+        if r.status_code != 200:
+            return ""
+        search_soup = BeautifulSoup(r.text, "html.parser")
+
+        package_url = ""
+        anchors = search_soup.find_all("a", href=True)
+        # Match suite links labeled stable (e.g. "trixie (stable)"), not a lone "stable" word.
+        for a in anchors:
+            if "(stable)" in a.get_text(strip=True).lower():
+                package_url = _absolute_packages_debian_url(a.get("href", ""))
+                break
+        if not package_url:
+            for a in anchors:
+                href = a.get("href", "")
+                if re.match(r"^/[a-z0-9.+-]+/[a-z0-9.+-]+/?$", href, re.IGNORECASE):
+                    package_url = _absolute_packages_debian_url(href)
+                    break
+
+        if not package_url:
+            return ""
+
+        r = requests.get(package_url, timeout=10)
+        if r.status_code != 200:
+            return ""
+        package_soup = BeautifulSoup(r.text, "html.parser")
+
+        source_links = []
+        for a in package_soup.find_all("a", href=True):
+            href = a.get("href", "")
+            lower = href.lower()
+            if (
+                (".orig.tar." in lower or ".tar." in lower)
+                and not lower.endswith(".asc")
+            ):
+                source_links.append(href)
+
+        if not source_links:
+            return ""
+
+        version_tokens = _version_tokens_for_match(checkout_version)
+        if version_tokens:
+            version_matched = []
+            for href in source_links:
+                low = href.lower()
+                if any(token.lower() in low for token in version_tokens):
+                    version_matched.append(href)
+            source_links = version_matched
+            if not source_links:
+                return ""
+
+        # Prefer direct debian pool URL and force http:// as requested.
+        for href in source_links:
+            abs_url = _absolute_packages_debian_url(href)
+            if "deb.debian.org/debian/pool/" in abs_url:
+                return abs_url.replace("https://deb.debian.org/debian/pool/", "http://deb.debian.org/debian/pool/")
+
+        # If relative path to /debian/pool is provided, normalize to deb.debian.org.
+        for href in source_links:
+            abs_url = _absolute_packages_debian_url(href)
+            if "/debian/pool/" in abs_url:
+                suffix = abs_url.split("/debian/pool/", 1)[1]
+                return f"http://deb.debian.org/debian/pool/{suffix}"
+    except Exception as e:
+        logger.info(f"Failed to resolve Debian search URL {search_url}: {e}")
+    return ""
+
+
 def version_exists(pkg_type, origin_name, version):
     try:
         if pkg_type in ['npm', 'npm2']:
@@ -332,6 +429,11 @@ def get_downloadable_url(link, checkout_version):
 
     ret = False
     result_link = link
+
+    if link.startswith("https://packages.debian.org/search?"):
+        resolved = _resolve_debian_search_to_source_tarball(link, checkout_version)
+        if resolved:
+            return True, resolved, "", "", "deb"
 
     oss_name, oss_version, new_link, pkg_type = extract_name_version_from_link(link, checkout_version)
     new_link = new_link.replace('http://', '')
