@@ -49,9 +49,9 @@ def _resolve_debian_search_to_source_tarball(
 
         package_url = ""
         anchors = search_soup.find_all("a", href=True)
-        # Prefer the page's own "stable" annotation; future-proof across codenames.
+        # Match suite links labeled stable (e.g. "trixie (stable)"), not a lone "stable" word.
         for a in anchors:
-            if a.get_text(strip=True).lower() == "stable":
+            if "(stable)" in a.get_text(strip=True).lower():
                 package_url = _absolute_packages_debian_url(a.get("href", ""))
                 break
         if not package_url:
