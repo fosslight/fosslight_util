@@ -48,20 +48,14 @@ def _resolve_debian_search_to_source_tarball(
         search_soup = BeautifulSoup(r.text, "html.parser")
 
         package_url = ""
-        for a in search_soup.find_all("a", href=True):
-            href = a.get("href", "")
-            if "/trixie/" in href:
-                package_url = _absolute_packages_debian_url(href)
+        anchors = search_soup.find_all("a", href=True)
+        # Prefer the page's own "stable" annotation; future-proof across codenames.
+        for a in anchors:
+            if a.get_text(strip=True).lower() == "stable":
+                package_url = _absolute_packages_debian_url(a.get("href", ""))
                 break
-
         if not package_url:
-            for a in search_soup.find_all("a", href=True):
-                if a.get_text(strip=True).lower() == "stable":
-                    package_url = _absolute_packages_debian_url(a.get("href", ""))
-                    break
-
-        if not package_url:
-            for a in search_soup.find_all("a", href=True):
+            for a in anchors:
                 href = a.get("href", "")
                 if re.match(r"^/[a-z0-9.+-]+/[a-z0-9.+-]+/?$", href, re.IGNORECASE):
                     package_url = _absolute_packages_debian_url(href)
