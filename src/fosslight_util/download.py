@@ -34,9 +34,9 @@ compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip
 prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 
-# Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests / wget default
-# User-Agent, or 200 with a small text/html interstitial. Retry with browser UA, then
-# curl-like UA (often allowed for direct tarball GET).
+# Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests' default
+# User-Agent, or 200 with a small text/html interstitial. Start with a curl-style UA
+# (widely accepted for file downloads), then browser, then default requests as fallback.
 _HTTP_BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -55,9 +55,9 @@ def _url_looks_like_binary_archive(url: str) -> bool:
 
 def _download_http_header_attempts():
     return [
-        None,
-        {"User-Agent": _HTTP_BROWSER_USER_AGENT},
         {"User-Agent": _HTTP_CURL_LIKE_USER_AGENT, "Accept": "*/*"},
+        {"User-Agent": _HTTP_BROWSER_USER_AGENT},
+        None,
     ]
 
 
@@ -107,6 +107,11 @@ def is_downloadable(url):
                     return False
                 return True
         except Exception as e:
+            if i < last_i:
+                logger.info(
+                    "is_downloadable: %s; retrying with alternate User-Agent", e
+                )
+                continue
             logger.warning(f"is_downloadable - failed: {e}")
             return False
     return False
@@ -716,14 +721,22 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
             if ret:
                 success = True
             else:
-                # No downloadable file found in package repositories, verify link is downloadable
-                if not is_downloadable(link):
+                # No downloadable file found in package repositories, verify link is downloadable.
+                # Some mirrors (e.g. USTC) may 403 or mis-report Content-Type to short probes, while
+                # full GET in download_file() succeeds. Skip the probe for obvious direct archive URLs.
+                if is_downloadable(link):
+                    success = True
+                elif _url_looks_like_binary_archive(link):
+                    logger.info(
+                        "Direct archive URL: probe not OK; will try full download: %s", link
+                    )
+                    success = True
+                else:
                     raise Exception('Not a downloadable link (link:{0})'.format(link))
-                success = True
 
         # Fallback: verify link is downloadable for compressed_only case
         if not success:
-            if is_downloadable(link):
+            if is_downloadable(link) or _url_looks_like_binary_archive(link):
                 success = True
             else:
                 raise Exception('Not a downloadable link (link:{0})'.format(link))
@@ -837,6 +850,16 @@ def download_file(url, target_dir):
             logger.warning(
                 "download_file: archive URL still returned HTML after retries"
             )
+            return None
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            if i < last_i:
+                logger.info(
+                    "download_file: connection/timeout %s; retrying with "
+                    "alternate User-Agent",
+                    e,
+                )
+                continue
+            logger.warning(f"download_file - failed: {e}")
             return None
         except Exception as e:
             logger.warning(f"download_file - failed: {e}")
