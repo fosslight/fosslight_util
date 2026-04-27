@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.1.52 (27/04/2026)
+## Changes
+## 🚀 Features
+
+- feat(download): resolve Debian search URL to stable source tarball @soimkim (#270)
+
+## 🐛 Hotfixes
+
+- fix(download): improve HTTP mirror and direct archive handling @soimkim (#271)
+
+## 🔧 Maintenance
+
+- fix(download): emit major-only clarified_version for android.googlesource URLs @soimkim (#272)
+
+---
+
 ## v2.1.51 (22/04/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -249,11 +265,3 @@
 ## 🚀 Features
 
 - Suppor pypi wheel download @dd-jy (#228)
-
----
-
-## v2.1.22 (04/08/2025)
-## Changes
-## 🚀 Features
-
-- Support download without ver in url using param @dd-jy (#227)
