@@ -219,6 +219,8 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         msg = str(error)
 
     clarified_version = clarified_version_from_oss_version(oss_version)
+    if link.startswith("https://android.googlesource.com/"):
+        clarified_version = _major_only_version(clarified_version)
     output_result = {
         "success": success,
         "message": msg,
@@ -366,6 +368,15 @@ def clarified_version_from_oss_version(oss_version: str) -> str:
     if m:
         return m.group(1)
     return ""
+
+
+def _major_only_version(version: str) -> str:
+    """Return major part from a clarified version string."""
+    s = (version or "").strip()
+    if not s:
+        return ""
+    m = re.search(r"\d+", s)
+    return m.group(0) if m else ""
 
 
 def _strip_known_archive_suffixes(filename: str) -> str:
