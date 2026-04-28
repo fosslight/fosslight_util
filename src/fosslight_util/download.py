@@ -197,9 +197,10 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
 
-                success, downloaded_file, msg_wget, oss_name, oss_version = download_wget(link, target_dir,
-                                                                                          compressed_only, checkout_to)
-                if success:
+                success, downloaded_file, msg_wget, oss_name, oss_version = download_wget(
+                    link, target_dir, compressed_only, checkout_to
+                )
+                if success and downloaded_file:
                     success = extract_compressed_file(downloaded_file, target_dir, True, compressed_only)
             # Download from rubygems.org
             elif is_rubygems and shutil.which("gem"):
@@ -213,6 +214,8 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                     msg = f'{msg}, wget fail: {msg_wget}'
                 else:
                     msg = f'{msg}, wget success'
+        elif msg_wget:
+            msg = f'wget fail: {msg_wget}'
 
     except Exception as error:
         success = False
@@ -767,6 +770,10 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
             if hint and not oss_version:
                 oss_version = hint
             logger.debug(f"wget - downloaded: {downloaded_file}")
+        else:
+            success = False
+            msg = f"Download failed: {link}"
+            logger.warning("wget - failed: download_file returned no file: %s", link)
     except Exception as error:
         success = False
         msg = str(error)
