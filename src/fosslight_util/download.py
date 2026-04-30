@@ -746,14 +746,14 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
                     )
                     success = True
                 else:
-                    raise Exception('Not a downloadable link (link:{0})'.format(link))
+                    raise Exception('Not a downloadable link')
 
         # Fallback: verify link is downloadable for compressed_only case
         if not success:
             if is_downloadable(link) or _url_looks_like_binary_archive(link):
                 success = True
             else:
-                raise Exception('Not a downloadable link (link:{0})'.format(link))
+                raise Exception('Not a downloadable link')
 
         logger.info(f"wget: {link}")
         downloaded_file = download_file(link, target_dir)
