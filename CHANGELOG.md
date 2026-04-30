@@ -1,18 +1,30 @@
 # Changelog
 
+## v2.1.53 (30/04/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Improve error handling for failed HTTP downloads @soimkim (#273)
+
+## 🔧 Maintenance
+
+- Hide URL in 'Not a downloadable link' error log @soimkim (#274)
+
+---
+
 ## v2.1.52 (27/04/2026)
 ## Changes
 ## 🚀 Features
 
-- feat(download): resolve Debian search URL to stable source tarball @soimkim (#270)
+- Resolve Debian search URL to stable source tarball @soimkim (#270)
 
 ## 🐛 Hotfixes
 
-- fix(download): improve HTTP mirror and direct archive handling @soimkim (#271)
+- Improve HTTP mirror and direct archive handling @soimkim (#271)
 
 ## 🔧 Maintenance
 
-- fix(download): emit major-only clarified_version for android.googlesource URLs @soimkim (#272)
+- Emit major-only clarified_version for android.googlesource URLs @soimkim (#272)
 
 ---
 
@@ -257,11 +269,3 @@
 ## 🐛 Hotfixes
 
 - Fix the whl download bug @dd-jy (#229)
-
----
-
-## v2.1.23 (14/09/2025)
-## Changes
-## 🚀 Features
-
-- Suppor pypi wheel download @dd-jy (#228)
