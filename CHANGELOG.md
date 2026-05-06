@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.54 (06/05/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Download > preserve full dotted-numeric versions for clarified_version @soimkim (#276)
+
+---
+
 ## v2.1.53 (30/04/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -261,11 +269,3 @@
 
 - Prevent entering path instead of link @soimkim (#231)
 - Remove duplicated copyright statement @JustinWonjaePark (#230)
-
----
-
-## v2.1.24 (14/09/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Fix the whl download bug @dd-jy (#229)
