@@ -37,74 +37,142 @@ def _version_tokens_for_match(checkout_version: str) -> list[str]:
     return [t for t in dict.fromkeys(tokens) if t]
 
 
+# Search hit anchors look like "bullseye (oldoldstable)" → href="/bullseye/pkg".
+_DEBIAN_SUITE_PACKAGE_HREF_RE = re.compile(
+    r"^/[a-z0-9.+-]+/[a-z0-9.+-]+/?$", re.IGNORECASE
+)
+_DEBIAN_SUITE_MARKERS_ORDER = (
+    ("oldoldstable", "(oldoldstable)"),
+    ("oldstable", "(oldstable)"),
+    ("stable", "(stable)"),
+    ("testing", "(testing)"),
+    ("unstable", "(unstable)"),
+)
+
+
+def _collect_debian_suite_package_urls(search_soup) -> list[tuple[str, str]]:
+    """Pairs ``(suite_kind, package_page_url)`` for main Debian suites on a search page."""
+    found: dict[str, str] = {}
+    for a in search_soup.find_all("a", href=True):
+        href = a.get("href", "")
+        if not _DEBIAN_SUITE_PACKAGE_HREF_RE.match(href):
+            continue
+        text = a.get_text(strip=True).lower()
+        for kind, needle in _DEBIAN_SUITE_MARKERS_ORDER:
+            if needle not in text:
+                continue
+            if kind not in found:
+                found[kind] = _absolute_packages_debian_url(href)
+            break
+    return [(kind, found[kind]) for kind, _ in _DEBIAN_SUITE_MARKERS_ORDER if kind in found]
+
+
+def _fallback_any_package_page_url(search_soup) -> str:
+    for a in search_soup.find_all("a", href=True):
+        href = a.get("href", "")
+        if _DEBIAN_SUITE_PACKAGE_HREF_RE.match(href):
+            return _absolute_packages_debian_url(href)
+    return ""
+
+
+def _normalize_debian_pool_download_from_tarball_hrefs(source_links: list[str]) -> str:
+    # Prefer direct debian pool URL and force http:// as requested.
+    for href in source_links:
+        abs_url = _absolute_packages_debian_url(href)
+        if "deb.debian.org/debian/pool/" in abs_url:
+            return abs_url.replace(
+                "https://deb.debian.org/debian/pool/",
+                "http://deb.debian.org/debian/pool/",
+            )
+
+    # If relative path to /debian/pool is provided, normalize to deb.debian.org.
+    for href in source_links:
+        abs_url = _absolute_packages_debian_url(href)
+        if "/debian/pool/" in abs_url:
+            suffix = abs_url.split("/debian/pool/", 1)[1]
+            return f"http://deb.debian.org/debian/pool/{suffix}"
+    return ""
+
+
+def _resolve_debian_package_page_to_pool_tarball(
+    package_url: str, checkout_version: str
+) -> str:
+    """Fetch one packages.debian.org package page and return a pool tarball URL or ``""``."""
+    r = requests.get(package_url, timeout=10)
+    if r.status_code != 200:
+        return ""
+    package_soup = BeautifulSoup(r.text, "html.parser")
+
+    source_links = []
+    for a in package_soup.find_all("a", href=True):
+        href = a.get("href", "")
+        lower = href.lower()
+        if (
+            (".orig.tar." in lower or ".tar." in lower)
+            and not lower.endswith(".asc")
+        ):
+            source_links.append(href)
+
+    if not source_links:
+        return ""
+
+    version_tokens = _version_tokens_for_match(checkout_version)
+    if version_tokens:
+        version_matched = []
+        for href in source_links:
+            low = href.lower()
+            if any(token.lower() in low for token in version_tokens):
+                version_matched.append(href)
+        source_links = version_matched
+        if not source_links:
+            return ""
+
+    return _normalize_debian_pool_download_from_tarball_hrefs(source_links)
+
+
 def _resolve_debian_search_to_source_tarball(
     search_url: str, checkout_version: str = ""
 ) -> str:
-    """Resolve Debian search URL to stable source tarball URL if possible."""
+    """Resolve Debian search URL to a pool tarball URL when possible.
+
+    Walks package pages for **oldoldstable**, **oldstable**, **stable**, **testing**,
+    and **unstable** when those hits appear on the search results, so a binary
+    version that only exists in an older suite (e.g. bullseye) still matches.
+
+    If ``checkout_version`` is empty, **stable** is tried first (previous behaviour),
+    then the other suites.
+    """
     try:
         r = requests.get(search_url, timeout=10)
         if r.status_code != 200:
             return ""
         search_soup = BeautifulSoup(r.text, "html.parser")
 
-        package_url = ""
-        anchors = search_soup.find_all("a", href=True)
-        # Match suite links labeled stable (e.g. "trixie (stable)"), not a lone "stable" word.
-        for a in anchors:
-            if "(stable)" in a.get_text(strip=True).lower():
-                package_url = _absolute_packages_debian_url(a.get("href", ""))
-                break
-        if not package_url:
-            for a in anchors:
-                href = a.get("href", "")
-                if re.match(r"^/[a-z0-9.+-]+/[a-z0-9.+-]+/?$", href, re.IGNORECASE):
-                    package_url = _absolute_packages_debian_url(href)
-                    break
-
-        if not package_url:
-            return ""
-
-        r = requests.get(package_url, timeout=10)
-        if r.status_code != 200:
-            return ""
-        package_soup = BeautifulSoup(r.text, "html.parser")
-
-        source_links = []
-        for a in package_soup.find_all("a", href=True):
-            href = a.get("href", "")
-            lower = href.lower()
-            if (
-                (".orig.tar." in lower or ".tar." in lower)
-                and not lower.endswith(".asc")
-            ):
-                source_links.append(href)
-
-        if not source_links:
-            return ""
-
-        version_tokens = _version_tokens_for_match(checkout_version)
-        if version_tokens:
-            version_matched = []
-            for href in source_links:
-                low = href.lower()
-                if any(token.lower() in low for token in version_tokens):
-                    version_matched.append(href)
-            source_links = version_matched
-            if not source_links:
+        pairs = _collect_debian_suite_package_urls(search_soup)
+        if pairs:
+            ver_nonempty = bool((checkout_version or "").strip())
+            if ver_nonempty:
+                visit = [url for _, url in pairs]
+            else:
+                stable_urls = [url for kind, url in pairs if kind == "stable"]
+                rest = [url for kind, url in pairs if kind != "stable"]
+                visit = stable_urls + rest
+        else:
+            fb = _fallback_any_package_page_url(search_soup)
+            if not fb:
                 return ""
+            visit = [fb]
 
-        # Prefer direct debian pool URL and force http:// as requested.
-        for href in source_links:
-            abs_url = _absolute_packages_debian_url(href)
-            if "deb.debian.org/debian/pool/" in abs_url:
-                return abs_url.replace("https://deb.debian.org/debian/pool/", "http://deb.debian.org/debian/pool/")
-
-        # If relative path to /debian/pool is provided, normalize to deb.debian.org.
-        for href in source_links:
-            abs_url = _absolute_packages_debian_url(href)
-            if "/debian/pool/" in abs_url:
-                suffix = abs_url.split("/debian/pool/", 1)[1]
-                return f"http://deb.debian.org/debian/pool/{suffix}"
+        seen: set[str] = set()
+        for package_url in visit:
+            if not package_url or package_url in seen:
+                continue
+            seen.add(package_url)
+            got = _resolve_debian_package_page_to_pool_tarball(
+                package_url, checkout_version
+            )
+            if got:
+                return got
     except Exception as e:
         logger.info(f"Failed to resolve Debian search URL {search_url}: {e}")
     return ""
