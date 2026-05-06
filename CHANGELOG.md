@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.55 (06/05/2026)
+## Changes
+## 🔧 Maintenance
+
+- Download > Search debina tarball across all suite tiers, not only stable @soimkim (#277)
+
+---
+
 ## v2.1.54 (06/05/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -260,12 +268,3 @@
 ## 🐛 Hotfixes
 
 - Download with latest if version not exists @dd-jy (#232)
-
----
-
-## v2.1.25 (25/09/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Prevent entering path instead of link @soimkim (#231)
-- Remove duplicated copyright statement @JustinWonjaePark (#230)
