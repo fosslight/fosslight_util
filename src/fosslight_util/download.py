@@ -319,6 +319,8 @@ _SEMVER_DOT_QUALIFIER_IN_STR = re.compile(
     re.IGNORECASE,
 )
 _CLARIFIED_MAJOR_ONLY_FULL = re.compile(r'^(?:v\.? ?)?(\d+)$', re.IGNORECASE)
+# Maven / OSGi style: 1.1.7.7 (more than three numeric segments; not strict semver)
+_PURE_DOT_NUMERIC_VERSION = re.compile(r'^\d+(\.\d+)+$')
 # Two-part x.y not followed by .digit (avoids taking "1.2" from "1.2.3")
 _CLARIFIED_TWO_IN_STR = re.compile(r'(\d+)\.(\d+)(?!\.\d)')
 _CLARIFIED_MAJOR_IN_STR = re.compile(
@@ -350,6 +352,9 @@ def clarified_version_from_oss_version(oss_version: str) -> str:
     s = (oss_version or "").strip()
     if not s:
         return ""
+    core = _strip_leading_v_prefix(s)
+    if _PURE_DOT_NUMERIC_VERSION.match(core):
+        return core
     m = _BASE_SEMVER_FOR_CHECKOUT.match(s)
     if m:
         if m.group(3):

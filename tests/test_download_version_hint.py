@@ -54,6 +54,12 @@ from fosslight_util.download import (
             "/t/lodash-4.17.21.tgz",
             "4.17.21",
         ),
+        # mvnrepository.com page URL (version is last path segment; four-part Maven version)
+        (
+            "https://mvnrepository.com/artifact/org.xerial.snappy/snappy-java/1.1.7.7",
+            "",
+            "1.1.7.7",
+        ),
         # Generic: path ends with /download but real version only in filename
         (
             "https://example.com/releases/download",
@@ -81,6 +87,8 @@ def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):
         ("2.31.0", "2.31.0"),
         ("4.17.21", "4.17.21"),
         ("1.1.4", "1.1.4"),
+        ("1.1.7.7", "1.1.7.7"),
+        ("v1.1.7.7", "1.1.7.7"),
         ("v3.28.3", "3.28.3"),
     ],
 )
@@ -93,3 +101,10 @@ def test_github_archive_hint_then_clarified():
     hint = _oss_version_hint_from_wget_link(link, "/t/v3.28.3.tar.gz")
     assert hint == "v3.28.3"
     assert clarified_version_from_oss_version(hint) == "3.28.3"
+
+
+def test_mvnrepository_url_hint_then_clarified():
+    link = "https://mvnrepository.com/artifact/org.xerial.snappy/snappy-java/1.1.7.7"
+    hint = _oss_version_hint_from_wget_link(link, "")
+    assert hint == "1.1.7.7"
+    assert clarified_version_from_oss_version(hint) == "1.1.7.7"
