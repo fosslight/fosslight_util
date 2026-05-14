@@ -975,6 +975,28 @@ def extract_rpm_payload(source_file: str, dest_path: str) -> bool:
     return False
 
 
+def _extract_top_level_crates_once(extract_path: str, remove_after_extract: bool) -> bool:
+    """After RPM/SRPM unpack: extract each ``*.crate`` in extract_path (non-recursive)."""
+    if not extract_path or not os.path.isdir(extract_path):
+        return True
+    ok = True
+    for name in os.listdir(extract_path):
+        if not name.lower().endswith(".crate"):
+            continue
+        cp = os.path.join(extract_path, name)
+        if not os.path.isfile(cp):
+            continue
+        try:
+            with contextlib.closing(tarfile.open(cp, "r:gz")) as t:
+                t.extractall(path=extract_path)
+            if remove_after_extract:
+                os.remove(cp)
+        except Exception as e:
+            logger.error(f"Extract crate failed ({cp}): {e}")
+            ok = False
+    return ok
+
+
 def extract_compressed_dir(src_dir, target_dir, remove_after_extract=True):
     logger.debug(f"Extract Dir: {src_dir}")
     try:
@@ -1016,10 +1038,18 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
                 if not extract_rpm_payload(fname, extract_path):
                     success = False
                     is_compressed_file = False
+                elif not _extract_top_level_crates_once(
+                    extract_path, remove_after_extract
+                ):
+                    success = False
             elif fname.lower().endswith(".rpm"):
                 if not extract_rpm_payload(fname, extract_path):
                     success = False
                     is_compressed_file = False
+                elif not _extract_top_level_crates_once(
+                    extract_path, remove_after_extract
+                ):
+                    success = False
             else:
                 try:
                     if zipfile.is_zipfile(fname):
