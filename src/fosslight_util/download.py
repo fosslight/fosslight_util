@@ -30,7 +30,19 @@ import urllib.parse
 import json
 
 logger = logging.getLogger(constant.LOGGER_NAME)
-compression_extension = {".tar.bz2", ".tar.gz", ".tar.xz", ".tgz", ".tar", ".zip", ".jar", ".bz2", ".whl"}
+compression_extension = {
+    ".tar.bz2",
+    ".tar.gz",
+    ".tar.xz",
+    ".tgz",
+    ".tar",
+    ".zip",
+    ".jar",
+    ".bz2",
+    ".whl",
+    ".src.rpm",
+    ".rpm",
+}
 prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 
@@ -880,6 +892,111 @@ def download_file(url, target_dir):
     return None
 
 
+def extract_rpm_payload(source_file: str, dest_path: str) -> bool:
+    """Unpack RPM/SRPM (cpio payload) into dest_path.
+
+    Tries ``rpm2cpio | cpio -idmv`` (common on Linux), then ``bsdtar``/``tar`` if
+    libarchive-backed tar can read the RPM.
+    """
+    abs_src = os.path.abspath(source_file)
+    dest_path = os.path.abspath(dest_path)
+    Path(dest_path).mkdir(parents=True, exist_ok=True)
+
+    rpm2cpio = shutil.which("rpm2cpio")
+    cpio = shutil.which("cpio")
+    if rpm2cpio and cpio:
+        p1 = subprocess.Popen(
+            [rpm2cpio, abs_src],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=dest_path,
+        )
+        try:
+            try:
+                r2 = subprocess.run(
+                    [cpio, "-idmv"],
+                    stdin=p1.stdout,
+                    cwd=dest_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=SIGNAL_TIMEOUT,
+                )
+            finally:
+                if p1.stdout:
+                    p1.stdout.close()
+            try:
+                _, err1 = p1.communicate(timeout=120)
+            except subprocess.TimeoutExpired:
+                logger.error("rpm2cpio did not finish within timeout")
+                return False
+        except subprocess.TimeoutExpired:
+            logger.error("cpio extraction timed out")
+            return False
+        finally:
+            if p1.poll() is None:
+                p1.kill()
+            p1.wait()
+        if p1.returncode != 0:
+            logger.error(
+                "rpm2cpio failed (rc=%s): %s",
+                p1.returncode,
+                (err1 or b"").decode(errors="replace"),
+            )
+            return False
+        if r2.returncode != 0:
+            logger.error("cpio failed (rc=%s): %s", r2.returncode, r2.stderr)
+            return False
+        return True
+
+    for cmd0, args in (
+        ("bsdtar", ["bsdtar", "-xf", abs_src, "-C", dest_path]),
+        ("tar", ["tar", "-xf", abs_src, "-C", dest_path]),
+    ):
+        if not shutil.which(cmd0):
+            continue
+        try:
+            r = subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                timeout=SIGNAL_TIMEOUT,
+                check=False,
+            )
+            if r.returncode == 0:
+                return True
+            logger.debug("%s extract failed (rc=%s): %s", cmd0, r.returncode, r.stderr)
+        except Exception as e:
+            logger.debug("%s extract error: %s", cmd0, e)
+
+    logger.error(
+        "Cannot extract RPM/SRPM: need rpm2cpio+cpio (e.g. rpm/rpmdevtools) "
+        "or bsdtar/tar with RPM support"
+    )
+    return False
+
+
+def _extract_top_level_crates_once(extract_path: str, remove_after_extract: bool) -> bool:
+    """After RPM/SRPM unpack: extract each ``*.crate`` in extract_path (non-recursive)."""
+    if not extract_path or not os.path.isdir(extract_path):
+        return True
+    ok = True
+    for name in os.listdir(extract_path):
+        if not name.lower().endswith(".crate"):
+            continue
+        cp = os.path.join(extract_path, name)
+        if not os.path.isfile(cp):
+            continue
+        try:
+            with contextlib.closing(tarfile.open(cp, "r:gz")) as t:
+                t.extractall(path=extract_path)
+            if remove_after_extract:
+                os.remove(cp)
+        except Exception as e:
+            logger.error(f"Extract crate failed ({cp}): {e}")
+            ok = False
+    return ok
+
+
 def extract_compressed_dir(src_dir, target_dir, remove_after_extract=True):
     logger.debug(f"Extract Dir: {src_dir}")
     try:
@@ -917,6 +1034,22 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
             elif fname.endswith(".crate"):
                 with contextlib.closing(tarfile.open(fname, "r:gz")) as t:
                     t.extractall(path=extract_path)
+            elif fname.lower().endswith(".src.rpm"):
+                if not extract_rpm_payload(fname, extract_path):
+                    success = False
+                    is_compressed_file = False
+                elif not _extract_top_level_crates_once(
+                    extract_path, remove_after_extract
+                ):
+                    success = False
+            elif fname.lower().endswith(".rpm"):
+                if not extract_rpm_payload(fname, extract_path):
+                    success = False
+                    is_compressed_file = False
+                elif not _extract_top_level_crates_once(
+                    extract_path, remove_after_extract
+                ):
+                    success = False
             else:
                 try:
                     if zipfile.is_zipfile(fname):
