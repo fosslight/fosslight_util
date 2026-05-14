@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.57 (14/05/2026)
+## Changes
+## 🚀 Features
+
+- Support HTTP(S) .src.rpm and .rpm extract after wget @soimkim (#279)
+
+---
+
 ## v2.1.56 (14/05/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -260,11 +268,3 @@
 ## 🐛 Hotfixes
 
 - Add maven source downloadable format @dd-jy (#234)
-
----
-
-## v2.1.27 (29/10/2025)
-## Changes
-## 🔧 Maintenance
-
-- Add tag/branch resolution via ls-remote @dd-jy (#233)
