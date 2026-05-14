@@ -912,23 +912,30 @@ def extract_rpm_payload(source_file: str, dest_path: str) -> bool:
             cwd=dest_path,
         )
         try:
-            r2 = subprocess.run(
-                [cpio, "-idmv"],
-                stdin=p1.stdout,
-                cwd=dest_path,
-                capture_output=True,
-                text=True,
-                timeout=SIGNAL_TIMEOUT,
-            )
-        finally:
-            if p1.stdout:
-                p1.stdout.close()
-        try:
-            _, err1 = p1.communicate(timeout=120)
+            try:
+                r2 = subprocess.run(
+                    [cpio, "-idmv"],
+                    stdin=p1.stdout,
+                    cwd=dest_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=SIGNAL_TIMEOUT,
+                )
+            finally:
+                if p1.stdout:
+                    p1.stdout.close()
+            try:
+                _, err1 = p1.communicate(timeout=120)
+            except subprocess.TimeoutExpired:
+                logger.error("rpm2cpio did not finish within timeout")
+                return False
         except subprocess.TimeoutExpired:
-            p1.kill()
-            logger.error("rpm2cpio did not finish within timeout")
+            logger.error("cpio extraction timed out")
             return False
+        finally:
+            if p1.poll() is None:
+                p1.kill()
+            p1.wait()
         if p1.returncode != 0:
             logger.error(
                 "rpm2cpio failed (rc=%s): %s",
