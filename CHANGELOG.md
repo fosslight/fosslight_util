@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.56 (14/05/2026)
+## Changes
+## 🔧 Maintenance
+
+- Revert "Emit major-only clarified_version for android.googlesource URLs" @soimkim (#278)
+
+---
+
 ## v2.1.55 (06/05/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -260,11 +268,3 @@
 ## 🔧 Maintenance
 
 - Add tag/branch resolution via ls-remote @dd-jy (#233)
-
----
-
-## v2.1.26 (01/10/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Download with latest if version not exists @dd-jy (#232)
