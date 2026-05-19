@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.58 (19/05/2026)
+## Changes
+## 🔧 Maintenance
+
+- Add boundary-aware suffix fallback for git checkout ref resolution @soimkim (#280)
+
+---
+
 ## v2.1.57 (14/05/2026)
 ## Changes
 ## 🚀 Features
@@ -260,11 +268,3 @@
 ## 🔧 Maintenance
 
 - Add maven downloadable url fallback routine @dd-jy (#236)
-
----
-
-## v2.1.28 (06/11/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Add maven source downloadable format @dd-jy (#234)
