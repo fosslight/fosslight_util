@@ -514,6 +514,27 @@ def _try_resolve_checkout_base(base: str, ref_set: set) -> Tuple[Optional[str], 
     resolved, ref, clar = _try_semver_checkout(base, ref_set)
     if resolved:
         return ref, clar
+
+    # Fallback: find refs that end with the input version (case-insensitive),
+    # but only when the match starts at a separator boundary (-, _, /, .)
+    # or covers the entire ref. This prevents "2" from matching "3.02".
+    # e.g. input "stable202002" matches branch "edk2-stable202002" (boundary: '-')
+    _BOUNDARY_CHARS = {'-', '_', '/', '.'}
+    base_lower = base.lower()
+    containing_refs = []
+    for r in ref_set:
+        r_lower = r.lower()
+        if not r_lower.endswith(base_lower):
+            continue
+        prefix_len = len(r_lower) - len(base_lower)
+        if prefix_len == 0 or r_lower[prefix_len - 1] in _BOUNDARY_CHARS:
+            containing_refs.append(r)
+    if containing_refs:
+        # Prefer the shortest ref (most specific match)
+        best = min(containing_refs, key=lambda x: (len(x), x.lower()))
+        logger.info(f"Partial match: '{base}' found in ref '{best}'")
+        return best, clarified_version_from_oss_version(best)
+
     return None, None
 
 
