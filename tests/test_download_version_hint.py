@@ -8,6 +8,7 @@ from fosslight_util.download import (
     clarified_version_from_oss_version,
     _oss_version_hint_from_wget_link,
 )
+from fosslight_util import _get_downloadable_url as downloadable_url
 
 
 @pytest.mark.parametrize(
@@ -108,3 +109,82 @@ def test_mvnrepository_url_hint_then_clarified():
     hint = _oss_version_hint_from_wget_link(link, "")
     assert hint == "1.1.7.7"
     assert clarified_version_from_oss_version(hint) == "1.1.7.7"
+
+
+class _FakeResponse:
+    def __init__(self, text, status_code=200):
+        self.text = text
+        self.status_code = status_code
+
+
+def test_debian_package_heading_version_matches_checkout(monkeypatch):
+    package_html = """
+    <html>
+      <body>
+        <h1>Package: cpp (4:10.2.1-1)</h1>
+        <a href="https://deb.debian.org/debian/pool/main/g/gcc-defaults/gcc-defaults_1.190.tar.xz">
+          gcc-defaults_1.190.tar.xz
+        </a>
+      </body>
+    </html>
+    """
+
+    monkeypatch.setattr(
+        downloadable_url.requests,
+        "get",
+        lambda *_args, **_kwargs: _FakeResponse(package_html),
+    )
+
+    tarball_url, matched_version = (
+        downloadable_url._resolve_debian_package_page_to_pool_tarball(
+            "https://packages.debian.org/bullseye/cpp",
+            "4:10.2.1-1",
+        )
+    )
+
+    assert tarball_url == (
+        "http://deb.debian.org/debian/pool/main/g/gcc-defaults/gcc-defaults_1.190.tar.xz"
+    )
+    assert matched_version == "4:10.2.1-1"
+
+
+def test_debian_search_uses_package_heading_version_for_oss_version(monkeypatch):
+    search_html = """
+    <html>
+      <body>
+        <a href="/bullseye/cpp">bullseye (oldoldstable)</a>
+      </body>
+    </html>
+    """
+    package_html = """
+    <html>
+      <body>
+        <h1>Package: cpp (4:10.2.1-1)</h1>
+        <a href="https://deb.debian.org/debian/pool/main/g/gcc-defaults/gcc-defaults_1.190.tar.xz">
+          gcc-defaults_1.190.tar.xz
+        </a>
+      </body>
+    </html>
+    """
+
+    def fake_get(url, timeout=10):
+        if url == "https://packages.debian.org/search?keywords=cpp":
+            return _FakeResponse(search_html)
+        if url == "https://packages.debian.org/bullseye/cpp":
+            return _FakeResponse(package_html)
+        raise AssertionError(f"unexpected url: {url}")
+
+    monkeypatch.setattr(downloadable_url.requests, "get", fake_get)
+
+    ret, new_link, oss_name, oss_version, pkg_type = downloadable_url.get_downloadable_url(
+        "https://packages.debian.org/search?keywords=cpp",
+        "4:10.2.1-1",
+    )
+
+    assert ret is True
+    assert new_link == (
+        "http://deb.debian.org/debian/pool/main/g/gcc-defaults/gcc-defaults_1.190.tar.xz"
+    )
+    assert oss_name == ""
+    assert oss_version == "4:10.2.1-1"
+    assert pkg_type == "deb"
