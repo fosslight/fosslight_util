@@ -2,9 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for wget-path oss_version / clarified_version hints from URL and filename."""
 
+import json
+import logging
+
 import pytest
 
+from fosslight_util import download as download_module
 from fosslight_util.download import (
+    cli_download_and_extract,
     clarified_version_from_oss_version,
     _oss_version_hint_from_wget_link,
 )
@@ -188,3 +193,87 @@ def test_debian_search_uses_package_heading_version_for_oss_version(monkeypatch)
     assert oss_name == ""
     assert oss_version == "4:10.2.1-1"
     assert pkg_type == "deb"
+
+
+def test_cli_output_result_includes_downloaded_link(tmp_path, monkeypatch):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+
+    monkeypatch.setattr(
+        download_module,
+        "init_log",
+        lambda *_args, **_kwargs: (logging.getLogger("test-download"), {}),
+    )
+    monkeypatch.setattr(
+        download_module,
+        "download_git_clone",
+        lambda *_args, **_kwargs: (False, "git failed", "", "", ""),
+    )
+    monkeypatch.setattr(
+        download_module,
+        "download_wget",
+        lambda *_args, **_kwargs: (
+            True,
+            str(tmp_path / "pkg.tar.xz"),
+            "",
+            "",
+            "1.0.0",
+            "http://deb.debian.org/debian/pool/main/p/pkg/pkg_1.0.0.tar.xz",
+        ),
+    )
+    monkeypatch.setattr(download_module, "extract_compressed_file", lambda *_args, **_kwargs: True)
+
+    cli_download_and_extract(
+        "https://packages.debian.org/search?keywords=pkg",
+        str(tmp_path / "target"),
+        str(log_dir),
+        output=True,
+    )
+
+    with open(log_dir / "fosslight_download_output.json", encoding="utf-8") as output_file:
+        result = json.load(output_file)
+
+    assert result["success"] is True
+    assert result["link"] == "http://deb.debian.org/debian/pool/main/p/pkg/pkg_1.0.0.tar.xz"
+
+
+def test_cli_output_result_uses_empty_link_on_failure(tmp_path, monkeypatch):
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+
+    monkeypatch.setattr(
+        download_module,
+        "init_log",
+        lambda *_args, **_kwargs: (logging.getLogger("test-download"), {}),
+    )
+    monkeypatch.setattr(
+        download_module,
+        "download_git_clone",
+        lambda *_args, **_kwargs: (False, "git failed", "", "", ""),
+    )
+    monkeypatch.setattr(
+        download_module,
+        "download_wget",
+        lambda *_args, **_kwargs: (
+            True,
+            str(tmp_path / "pkg.tar.xz"),
+            "",
+            "",
+            "1.0.0",
+            "http://deb.debian.org/debian/pool/main/p/pkg/pkg_1.0.0.tar.xz",
+        ),
+    )
+    monkeypatch.setattr(download_module, "extract_compressed_file", lambda *_args, **_kwargs: False)
+
+    cli_download_and_extract(
+        "https://packages.debian.org/search?keywords=pkg",
+        str(tmp_path / "target"),
+        str(log_dir),
+        output=True,
+    )
+
+    with open(log_dir / "fosslight_download_output.json", encoding="utf-8") as output_file:
+        result = json.load(output_file)
+
+    assert result["success"] is False
+    assert result["link"] == ""
