@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.59 (26/05/2026)
+## Changes
+## 🔧 Maintenance
+
+- Return resolved download links in downloader output @soimkim (#281)
+
+---
+
 ## v2.1.58 (19/05/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -256,15 +264,3 @@
 ## 🚀 Features
 
 - Get license from pom @dd-jy (#237)
-
----
-
-## v2.1.29 (02/12/2025)
-## Changes
-## 🐛 Hotfixes
-
-- Fix: Prevent HTML page download when no file found @soimkim (#235)
-
-## 🔧 Maintenance
-
-- Add maven downloadable url fallback routine @dd-jy (#236)
