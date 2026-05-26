@@ -149,7 +149,10 @@ def _resolve_debian_package_page_to_pool_tarball(
         if not source_links:
             return "", ""
 
-    return _normalize_debian_pool_download_from_tarball_hrefs(source_links), ""
+    resolved_link = _normalize_debian_pool_download_from_tarball_hrefs(source_links)
+    if not resolved_link:
+        return "", ""
+    return resolved_link, package_version
 
 
 def _resolve_debian_search_to_source_tarball(

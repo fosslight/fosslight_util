@@ -195,6 +195,37 @@ def test_debian_search_uses_package_heading_version_for_oss_version(monkeypatch)
     assert pkg_type == "deb"
 
 
+def test_debian_package_heading_version_propagates_without_direct_heading_match(monkeypatch):
+    package_html = """
+    <html>
+      <body>
+        <h1>Package: adduser (3.118+deb11u1)</h1>
+        <a href="https://deb.debian.org/debian/pool/main/a/adduser/adduser_3.118+deb11u1.tar.xz">
+          adduser_3.118+deb11u1.tar.xz
+        </a>
+      </body>
+    </html>
+    """
+
+    monkeypatch.setattr(
+        downloadable_url.requests,
+        "get",
+        lambda *_args, **_kwargs: _FakeResponse(package_html),
+    )
+
+    tarball_url, matched_version = (
+        downloadable_url._resolve_debian_package_page_to_pool_tarball(
+            "https://packages.debian.org/bullseye/adduser",
+            "",
+        )
+    )
+
+    assert tarball_url == (
+        "http://deb.debian.org/debian/pool/main/a/adduser/adduser_3.118+deb11u1.tar.xz"
+    )
+    assert matched_version == "3.118+deb11u1"
+
+
 def test_cli_output_result_includes_downloaded_link(tmp_path, monkeypatch):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
