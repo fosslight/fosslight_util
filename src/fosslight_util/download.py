@@ -177,6 +177,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     msg_wget = ""
     oss_name = ""
     oss_version = ""
+    downloaded_link = ""
     log_file_name = "fosslight_download_" + \
         datetime.now().strftime('%Y%m%d_%H-%M-%S')+".txt"
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
@@ -205,18 +206,24 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                 link, target_dir, checkout_to, tag, branch,
                 ssh_key, id, git_token, called_cli)
             link = change_ssh_link_to_https(link)
+            if success_git:
+                downloaded_link = link
             if (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
 
-                success, downloaded_file, msg_wget, oss_name, oss_version = download_wget(
+                success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link = download_wget(
                     link, target_dir, compressed_only, checkout_to
                 )
                 if success and downloaded_file:
                     success = extract_compressed_file(downloaded_file, target_dir, True, compressed_only)
+                    if success:
+                        downloaded_link = resolved_link
             # Download from rubygems.org
             elif is_rubygems and shutil.which("gem"):
                 success = gem_download(link, target_dir, checkout_to)
+                if success:
+                    downloaded_link = link
         if msg:
             msg = f'git fail: {msg}'
             if is_rubygems:
@@ -234,9 +241,11 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         msg = str(error)
 
     clarified_version = clarified_version_from_oss_version(oss_version)
+    output_link = downloaded_link if success else ""
     output_result = {
         "success": success,
         "message": msg,
+        "link": output_link,
         "oss_name": oss_name,
         "oss_version": oss_version,
         "clarified_version": clarified_version,
@@ -357,32 +366,38 @@ _MAVEN_CLASSIFIER_SUFFIX_VERSION = re.compile(
 )
 
 
+def _strip_debian_epoch_prefix(s: str) -> str:
+    if re.match(r'^\d+:', s):
+        return s.split(':', 1)[1]
+    return s
+
+
 def clarified_version_from_oss_version(oss_version: str) -> str:
     """Extract major, major.minor, or major.minor.patch from oss_version/ref string."""
     s = (oss_version or "").strip()
     if not s:
         return ""
-    core = _strip_leading_v_prefix(s)
+    core = _strip_leading_v_prefix(_strip_debian_epoch_prefix(s))
     if _PURE_DOT_NUMERIC_VERSION.match(core):
         return core
-    m = _BASE_SEMVER_FOR_CHECKOUT.match(s)
+    m = _BASE_SEMVER_FOR_CHECKOUT.match(core)
     if m:
         if m.group(3):
             return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
         return f"{m.group(1)}.{m.group(2)}"
-    m = _CLARIFIED_MAJOR_ONLY_FULL.match(s)
+    m = _CLARIFIED_MAJOR_ONLY_FULL.match(core)
     if m:
         return m.group(1)
-    m = _SEMVER_IN_REF.search(s) or _SEMVER_AT_REF_START.match(s)
+    m = _SEMVER_IN_REF.search(core) or _SEMVER_AT_REF_START.match(core)
     if m:
         return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
-    m = _SEMVER_DOT_QUALIFIER_IN_STR.search(s)
+    m = _SEMVER_DOT_QUALIFIER_IN_STR.search(core)
     if m:
         return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
-    m = _CLARIFIED_TWO_IN_STR.search(s)
+    m = _CLARIFIED_TWO_IN_STR.search(core)
     if m:
         return f"{m.group(1)}.{m.group(2)}"
-    m = _CLARIFIED_MAJOR_IN_STR.search(s)
+    m = _CLARIFIED_MAJOR_IN_STR.search(core)
     if m:
         return m.group(1)
     return ""
@@ -736,6 +751,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
     oss_name = ""
     oss_version = ""
     downloaded_file = ""
+    resolved_link = ""
 
     try:
         if platform.system() != "Windows":
@@ -750,6 +766,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
         ret, new_link, oss_name, oss_version, pkg_type = get_downloadable_url(link, checkout_to)
         if ret and new_link:
             link = new_link
+        resolved_link = link
 
         if compressed_only:
             # Check if link ends with known compression extensions
@@ -806,7 +823,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
         msg = str(error)
         logger.warning(f"wget - failed: {error}")
 
-    return success, downloaded_file, msg, oss_name, oss_version
+    return success, downloaded_file, msg, oss_name, oss_version, resolved_link
 
 
 def _download_file_once(url, target_dir, request_headers=None):

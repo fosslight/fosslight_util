@@ -48,6 +48,10 @@ _DEBIAN_SUITE_MARKERS_ORDER = (
     ("testing", "(testing)"),
     ("unstable", "(unstable)"),
 )
+_DEBIAN_PACKAGE_HEADING_VERSION_RE = re.compile(
+    r"^Package:\s+.+?\s+\(([^()]+)\)\s*$",
+    re.IGNORECASE,
+)
 
 
 def _collect_debian_suite_package_urls(search_soup) -> list[tuple[str, str]]:
@@ -94,14 +98,24 @@ def _normalize_debian_pool_download_from_tarball_hrefs(source_links: list[str]) 
     return ""
 
 
+def _extract_debian_package_heading_version(package_soup) -> str:
+    for heading in package_soup.find_all("h1"):
+        heading_text = heading.get_text(" ", strip=True)
+        matched = _DEBIAN_PACKAGE_HEADING_VERSION_RE.match(heading_text)
+        if matched:
+            return matched.group(1).strip()
+    return ""
+
+
 def _resolve_debian_package_page_to_pool_tarball(
     package_url: str, checkout_version: str
-) -> str:
-    """Fetch one packages.debian.org package page and return a pool tarball URL or ``""``."""
+) -> tuple[str, str]:
+    """Fetch one package page and return ``(pool_tarball_url, matched_version)``."""
     r = requests.get(package_url, timeout=10)
     if r.status_code != 200:
-        return ""
+        return "", ""
     package_soup = BeautifulSoup(r.text, "html.parser")
+    package_version = _extract_debian_package_heading_version(package_soup)
 
     source_links = []
     for a in package_soup.find_all("a", href=True):
@@ -114,10 +128,18 @@ def _resolve_debian_package_page_to_pool_tarball(
             source_links.append(href)
 
     if not source_links:
-        return ""
+        return "", ""
 
     version_tokens = _version_tokens_for_match(checkout_version)
     if version_tokens:
+        if package_version and any(
+            token.lower() in package_version.lower() for token in version_tokens
+        ):
+            return (
+                _normalize_debian_pool_download_from_tarball_hrefs(source_links),
+                package_version,
+            )
+
         version_matched = []
         for href in source_links:
             low = href.lower()
@@ -125,15 +147,18 @@ def _resolve_debian_package_page_to_pool_tarball(
                 version_matched.append(href)
         source_links = version_matched
         if not source_links:
-            return ""
+            return "", ""
 
-    return _normalize_debian_pool_download_from_tarball_hrefs(source_links)
+    resolved_link = _normalize_debian_pool_download_from_tarball_hrefs(source_links)
+    if not resolved_link:
+        return "", ""
+    return resolved_link, package_version
 
 
 def _resolve_debian_search_to_source_tarball(
     search_url: str, checkout_version: str = ""
-) -> str:
-    """Resolve Debian search URL to a pool tarball URL when possible.
+) -> tuple[str, str]:
+    """Resolve Debian search URL to ``(pool_tarball_url, matched_version)``.
 
     Walks package pages for **oldoldstable**, **oldstable**, **stable**, **testing**,
     and **unstable** when those hits appear on the search results, so a binary
@@ -145,7 +170,7 @@ def _resolve_debian_search_to_source_tarball(
     try:
         r = requests.get(search_url, timeout=10)
         if r.status_code != 200:
-            return ""
+            return "", ""
         search_soup = BeautifulSoup(r.text, "html.parser")
 
         pairs = _collect_debian_suite_package_urls(search_soup)
@@ -160,7 +185,7 @@ def _resolve_debian_search_to_source_tarball(
         else:
             fb = _fallback_any_package_page_url(search_soup)
             if not fb:
-                return ""
+                return "", ""
             visit = [fb]
 
         seen: set[str] = set()
@@ -168,14 +193,14 @@ def _resolve_debian_search_to_source_tarball(
             if not package_url or package_url in seen:
                 continue
             seen.add(package_url)
-            got = _resolve_debian_package_page_to_pool_tarball(
+            got, matched_version = _resolve_debian_package_page_to_pool_tarball(
                 package_url, checkout_version
             )
             if got:
-                return got
+                return got, matched_version
     except Exception as e:
         logger.info(f"Failed to resolve Debian search URL {search_url}: {e}")
-    return ""
+    return "", ""
 
 
 def version_exists(pkg_type, origin_name, version):
@@ -499,9 +524,11 @@ def get_downloadable_url(link, checkout_version):
     result_link = link
 
     if link.startswith("https://packages.debian.org/search?"):
-        resolved = _resolve_debian_search_to_source_tarball(link, checkout_version)
+        resolved, debian_version = _resolve_debian_search_to_source_tarball(
+            link, checkout_version
+        )
         if resolved:
-            return True, resolved, "", "", "deb"
+            return True, resolved, "", debian_version, "deb"
 
     oss_name, oss_version, new_link, pkg_type = extract_name_version_from_link(link, checkout_version)
     new_link = new_link.replace('http://', '')
