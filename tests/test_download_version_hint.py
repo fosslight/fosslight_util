@@ -96,6 +96,8 @@ def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):
         ("1.1.7.7", "1.1.7.7"),
         ("v1.1.7.7", "1.1.7.7"),
         ("v3.28.3", "3.28.3"),
+        ("4:10.2.1-1", "10.2.1"),
+        ("1:3.118+deb11u1", "3.118"),
     ],
 )
 def test_clarified_follows_hint_for_semver(hint, expected_clarified):

@@ -366,32 +366,38 @@ _MAVEN_CLASSIFIER_SUFFIX_VERSION = re.compile(
 )
 
 
+def _strip_debian_epoch_prefix(s: str) -> str:
+    if re.match(r'^\d+:', s):
+        return s.split(':', 1)[1]
+    return s
+
+
 def clarified_version_from_oss_version(oss_version: str) -> str:
     """Extract major, major.minor, or major.minor.patch from oss_version/ref string."""
     s = (oss_version or "").strip()
     if not s:
         return ""
-    core = _strip_leading_v_prefix(s)
+    core = _strip_leading_v_prefix(_strip_debian_epoch_prefix(s))
     if _PURE_DOT_NUMERIC_VERSION.match(core):
         return core
-    m = _BASE_SEMVER_FOR_CHECKOUT.match(s)
+    m = _BASE_SEMVER_FOR_CHECKOUT.match(core)
     if m:
         if m.group(3):
             return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
         return f"{m.group(1)}.{m.group(2)}"
-    m = _CLARIFIED_MAJOR_ONLY_FULL.match(s)
+    m = _CLARIFIED_MAJOR_ONLY_FULL.match(core)
     if m:
         return m.group(1)
-    m = _SEMVER_IN_REF.search(s) or _SEMVER_AT_REF_START.match(s)
+    m = _SEMVER_IN_REF.search(core) or _SEMVER_AT_REF_START.match(core)
     if m:
         return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
-    m = _SEMVER_DOT_QUALIFIER_IN_STR.search(s)
+    m = _SEMVER_DOT_QUALIFIER_IN_STR.search(core)
     if m:
         return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
-    m = _CLARIFIED_TWO_IN_STR.search(s)
+    m = _CLARIFIED_TWO_IN_STR.search(core)
     if m:
         return f"{m.group(1)}.{m.group(2)}"
-    m = _CLARIFIED_MAJOR_IN_STR.search(s)
+    m = _CLARIFIED_MAJOR_IN_STR.search(core)
     if m:
         return m.group(1)
     return ""
