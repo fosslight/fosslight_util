@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1.60 (09/06/2026)
+## Changes
+## 🔧 Maintenance
+
+- Remove unused column header for bin. analysis @bjk7119 (#282)
+- Fix license nick typo @bjk7119 (#275)
+
+---
+
 ## v2.1.59 (26/05/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -256,11 +265,3 @@
 ## 🔧 Maintenance
 
 - Change 'FOSSLight' help msg style @bjk7119 (#238)
-
----
-
-## v2.1.30 (11/12/2025)
-## Changes
-## 🚀 Features
-
-- Get license from pom @dd-jy (#237)
