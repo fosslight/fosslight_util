@@ -1013,6 +1013,53 @@ def extract_rpm_payload(source_file: str, dest_path: str) -> bool:
     return False
 
 
+def _fix_extracted_permissions(path: str) -> None:
+    try:
+        os.chmod(path, os.stat(path).st_mode | 0o755)
+    except Exception:
+        pass
+    for root, dirs, files in os.walk(path, topdown=True):
+        # Fix dirs BEFORE os.walk recurses into them.
+        for d in dirs:
+            dpath = os.path.join(root, d)
+            try:
+                os.chmod(dpath, os.stat(dpath).st_mode | 0o755)
+            except Exception:
+                pass
+        for f in files:
+            fpath = os.path.join(root, f)
+            try:
+                os.chmod(fpath, os.stat(fpath).st_mode | 0o644)
+            except Exception:
+                pass
+
+
+def _tar_extractall_safe(fname: str, open_mode: str, extract_path: str) -> None:
+    try:
+        with contextlib.closing(tarfile.open(fname, open_mode)) as tf:
+            tf.extractall(path=extract_path)
+    except PermissionError as perm_err:
+        logger.warning(
+            f"Permission error while extracting '{fname}': {perm_err}. "
+            f"Fixing permissions and retrying."
+        )
+        # Fix already-extracted content so the retry can overwrite/descend.
+        _fix_extracted_permissions(extract_path)
+        # Retry with per-member permission normalisation.
+        with contextlib.closing(tarfile.open(fname, open_mode)) as tf:
+            members = tf.getmembers()
+            for m in members:
+                if m.isdir():
+                    m.mode = m.mode | 0o755
+                elif m.isfile():
+                    m.mode = m.mode | 0o644
+            tf.extractall(path=extract_path, members=members)
+    else:
+        # No PermissionError: extractall() may have silently restored 0o000 modes
+        # set by the archive creator, leaving extracted content inaccessible.
+        _fix_extracted_permissions(extract_path)
+
+
 def _extract_top_level_crates_once(extract_path: str, remove_after_extract: bool) -> bool:
     """After RPM/SRPM unpack: extract each ``*.crate`` in extract_path (non-recursive)."""
     if not extract_path or not os.path.isdir(extract_path):
@@ -1025,8 +1072,7 @@ def _extract_top_level_crates_once(extract_path: str, remove_after_extract: bool
         if not os.path.isfile(cp):
             continue
         try:
-            with contextlib.closing(tarfile.open(cp, "r:gz")) as t:
-                t.extractall(path=extract_path)
+            _tar_extractall_safe(cp, "r:gz", extract_path)
             if remove_after_extract:
                 os.remove(cp)
         except Exception as e:
@@ -1058,11 +1104,9 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
                 fname = os.path.splitext(fname)[0]
 
             if fname.endswith(".tar.gz") or fname.endswith(".tgz"):
-                with contextlib.closing(tarfile.open(fname, "r:gz")) as t:
-                    t.extractall(path=extract_path)
+                _tar_extractall_safe(fname, "r:gz", extract_path)
             elif fname.endswith(".tar.xz") or fname.endswith(".tar"):
-                with contextlib.closing(tarfile.open(fname, "r:*")) as t:
-                    t.extractall(path=extract_path)
+                _tar_extractall_safe(fname, "r:*", extract_path)
             elif fname.endswith(".zip") or fname.endswith(".jar"):
                 unzip(fname, extract_path)
             elif fname.endswith(".bz2"):
@@ -1093,9 +1137,7 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
                     if zipfile.is_zipfile(fname):
                         unzip(fname, extract_path)
                     elif tarfile.is_tarfile(fname):
-                        with contextlib.closing(tarfile.open(fname, "r:*")) as tar:
-                            tar.extraction_filter = getattr(tarfile, 'data_filter', (lambda member, path: member))
-                            tar.extractall(path=extract_path)
+                        _tar_extractall_safe(fname, "r:*", extract_path)
                     else:
                         is_compressed_file = False
                         if compressed_only:
