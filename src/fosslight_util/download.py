@@ -1044,24 +1044,58 @@ def _fix_extracted_permissions(member_dirs: set, member_files: set) -> None:
     """
     # Directories must be fixed first so nested file paths are traversable.
     for p in sorted(member_dirs, key=len):
+        if not os.path.exists(p):
+            continue
         try:
             os.chmod(p, os.stat(p).st_mode | 0o755)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to fix permissions for directory {p}: {e}")
 
     for p in sorted(member_files, key=len):
+        if not os.path.exists(p):
+            continue
         try:
             os.chmod(p, os.stat(p).st_mode | 0o644)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to fix permissions for file {p}: {e}")
 
 
 def _tar_extractall_safe(fname: str, open_mode: str, extract_path: str) -> None:
+    """Extract tar archive with path-traversal protection.
+
+    On Python >= 3.12, uses tarfile.extractall(filter='data').
+    On older Python, manually validates each member path before extraction.
+    """
     members = None
+    abs_extract = os.path.abspath(extract_path)
+
+    # Check if filter parameter is available (Python >= 3.12)
+    has_filter = hasattr(tarfile, 'data_filter')
+
     try:
         with contextlib.closing(tarfile.open(fname, open_mode)) as tf:
             members = tf.getmembers()
-            tf.extractall(path=extract_path)
+
+            if has_filter:
+                # Python >= 3.12: use built-in filter
+                tf.extractall(path=extract_path, filter='data')
+            else:
+                # Python < 3.12: manual path validation
+                for member in members:
+                    # Compute target path
+                    target = os.path.normpath(os.path.join(extract_path, member.name))
+                    target_abs = os.path.abspath(target)
+
+                    # Verify target is within extract_path
+                    if not (target_abs.startswith(abs_extract + os.sep) or target_abs == abs_extract):
+                        logger.error(
+                            f"Path traversal attempt blocked: {member.name} would extract to {target_abs}"
+                        )
+                        raise ValueError(f"Path traversal attempt in archive member: {member.name}")
+
+                    # Extract individual member
+                    tf.extract(member, path=extract_path)
+
     except PermissionError as perm_err:
         logger.warning(
             f"Permission error while extracting '{fname}': {perm_err}. "
@@ -1081,7 +1115,20 @@ def _tar_extractall_safe(fname: str, open_mode: str, extract_path: str) -> None:
                     m.mode = m.mode | 0o755
                 elif m.isfile():
                     m.mode = m.mode | 0o644
-            tf.extractall(path=extract_path, members=retry_members)
+
+            if has_filter:
+                tf.extractall(path=extract_path, members=retry_members, filter='data')
+            else:
+                # Manual validation on retry
+                for member in retry_members:
+                    target = os.path.normpath(os.path.join(extract_path, member.name))
+                    target_abs = os.path.abspath(target)
+                    if not (target_abs.startswith(abs_extract + os.sep) or target_abs == abs_extract):
+                        logger.error(
+                            f"Path traversal attempt blocked: {member.name} would extract to {target_abs}"
+                        )
+                        raise ValueError(f"Path traversal attempt in archive member: {member.name}")
+                    tf.extract(member, path=extract_path)
     else:
         # No PermissionError: extractall() may have silently restored 0o000 modes
         # set by the archive creator, leaving extracted content inaccessible.
@@ -1145,8 +1192,7 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
             elif fname.endswith(".whl"):
                 unzip(fname, extract_path)
             elif fname.endswith(".crate"):
-                with contextlib.closing(tarfile.open(fname, "r:gz")) as t:
-                    t.extractall(path=extract_path)
+                _tar_extractall_safe(fname, "r:gz", extract_path)
             elif fname.lower().endswith(".src.rpm"):
                 if not extract_rpm_payload(fname, extract_path):
                     success = False
