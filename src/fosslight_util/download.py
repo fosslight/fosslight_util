@@ -1013,51 +1013,82 @@ def extract_rpm_payload(source_file: str, dest_path: str) -> bool:
     return False
 
 
-def _fix_extracted_permissions(path: str) -> None:
-    try:
-        os.chmod(path, os.stat(path).st_mode | 0o755)
-    except Exception:
-        pass
-    for root, dirs, files in os.walk(path, topdown=True):
-        # Fix dirs BEFORE os.walk recurses into them.
-        for d in dirs:
-            dpath = os.path.join(root, d)
-            try:
-                os.chmod(dpath, os.stat(dpath).st_mode | 0o755)
-            except Exception:
-                pass
-        for f in files:
-            fpath = os.path.join(root, f)
-            try:
-                os.chmod(fpath, os.stat(fpath).st_mode | 0o644)
-            except Exception:
-                pass
+def _member_extracted_paths(members, extract_path: str) -> tuple[set, set]:
+    """Return ``(dir_paths, file_paths)`` for tar members under extract_path.
+
+    Members whose normalised name would escape extract_path (path-traversal) are
+    silently skipped, consistent with what tarfile itself does on safe extraction.
+    """
+    abs_extract = os.path.abspath(extract_path)
+    dir_paths: set = set()
+    file_paths: set = set()
+    for m in members:
+        normalized = os.path.normpath(m.name.lstrip('/'))
+        abs_path = os.path.abspath(os.path.join(abs_extract, normalized))
+        try:
+            if os.path.commonpath([abs_path, abs_extract]) == abs_extract:
+                if m.isdir():
+                    dir_paths.add(abs_path)
+                elif m.isfile():
+                    file_paths.add(abs_path)
+        except ValueError:
+            pass
+    return dir_paths, file_paths
+
+
+def _fix_extracted_permissions(member_dirs: set, member_files: set) -> None:
+    """Fix restrictive permissions only for archive member paths.
+
+    This intentionally avoids walking the entire extraction directory so
+    pre-existing local files under ``extract_path`` are never relaxed.
+    """
+    # Directories must be fixed first so nested file paths are traversable.
+    for p in sorted(member_dirs, key=len):
+        try:
+            os.chmod(p, os.stat(p).st_mode | 0o755)
+        except Exception:
+            pass
+
+    for p in sorted(member_files, key=len):
+        try:
+            os.chmod(p, os.stat(p).st_mode | 0o644)
+        except Exception:
+            pass
 
 
 def _tar_extractall_safe(fname: str, open_mode: str, extract_path: str) -> None:
+    members = None
     try:
         with contextlib.closing(tarfile.open(fname, open_mode)) as tf:
+            members = tf.getmembers()
             tf.extractall(path=extract_path)
     except PermissionError as perm_err:
         logger.warning(
             f"Permission error while extracting '{fname}': {perm_err}. "
             f"Fixing permissions and retrying."
         )
-        # Fix already-extracted content so the retry can overwrite/descend.
-        _fix_extracted_permissions(extract_path)
-        # Retry with per-member permission normalisation.
+
+        if members is None:
+            with contextlib.closing(tarfile.open(fname, open_mode)) as tf:
+                members = tf.getmembers()
+        member_dirs, member_files = _member_extracted_paths(members, extract_path)
+        _fix_extracted_permissions(member_dirs, member_files)
+
         with contextlib.closing(tarfile.open(fname, open_mode)) as tf:
-            members = tf.getmembers()
-            for m in members:
+            retry_members = tf.getmembers()
+            for m in retry_members:
                 if m.isdir():
                     m.mode = m.mode | 0o755
                 elif m.isfile():
                     m.mode = m.mode | 0o644
-            tf.extractall(path=extract_path, members=members)
+            tf.extractall(path=extract_path, members=retry_members)
     else:
         # No PermissionError: extractall() may have silently restored 0o000 modes
         # set by the archive creator, leaving extracted content inaccessible.
-        _fix_extracted_permissions(extract_path)
+        if members is None:
+            return
+        member_dirs, member_files = _member_extracted_paths(members, extract_path)
+        _fix_extracted_permissions(member_dirs, member_files)
 
 
 def _extract_top_level_crates_once(extract_path: str, remove_after_extract: bool) -> bool:
