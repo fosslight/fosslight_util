@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.61 (25/06/2026)
+## Changes
+## 🔧 Maintenance
+
+- Normalize tar extraction permissions for inaccessible archives @bjk7119 (#284)
+
+---
+
 ## v2.1.60 (09/06/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -253,15 +261,3 @@
 ## 🔧 Maintenance
 
 - Use 256 color for 'FOSSLight' ASCII art @bjk7119 (#240)
-
----
-
-## v2.1.31 (07/01/2026)
-## Changes
-## 🐛 Hotfixes
-
-- Add defusedxml in requirements.txt @dd-jy (#239)
-
-## 🔧 Maintenance
-
-- Change 'FOSSLight' help msg style @bjk7119 (#238)
