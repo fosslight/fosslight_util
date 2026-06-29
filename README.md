@@ -135,11 +135,16 @@ If you want to try with private repository, set your github token like below.
 $ fosslight_download -s "https://my_github_token@github.com/Foo/private_repo -t target_dir/"
 ```
 
-## 👏 How to report issue
+## 💡 How to report issue
 
 Please report any ideas or bugs to improve by creating an issue in [fosslight_util repository][cl]. Then there will be quick bug fixes and upgrades. Ideas to improve are always welcome.
 
 [cl]: https://github.com/fosslight/fosslight_util/issues
+
+## 👏 Contributing Guide
+
+We always welcome your contributions.  
+Please see the [CONTRIBUTING guide](https://fosslight.org/hub-guide-en/contribution/1_contribution.html) for how to contribute.
 
 ## 📄 License
 
