@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.62 (01/07/2026)
+## Changes
+## 🔧 Maintenance
+
+- Hide sheets whose name starts with a dot @soimkim (#286)
+
+---
+
 ## v2.1.61 (25/06/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -253,11 +261,3 @@
 ## 🔧 Maintenance
 
 - Add function for getting excluded path @soimkim (#241)
-
----
-
-## v2.1.32 (12/01/2026)
-## Changes
-## 🔧 Maintenance
-
-- Use 256 color for 'FOSSLight' ASCII art @bjk7119 (#240)
