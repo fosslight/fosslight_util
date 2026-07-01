@@ -229,6 +229,10 @@ def hide_column(worksheet, selected_header, hide_header):
                 worksheet.set_column(col_idx, col_idx, None, None, {"hidden": True})
 
 
+def _should_hide_sheet(sheet_name: str) -> bool:
+    return sheet_name.startswith('.')
+
+
 def create_worksheet(workbook, sheet_name, header_row):
     if len(sheet_name) > 31:
         current_time = str(time.time())
@@ -237,6 +241,8 @@ def create_worksheet(workbook, sheet_name, header_row):
     if header_row:
         for col_num, value in enumerate(header_row):
             worksheet.write(0, col_num, value)
+    if _should_hide_sheet(sheet_name):
+        worksheet.hide()
     return worksheet
 
 
