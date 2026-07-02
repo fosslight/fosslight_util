@@ -554,12 +554,6 @@ def _try_resolve_checkout_base(base: str, ref_set: set) -> Tuple[Optional[str], 
 
 
 def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
-    """Return (ref_to_checkout, clarified_version). clarified_version may be ''.
-
-    Try tag, then branch, then checkout_to; only if a hint finds no match in refs
-    (same as former final ``return base, clarified_version_from_oss_version(base)``)
-    is the next hint used.
-    """
     ref_dict = get_remote_refs(git_url)
     tag_set = set(ref_dict.get("tags", []))
     branch_set = set(ref_dict.get("branches", []))
@@ -572,6 +566,51 @@ def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
         ref, clar = _try_resolve_checkout_base(b, ref_set)
         if ref is not None:
             return ref, clar
+
+    return "", ""
+
+
+def _git_url_with_http_credentials(git_url, credential_id="", git_token=""):
+    """Return git_url with HTTP credentials embedded for ls-remote/clone."""
+    if not (credential_id and git_token):
+        return git_url
+    try:
+        parsed = urllib.parse.urlparse(git_url)
+        if parsed.username or "@" in (parsed.netloc or ""):
+            return git_url
+        m = re.match(r"^(ht|f)tp(s?)\:\/\/", git_url)
+        if not m:
+            return git_url
+        protocol = m.group()
+        encoded_git_token = urllib.parse.quote(git_token, safe='')
+        encoded_credential_id = urllib.parse.quote(credential_id, safe='')
+        return git_url.replace(
+            protocol, f"{protocol}{encoded_credential_id}:{encoded_git_token}@", 1
+        )
+    except (ValueError, TypeError, AttributeError) as error:
+        logger.info(f"Failed to insert id, token to git url:{error}")
+        return git_url
+
+
+def _resolve_refs_to_checkout(
+    checkout_to="",
+    tag="",
+    branch="",
+    git_url="",
+    credential_id="",
+    git_token="",
+):
+    auth_url = _git_url_with_http_credentials(git_url, credential_id, git_token)
+
+    # Preserve precedence: tag -> branch -> checkout_to
+    resolved, clar = decide_checkout(checkout_to, tag, branch, auth_url)
+    if resolved:
+        return resolved, clar
+
+    # Fallback when no ref is resolved but checkout_to is provided
+    if (checkout_to or "").strip():
+        ref = checkout_to.strip()
+        return ref, clarified_version_from_oss_version(ref)
 
     return "", ""
 
@@ -685,8 +724,8 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                        ssh_key="", id="", git_token="", called_cli=True):
     oss_name = get_github_ossname(git_url)
-    refs_to_checkout, decided_clarified = decide_checkout(
-        checkout_to, tag, branch, git_url
+    refs_to_checkout, decided_clarified = _resolve_refs_to_checkout(
+        checkout_to, tag, branch, git_url, credential_id=id, git_token=git_token
     )
     msg = ""
     success = True
@@ -712,16 +751,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                 with Git().custom_environment(GIT_SSH_COMMAND=git_ssh_cmd):
                     success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_cli)
             else:
-                if id and git_token:
-                    try:
-                        m = re.match(r"^(ht|f)tp(s?)\:\/\/", git_url)
-                        protocol = m.group()
-                        if protocol:
-                            encoded_git_token = urllib.parse.quote(git_token, safe='')
-                            encoded_id = urllib.parse.quote(id, safe='')
-                            git_url = git_url.replace(protocol, f"{protocol}{encoded_id}:{encoded_git_token}@")
-                    except Exception as error:
-                        logger.info(f"Failed to insert id, token to git url:{error}")
+                git_url = _git_url_with_http_credentials(git_url, credential_id=id, git_token=git_token)
                 success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_cli)
 
             logger.info(f"git checkout version: {oss_version}")
