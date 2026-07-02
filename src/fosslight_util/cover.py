@@ -4,13 +4,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import re
 import sys
+import yaml
 from fosslight_util.help import print_package_version
+from fosslight_util.time import format_display_time, format_running_time
+
+
+def dump_result_log(result_log):
+    log_text = yaml.safe_dump(result_log, allow_unicode=True, sort_keys=True)
+    log_text = re.sub(r"Running time: ['\"](.+?)['\"]\n", r"Running time: \1\n", log_text)
+    return log_text.strip()
 
 
 class CoverItem:
     tool_name_key = "Tool information"
-    start_time_key = "Start time"
+    start_time_key = "Running time"
     python_ver_key = "Python version"
     analyzed_path_key = "Analyzed path"
     excluded_path_key = "Excluded path"
@@ -23,7 +32,8 @@ class CoverItem:
         "fosslight_binary"
     ]
 
-    def __init__(self, tool_name="", start_time="", input_path="", comment="", exclude_path=[], simple_mode=True):
+    def __init__(self, tool_name="", start_time="", input_path="", comment="", exclude_path=[], simple_mode=True,
+                 finish_time=""):
         if simple_mode:
             self.tool_name = f'{tool_name} v{print_package_version(tool_name, "", False)}'
         else:
@@ -34,11 +44,9 @@ class CoverItem:
             ])
             self.tool_name = f'{first_pkg} ({remaining_pkgs})'
 
-        if start_time:
-            date, time = start_time.split('_')
-            self.start_time = f'{date}, {time[0:2]}:{time[2:4]}'
-        else:
-            self.start_time = ""
+        self.start_time = start_time
+        self.finish_time = finish_time
+        self.running_time = self._format_running_time()
         self.input_path = os.path.abspath(input_path)
         self.exclude_path = ", ".join(exclude_path)
         self.comment = comment
@@ -57,6 +65,19 @@ class CoverItem:
     def __lt__(self, other):
         return self.get_sort_order() < other.get_sort_order()
 
+    def set_finish_time(self, finish_time):
+        self.finish_time = finish_time
+        self.running_time = self._format_running_time()
+
+    def _format_running_time(self):
+        if not self.start_time:
+            return ""
+
+        if not self.finish_time:
+            return format_display_time(self.start_time)
+
+        return format_running_time(self.start_time, self.finish_time)
+
     def create_merged_comment(self, cover_items):
         if not cover_items:
             return ""
@@ -69,7 +90,7 @@ class CoverItem:
     def get_print_json(self):
         json_item = {}
         json_item[self.tool_name_key] = self.tool_name
-        json_item[self.start_time_key] = self.start_time
+        json_item[self.start_time_key] = self.running_time
         json_item[self.python_ver_key] = self.python_version
         json_item[self.analyzed_path_key] = self.input_path
         json_item[self.excluded_path_key] = self.exclude_path
