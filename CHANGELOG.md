@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.63 (02/07/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Resolve validated checkout ref before git clone @bjk7119 (#285)
+
+---
+
 ## v2.1.62 (01/07/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -253,11 +261,3 @@
 ## 🐛 Hotfixes
 
 - Fix a bug related to count files @soimkim (#242)
-
----
-
-## v2.1.33 (13/01/2026)
-## Changes
-## 🔧 Maintenance
-
-- Add function for getting excluded path @soimkim (#241)
