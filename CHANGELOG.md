@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.2.0 (03/07/2026)
+## Changes
+## 🐛 Hotfixes
+
+- fix(oss_item): fix checksum from file content @dd-jy (#290)
+
+## 🔧 Maintenance
+
+- Write file:// download locations without hyperlink conversion @soimkim (#291)
+
+---
+
 ## v2.1.64 (03/07/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -254,11 +266,3 @@
 ## 🐛 Hotfixes
 
 - Handle SSL verification failures at get_license_from_pom @JustinWonjaePark (#244)
-
----
-
-## v2.1.35 (16/01/2026)
-## Changes
-## 🔧 Maintenance
-
-- Exclude paths ending with / @bjk7119 (#243)
