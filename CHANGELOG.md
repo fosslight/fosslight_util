@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1.64 (03/07/2026)
+## Changes
+## 🔧 Maintenance
+
+- Centralize comment delimiter in COMMENT_DELIMITER constant @soimkim (#289)
+- Handle None values @JustinWonjaePark (#287)
+
+---
+
 ## v2.1.63 (02/07/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -253,11 +262,3 @@
 ## 🔧 Maintenance
 
 - Exclude paths ending with / @bjk7119 (#243)
-
----
-
-## v2.1.34 (13/01/2026)
-## Changes
-## 🐛 Hotfixes
-
-- Fix a bug related to count files @soimkim (#242)
