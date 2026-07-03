@@ -12,6 +12,7 @@ from typing import List, Dict
 
 _logger = logging.getLogger(LOGGER_NAME)
 CHECKSUM_NULL = "0"
+_CHECKSUM_CHUNK_SIZE = 1024 * 1024  # 1 MiB
 
 
 class OssItem:
@@ -177,15 +178,14 @@ class FileItem:
 def get_checksum_sha1(source_name_or_path) -> str:
     checksum = CHECKSUM_NULL
     try:
-        checksum = str(hashlib.sha1(source_name_or_path.encode()).hexdigest())
-    except Exception:
-        try:
-            f = open(source_name_or_path, "rb")
-            byte = f.read()
-            checksum = str(hashlib.sha1(byte).hexdigest())
-            f.close()
-        except Exception as ex:
-            _logger.info(f"(Error) Get_checksum: {ex}")
+        if os.path.isfile(source_name_or_path):
+            sha1 = hashlib.sha1()
+            with open(source_name_or_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(_CHECKSUM_CHUNK_SIZE), b''):
+                    sha1.update(chunk)
+                checksum = sha1.hexdigest()
+    except Exception as ex:
+        _logger.debug(f"(Error) Get_checksum: {ex}")
 
     return checksum
 
