@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 LOGGER_NAME = "FOSSLight"
+COMMENT_DELIMITER = " / "
 
 FL_SOURCE = 'FL_Source'
 FL_DEPENDENCY = 'FL_Dependency'

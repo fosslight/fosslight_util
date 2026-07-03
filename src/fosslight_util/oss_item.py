@@ -6,14 +6,14 @@
 import logging
 import os
 import hashlib
-from datetime import datetime
-from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_SCANNER
+from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_SCANNER, COMMENT_DELIMITER
 from fosslight_util.cover import CoverItem
 from fosslight_util.time import current_timestamp_utc
 from typing import List, Dict
 
 _logger = logging.getLogger(LOGGER_NAME)
 CHECKSUM_NULL = "0"
+_CHECKSUM_CHUNK_SIZE = 1024 * 1024  # 1 MiB
 
 
 class OssItem:
@@ -91,7 +91,7 @@ class OssItem:
             self._comment = ""
         else:
             if self._comment:
-                self._comment = f"{self._comment} / {value}"
+                self._comment = f"{self._comment}{COMMENT_DELIMITER}{value}"
             else:
                 self._comment = value
 
@@ -132,7 +132,7 @@ class FileItem:
             self._comment = ""
         else:
             if self._comment:
-                self._comment = f"{self._comment} / {value}"
+                self._comment = f"{self._comment}{COMMENT_DELIMITER}{value}"
             else:
                 self._comment = value
             for oss in self.oss_items:
@@ -179,15 +179,14 @@ class FileItem:
 def get_checksum_sha1(source_name_or_path) -> str:
     checksum = CHECKSUM_NULL
     try:
-        checksum = str(hashlib.sha1(source_name_or_path.encode()).hexdigest())
-    except Exception:
-        try:
-            f = open(source_name_or_path, "rb")
-            byte = f.read()
-            checksum = str(hashlib.sha1(byte).hexdigest())
-            f.close()
-        except Exception as ex:
-            _logger.info(f"(Error) Get_checksum: {ex}")
+        if os.path.isfile(source_name_or_path):
+            sha1 = hashlib.sha1()
+            with open(source_name_or_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(_CHECKSUM_CHUNK_SIZE), b''):
+                    sha1.update(chunk)
+                checksum = sha1.hexdigest()
+    except Exception as ex:
+        _logger.debug(f"(Error) Get_checksum: {ex}")
 
     return checksum
 
@@ -209,7 +208,7 @@ class ScannerItem:
     def set_cover_comment(self, value):
         if value:
             if self.cover.comment:
-                self.cover.comment = f"{self.cover.comment} / {value}"
+                self.cover.comment = f"{self.cover.comment}{COMMENT_DELIMITER}{value}"
             else:
                 self.cover.comment = value
 
@@ -219,7 +218,7 @@ class ScannerItem:
         self.cover.set_finish_time(finish_time)
 
     def get_cover_comment(self):
-        return [item.strip() for item in self.cover.comment.split(" / ")]
+        return [item.strip() for item in self.cover.comment.split(COMMENT_DELIMITER)]
 
     def append_file_items(self, file_item: List[FileItem], pkg_name=""):
         if pkg_name == "":
