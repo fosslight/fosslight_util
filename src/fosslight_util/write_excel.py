@@ -216,7 +216,9 @@ def write_result_to_sheet(worksheet, sheet_contents):
         worksheet.write(row, 0, row)
         for col_num, value in enumerate(row_item):
             value = "" if value is None else str(value)
-            if len(value) > MAX_EXCEL_URL_LENGTH and (value.startswith("http://") or value.startswith("https://")):
+            if value.startswith("file://") or (
+                    len(value) > MAX_EXCEL_URL_LENGTH
+                    and (value.startswith("http://") or value.startswith("https://"))):
                 worksheet.write_string(row, col_num + 1, value)
             else:
                 worksheet.write(row, col_num + 1, value)
