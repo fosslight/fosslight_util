@@ -6,7 +6,7 @@
 import logging
 import os
 import hashlib
-from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_SCANNER
+from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_SCANNER, COMMENT_DELIMITER
 from fosslight_util.cover import CoverItem
 from typing import List, Dict
 
@@ -89,7 +89,7 @@ class OssItem:
             self._comment = ""
         else:
             if self._comment:
-                self._comment = f"{self._comment} / {value}"
+                self._comment = f"{self._comment}{COMMENT_DELIMITER}{value}"
             else:
                 self._comment = value
 
@@ -130,7 +130,7 @@ class FileItem:
             self._comment = ""
         else:
             if self._comment:
-                self._comment = f"{self._comment} / {value}"
+                self._comment = f"{self._comment}{COMMENT_DELIMITER}{value}"
             else:
                 self._comment = value
             for oss in self.oss_items:
@@ -207,12 +207,12 @@ class ScannerItem:
     def set_cover_comment(self, value):
         if value:
             if self.cover.comment:
-                self.cover.comment = f"{self.cover.comment} / {value}"
+                self.cover.comment = f"{self.cover.comment}{COMMENT_DELIMITER}{value}"
             else:
                 self.cover.comment = value
 
     def get_cover_comment(self):
-        return [item.strip() for item in self.cover.comment.split(" / ")]
+        return [item.strip() for item in self.cover.comment.split(COMMENT_DELIMITER)]
 
     def append_file_items(self, file_item: List[FileItem], pkg_name=""):
         if pkg_name == "":
