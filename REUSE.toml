@@ -1,0 +1,54 @@
+version = 1
+SPDX-PackageName = "FOSSLight Util"
+SPDX-PackageDownloadLocation = "https://github.com/fosslight/fosslight_util"
+
+[[annotations]]
+path = "**.md"
+SPDX-FileCopyrightText = "2021 LG Electronics"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = ".github/**"
+SPDX-FileCopyrightText = "2021 LG Electronics"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "MANIFEST.in"
+SPDX-FileCopyrightText = "2021 LG Electronics"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "requirements**.txt"
+SPDX-FileCopyrightText = "2021 LG Electronics"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "src/fosslight_util/resources/frequentLicenselist.json"
+precedence = "override"
+SPDX-FileCopyrightText = "2021 LG Electronics"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "src/fosslight_util/resources/frequent_license_nick_list.json"
+SPDX-FileCopyrightText = "2022 LG Electronics"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "src/fosslight_util/resources/licenses.json"
+SPDX-FileCopyrightText = "SPDX"
+SPDX-License-Identifier = "CC-BY-3.0"
+
+[[annotations]]
+path = "tests/**.yaml"
+SPDX-FileCopyrightText = "2022 LG Electronics"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "tests/**.xlsx"
+SPDX-FileCopyrightText = "2022 LG Electronics"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = ".coderabbit.yaml"
+SPDX-FileCopyrightText = "2026 LG Electronics"
+SPDX-License-Identifier = "Apache-2.0"
