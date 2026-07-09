@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.2.1 (09/07/2026)
+## Changes
+## 🔧 Maintenance
+
+- Resolve repo-prefixed version tags on checkout @soimkim (#293)
+- Migrate to REUSE.toml and update GitHub Actions @woocheol-lge (#292)
+
+---
+
 ## v2.2.0 (03/07/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -258,11 +267,3 @@
 ## 🔧 Maintenance
 
 - Exclude scanner specific files / @soimkim  (#245)
-
----
-
-## v2.1.36 (19/01/2026)
-## Changes
-## 🐛 Hotfixes
-
-- Handle SSL verification failures at get_license_from_pom @JustinWonjaePark (#244)
