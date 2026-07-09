@@ -8,6 +8,7 @@ import os
 import hashlib
 from fosslight_util.constant import LOGGER_NAME, FOSSLIGHT_SCANNER, COMMENT_DELIMITER
 from fosslight_util.cover import CoverItem
+from fosslight_util.time import current_timestamp_utc
 from typing import List, Dict
 
 _logger = logging.getLogger(LOGGER_NAME)
@@ -210,6 +211,11 @@ class ScannerItem:
                 self.cover.comment = f"{self.cover.comment}{COMMENT_DELIMITER}{value}"
             else:
                 self.cover.comment = value
+
+    def set_cover_finish_time(self, finish_time=""):
+        if not finish_time:
+            finish_time = current_timestamp_utc()
+        self.cover.set_finish_time(finish_time)
 
     def get_cover_comment(self):
         return [item.strip() for item in self.cover.comment.split(COMMENT_DELIMITER)]
