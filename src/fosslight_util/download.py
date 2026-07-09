@@ -319,7 +319,7 @@ _BASE_SEMVER_FOR_CHECKOUT = re.compile(
     re.IGNORECASE,
 )
 _SEMVER_IN_REF = re.compile(
-    r'(?:^v\.? ?|[-_])'
+    r'(?:^v\.? ?|[-_]v\.? ?|[-_])'
     r'(\d+)\.(\d+)\.(\d+)'
     r'(?:(?:-[0-9A-Za-z.-]+)|(?:\.[A-Za-z][0-9A-Za-z.-]*))?'
     r'(?:\+[0-9A-Za-z.-]+)?'
@@ -467,6 +467,48 @@ def _strip_leading_v_prefix(s: str) -> str:
     return re.sub(r'^(?:v\.? ?)?', '', s.strip(), flags=re.IGNORECASE)
 
 
+def _repo_name_from_git_url(git_url: str) -> str:
+    """Extract repository name from common git HTTPS/SSH URLs."""
+    if not git_url:
+        return ""
+    url = git_url.strip().rstrip('/')
+    if url.endswith('.git'):
+        url = url[:-4]
+    m = re.match(r'git@[^:]+:[^/]+/([^/@?#]+)$', url)
+    if m:
+        return m.group(1)
+    path = urllib.parse.urlparse(url).path.strip('/')
+    if path:
+        segments = path.split('/')
+        if len(segments) >= 2:
+            return segments[-1]
+    return ""
+
+
+def _repo_prefixed_version_refs(repo_name: str, base: str) -> List[str]:
+    """Build {repo}-v{version} style tag candidates from checkout hint."""
+    if not repo_name or not base:
+        return []
+    base = base.strip()
+    core = _strip_leading_v_prefix(base)
+    if not core:
+        return []
+    repo = repo_name.strip()
+    candidates = [
+        f"{repo}-v{core}",
+        f"{repo}-v.{core}",
+        f"{repo}_{core}",
+        f"{repo}-{core}",
+    ]
+    seen = set()
+    result = []
+    for candidate in candidates:
+        if candidate not in seen:
+            seen.add(candidate)
+            result.append(candidate)
+    return result
+
+
 def _match_exact_or_v_prefix_ref(base: str, ref_set: set) -> Optional[str]:
     """Exact ref match, or ref equal to base after optional leading v/v./v."""
     if base in ref_set:
@@ -558,11 +600,16 @@ def decide_checkout(checkout_to="", tag="", branch="", git_url=""):
     tag_set = set(ref_dict.get("tags", []))
     branch_set = set(ref_dict.get("branches", []))
     ref_set = tag_set | branch_set
+    repo_name = _repo_name_from_git_url(git_url)
 
     for raw in (tag, branch, checkout_to):
         b = (raw or "").strip()
         if not b:
             continue
+        for candidate in _repo_prefixed_version_refs(repo_name, b):
+            ref, clar = _try_resolve_checkout_base(candidate, ref_set)
+            if ref is not None:
+                return ref, clar
         ref, clar = _try_resolve_checkout_base(b, ref_set)
         if ref is not None:
             return ref, clar
