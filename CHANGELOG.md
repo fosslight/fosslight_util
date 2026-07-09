@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.2 (09/07/2026)
+## Changes
+## 🔧 Maintenance
+
+- Add shared running time formatting for cover and logs @bjk7119 (#288)
+
+---
+
 ## v2.2.1 (09/07/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -259,11 +267,3 @@
 ## v2.1.38 (26/01/2026)
 ## Changes
 - Sort scanner info comment order @dd-jy (#246)
-
----
-
-## v2.1.37 (20/01/2026)
-## Changes
-## 🔧 Maintenance
-
-- Exclude scanner specific files / @soimkim  (#245)
