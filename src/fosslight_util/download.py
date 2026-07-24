@@ -720,10 +720,15 @@ def _size_limit_bytes(size_limit_gb: Optional[float]) -> Optional[int]:
     return int(float(size_limit_gb) * _BYTES_PER_GB)
 
 
-def _size_limit_abort_message(size_limit_gb: float, when: str) -> str:
+def _size_limit_abort_message(
+    size_limit_gb: float, when: str, observed_bytes: int = 0
+) -> str:
+    observed = max(0, int(observed_bytes or 0))
+    observed_gb = observed / _BYTES_PER_GB
     return (
         f"Download aborted: temporary directory size exceeded "
-        f"limit ({float(size_limit_gb):g} GB) {when}."
+        f"limit ({float(size_limit_gb):g} GB) {when} "
+        f"(observed {observed_gb:.2f}GB, observed_bytes={observed})."
     )
 
 
@@ -740,7 +745,9 @@ def _raise_if_content_length_over_limit(headers, size_limit_gb: Optional[float],
         return
     content_length = _content_length_from_headers(headers)
     if content_length >= limit:
-        raise SizeLimitExceeded(_size_limit_abort_message(size_limit_gb, when))
+        raise SizeLimitExceeded(
+            _size_limit_abort_message(size_limit_gb, when, content_length)
+        )
 
 
 def _raise_if_bytes_over_limit(num_bytes: int, size_limit_gb: Optional[float], when: str) -> None:
@@ -748,7 +755,9 @@ def _raise_if_bytes_over_limit(num_bytes: int, size_limit_gb: Optional[float], w
     if limit is None:
         return
     if num_bytes >= limit:
-        raise SizeLimitExceeded(_size_limit_abort_message(size_limit_gb, when))
+        raise SizeLimitExceeded(
+            _size_limit_abort_message(size_limit_gb, when, num_bytes)
+        )
 
 
 def _dir_size_bytes(path: str) -> int:
@@ -831,9 +840,8 @@ def run_git_clone_with_size_guard(
             except Exception:
                 pass
         _cleanup_target_dir(target_dir)
-        return False, (
-            f"Download aborted: temporary directory size exceeded "
-            f"limit ({float(size_limit_gb):g} GB) after {elapsed_hint}."
+        return False, _size_limit_abort_message(
+            size_limit_gb, f"after {elapsed_hint}", current
         )
 
     stdout = stderr = ""
