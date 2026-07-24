@@ -91,13 +91,93 @@ class TimeOutException(Exception):
         self.error_code = error_code
 
 
+def _setup_download_alarm(timeout=SIGNAL_TIMEOUT):
+    if platform.system() == "Windows":
+        alarm = Alarm(timeout)
+        alarm.start()
+        return alarm
+    signal.signal(signal.SIGALRM, alarm_handler)
+    signal.alarm(timeout)
+    return None
+
+
+def _clear_download_alarm(alarm=None):
+    if platform.system() != "Windows":
+        signal.alarm(0)
+    else:
+        del alarm
+
+
+class DownloadFailure(Exception):
+    def __init__(self, message, status_code=None, reason=None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.reason = reason or "download_failed"
+
+
+def _classify_download_failure(status_code=None, error=None):
+    if status_code == 404:
+        return "not_found"
+    if status_code is not None and status_code >= 400:
+        return "http_error"
+    if isinstance(error, _HtmlWhenBinaryExpected):
+        return "html_interstitial"
+    if isinstance(error, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)):
+        return "network_error"
+    return "download_failed"
+
+
+def _build_download_failure_message(failure_reason, link):
+    messages = {
+        "not_found": f"404 Not Found: {link}",
+        "http_error": f"HTTP error while downloading: {link}",
+        "html_interstitial": f"HTML interstitial while downloading: {link}",
+        "network_error": f"Network error while downloading: {link}",
+    }
+    return messages.get(failure_reason, f"Download failed: {link}")
+
+
 def alarm_handler(signum, frame):
     logger.warning("download timeout! (%d sec)", SIGNAL_TIMEOUT)
     raise TimeOutException(f'Timeout ({SIGNAL_TIMEOUT} sec)', 1)
 
 
+def _build_git_environment() -> dict:
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_ASKPASS"] = "echo" if platform.system() == "Windows" else "/bin/echo"
+    env["GIT_CREDENTIAL_HELPER"] = ""
+    if "GIT_CONFIG_COUNT" not in env:
+        env["GIT_CONFIG_COUNT"] = "1"
+        env["GIT_CONFIG_KEY_0"] = "credential.helper"
+        env["GIT_CONFIG_VALUE_0"] = ""
+    if "GIT_SSH_COMMAND" not in env:
+        env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o StrictHostKeyChecking=no"
+    else:
+        env["GIT_SSH_COMMAND"] = env["GIT_SSH_COMMAND"] + " -o BatchMode=yes"
+    return env
+
+
+def _compose_download_result_message(git_message: str, wget_message: str, is_rubygems: bool, success: bool) -> str:
+    if is_rubygems:
+        return f"gem download: {success}"
+    if git_message:
+        if wget_message:
+            return f"git fail: {git_message}"
+        return f"git fail: {git_message}, wget success"
+    if wget_message:
+        return f"wget fail: {wget_message}"
+    return ""
+
+
 def is_downloadable(url):
-    """Probe URL; retry with alternate User-Agents on 403 or HTML body for archive URLs."""
+    """Probe URL; retry with alternate User-Agents on 403 or HTML body for archive URLs.
+
+    Repository URLs and HTML pages may legitimately return text/html during a lightweight
+    probe even though a real download attempt could still succeed. Keep the probe quiet in
+    those cases so later download failures report the real reason instead of an overly
+    misleading preflight warning.
+    """
     attempts = _download_http_header_attempts()
     last_i = len(attempts) - 1
     for i, headers in enumerate(attempts):
@@ -107,15 +187,25 @@ def is_downloadable(url):
             ) as r:
                 if r.status_code == 403 and i < last_i:
                     continue
+                if r.status_code == 404:
+                    logger.warning("is_downloadable - 404 Not Found: %s", url)
+                    return False
                 if r.status_code >= 400:
+                    logger.warning("is_downloadable - HTTP %s: %s", r.status_code, url)
                     return False
                 content_type = r.headers.get('content-type', '').lower()
                 if 'text/html' in content_type:
                     if _url_looks_like_binary_archive(url) and i < last_i:
                         continue
-                    logger.warning(
-                        f"Content-Type is text/html, not a downloadable link: {url}"
-                    )
+                    if _url_looks_like_binary_archive(url):
+                        logger.info(
+                            "is_downloadable: archive URL returned HTML; will rely on full download attempt"
+                        )
+                    else:
+                        logger.debug(
+                            "is_downloadable: HTML response for non-archive URL; will rely on full download attempt: %s",
+                            url,
+                        )
                     return False
                 return True
         except Exception as e:
@@ -216,25 +306,21 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                     link, target_dir, compressed_only, checkout_to
                 )
                 if success and downloaded_file:
-                    success = extract_compressed_file(downloaded_file, target_dir, True, compressed_only)
-                    if success:
+                    extraction_ok = extract_compressed_file(
+                        downloaded_file, target_dir, True, compressed_only
+                    )
+                    if extraction_ok:
                         downloaded_link = resolved_link
+                    else:
+                        success = False
+                        if not msg_wget:
+                            msg_wget = "extraction failed"
             # Download from rubygems.org
             elif is_rubygems and shutil.which("gem"):
                 success = gem_download(link, target_dir, checkout_to)
                 if success:
                     downloaded_link = link
-        if msg:
-            msg = f'git fail: {msg}'
-            if is_rubygems:
-                msg = f'gem download: {success}'
-            else:
-                if msg_wget:
-                    msg = f'{msg}, wget fail: {msg_wget}'
-                else:
-                    msg = f'{msg}, wget success'
-        elif msg_wget:
-            msg = f'wget fail: {msg_wget}'
+        msg = _compose_download_result_message(msg, msg_wget, is_rubygems, success)
 
     except Exception as error:
         success = False
@@ -284,14 +370,7 @@ def get_remote_refs(git_url: str):
     tags = []
     branches = []
     try:
-        env = os.environ.copy()
-        env["GIT_TERMINAL_PROMPT"] = "0"
-        env["GIT_ASKPASS"] = "echo"
-        env["GIT_CREDENTIAL_HELPER"] = ""
-        if "GIT_SSH_COMMAND" not in env:
-            env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o StrictHostKeyChecking=no"
-        else:
-            env["GIT_SSH_COMMAND"] = env["GIT_SSH_COMMAND"] + " -o BatchMode=yes"
+        env = _build_git_environment()
         cp = subprocess.run(
             ["git", "-c", "credential.helper=", "-c", "credential.helper=!",
              "ls-remote", "--tags", "--heads", git_url],
@@ -680,27 +759,70 @@ def get_github_token(git_url):
     return github_token
 
 
+def _run_git_command(command, env, timeout):
+    return subprocess.run(
+        command,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        stdin=subprocess.DEVNULL,
+    )
+
+
+def _format_git_error_message(error_message: str) -> str:
+    if not error_message:
+        return "Git clone failed"
+
+    cleaned = error_message.strip().replace("\r", "").replace("\n", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    if cleaned.startswith("fatal:"):
+        cleaned = cleaned[len("fatal:"):].strip()
+
+    if cleaned.startswith("GitError:"):
+        cleaned = cleaned[len("GitError:"):].strip()
+
+    if cleaned.startswith("Cmd('git"):
+        cleaned = cleaned.split("Cmd('git", 1)[0].strip()
+
+    if cleaned.startswith("Command ") and " returned non-zero exit status" in cleaned:
+        cleaned = cleaned.split(" returned non-zero exit status", 1)[0].strip()
+
+    if cleaned.startswith("command not found"):
+        return "Git command not found"
+
+    if "already exists and is not an empty directory" in cleaned:
+        return "destination path already exists and is not an empty directory"
+
+    if "not a git repository" in cleaned.lower():
+        return "repository is not a valid Git repository"
+
+    if "could not read from remote repository" in cleaned.lower():
+        return "could not read from remote repository"
+
+    if "authentication failed" in cleaned.lower():
+        return "authentication failed"
+
+    if "connection timed out" in cleaned.lower():
+        return "connection timed out"
+
+    if "timed out" in cleaned.lower():
+        return "operation timed out"
+
+    if cleaned.startswith("error:"):
+        cleaned = cleaned[len("error:"):].strip()
+
+    return cleaned
+
+
 def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_cli=True):
     success = False
     oss_version = ""
+    error_message = ""
 
     logger.info(f"Download git url :{git_url}, version:{refs_to_checkout}")
-    env = os.environ.copy()
-    env["GIT_TERMINAL_PROMPT"] = "0"
-    if platform.system() == "Windows":
-        env["GIT_ASKPASS"] = "echo"
-    else:
-        env["GIT_ASKPASS"] = "/bin/echo"
-    env["GIT_CREDENTIAL_HELPER"] = ""
-    # Disable credential helper via config
-    if "GIT_CONFIG_COUNT" not in env:
-        env["GIT_CONFIG_COUNT"] = "1"
-        env["GIT_CONFIG_KEY_0"] = "credential.helper"
-        env["GIT_CONFIG_VALUE_0"] = ""
-    if "GIT_SSH_COMMAND" not in env:
-        env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o StrictHostKeyChecking=no"
-    else:
-        env["GIT_SSH_COMMAND"] = env["GIT_SSH_COMMAND"] + " -o BatchMode=yes"
+    env = _build_git_environment()
 
     if refs_to_checkout:
         try:
@@ -708,13 +830,11 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
             # we use full clone to ensure compatibility with all cases
             # Use subprocess to ensure environment variables are properly passed
             cmd = ["git", "-c", "credential.helper=", "-c", "credential.helper=!", "clone", git_url, target_dir]
-            result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=600, stdin=subprocess.DEVNULL)
+            result = _run_git_command(cmd, env, 600)
             if result.returncode == 0:
                 # Checkout the specific branch or tag
                 checkout_cmd = ["git", "-C", target_dir, "checkout", refs_to_checkout]
-                checkout_result = subprocess.run(
-                    checkout_cmd, env=env, capture_output=True, text=True,
-                    timeout=60, stdin=subprocess.DEVNULL)
+                checkout_result = _run_git_command(checkout_cmd, env, 60)
                 if checkout_result.returncode == 0:
                     if any(Path(target_dir).iterdir()):
                         success = True
@@ -725,6 +845,7 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
                         success = False
                 else:
                     logger.info(f"Git checkout error: {checkout_result.stderr}")
+                    error_message = checkout_result.stderr.strip() or "Git checkout failed"
                     # Clone succeeded but checkout failed (e.g. non-existent ref):
                     # repo has default branch; treat as success with empty version
                     if any(Path(target_dir).iterdir()):
@@ -732,12 +853,15 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
                         oss_version = ""
                         logger.info("Checkout failed; keeping default branch.")
             else:
-                logger.info(f"Git clone error: {result.stderr}")
+                error_message = result.stderr.strip() or "Git clone failed"
+                logger.info(f"Git clone error: {error_message}")
                 success = False
         except subprocess.TimeoutExpired:
-            logger.info("Git clone timeout")
+            error_message = "Git clone timeout"
+            logger.info(error_message)
             success = False
         except Exception as e:
+            error_message = str(e)
             logger.info(f"Git clone error:{e}")
             success = False
 
@@ -749,7 +873,7 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
                 "git", "-c", "credential.helper=", "-c", "credential.helper=!",
                 "clone", "--depth", "1", git_url, target_dir
             ]
-            result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=600, stdin=subprocess.DEVNULL)
+            result = _run_git_command(cmd, env, 600)
             if result.returncode == 0:
                 if any(Path(target_dir).iterdir()):
                     success = True
@@ -757,15 +881,18 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
                     logger.info(f"No files found in {target_dir} after clone.")
                     success = False
             else:
-                logger.info(f"Git clone error: {result.stderr}")
+                error_message = result.stderr.strip() or "Git clone failed"
+                logger.info(f"Git clone error: {error_message}")
                 success = False
         except subprocess.TimeoutExpired:
-            logger.info("Git clone timeout")
+            error_message = "Git clone timeout"
+            logger.info(error_message)
             success = False
         except Exception as e:
+            error_message = str(e)
             logger.info(f"Git clone error:{e}")
             success = False
-    return success, oss_version
+    return success, oss_version, error_message
 
 
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
@@ -779,12 +906,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
     oss_version = ""
 
     try:
-        if platform.system() != "Windows":
-            signal.signal(signal.SIGALRM, alarm_handler)
-            signal.alarm(SIGNAL_TIMEOUT)
-        else:
-            alarm = Alarm(SIGNAL_TIMEOUT)
-            alarm.start()
+        alarm = _setup_download_alarm(SIGNAL_TIMEOUT)
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -796,22 +918,37 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                 logger.info(f"Download git with ssh_key:{git_url}")
                 git_ssh_cmd = f'ssh -i {ssh_key}'
                 with Git().custom_environment(GIT_SSH_COMMAND=git_ssh_cmd):
-                    success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_cli)
+                    success, oss_version, git_error = download_git_repository(
+                        refs_to_checkout,
+                        git_url,
+                        target_dir,
+                        tag,
+                        called_cli
+                    )
             else:
                 git_url = _git_url_with_http_credentials(git_url, credential_id=id, git_token=git_token)
-                success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_cli)
+                success, oss_version, git_error = download_git_repository(
+                    refs_to_checkout,
+                    git_url,
+                    target_dir,
+                    tag,
+                    called_cli
+                )
+
+            if not success and not msg and git_error:
+                msg = _format_git_error_message(git_error)
 
             logger.info(f"git checkout version: {oss_version}")
             refs_to_checkout = oss_version
 
-            if platform.system() != "Windows":
-                signal.alarm(0)
-            else:
-                del alarm
+            _clear_download_alarm(alarm)
     except Exception as error:
         success = False
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
+
+    if not msg and not success and not oss_version:
+        msg = "Git clone failed"
 
     if oss_version:
         clarified_version = decided_clarified or clarified_version_from_oss_version(
@@ -831,12 +968,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
     resolved_link = ""
 
     try:
-        if platform.system() != "Windows":
-            signal.signal(signal.SIGALRM, alarm_handler)
-            signal.alarm(SIGNAL_TIMEOUT)
-        else:
-            alarm = Alarm(SIGNAL_TIMEOUT)
-            alarm.start()
+        alarm = _setup_download_alarm(SIGNAL_TIMEOUT)
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -852,22 +984,21 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
                     success = True
                     break
         else:
-            # If get_downloadable_url found a downloadable file, proceed
+            # If get_downloadable_url found a downloadable file, proceed.
+            # Otherwise, rely on the full download attempt to decide whether the URL is usable.
+            # A lightweight probe can return HTML for repository pages and still allow a real
+            # download attempt to succeed or fail with the correct reason.
             if ret:
                 success = True
             else:
-                # No downloadable file found in package repositories, verify link is downloadable.
-                # Some mirrors (e.g. USTC) may 403 or mis-report Content-Type to short probes, while
-                # full GET in download_file() succeeds. Skip the probe for obvious direct archive URLs.
-                if is_downloadable(link):
-                    success = True
-                elif _url_looks_like_binary_archive(link):
-                    logger.info(
-                        "Direct archive URL: probe not OK; will try full download: %s", link
-                    )
+                probe_ok = is_downloadable(link)
+                if probe_ok:
                     success = True
                 else:
-                    raise Exception('Not a downloadable link')
+                    logger.info(
+                        "Link probe not conclusive; will try full download: %s", link
+                    )
+                    success = True
 
         # Fallback: verify link is downloadable for compressed_only case
         if not success:
@@ -877,11 +1008,8 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
                 raise Exception('Not a downloadable link')
 
         logger.info(f"wget: {link}")
-        downloaded_file = download_file(link, target_dir)
-        if platform.system() != "Windows":
-            signal.alarm(0)
-        else:
-            del alarm
+        downloaded_file, failure_reason = download_file(link, target_dir)
+        _clear_download_alarm(alarm)
 
         if downloaded_file:
             success = True
@@ -893,8 +1021,8 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
             logger.debug(f"wget - downloaded: {downloaded_file}")
         else:
             success = False
-            msg = f"Download failed: {link}"
-            logger.warning("wget - failed: download_file returned no file: %s", link)
+            msg = _build_download_failure_message(failure_reason, link)
+            logger.warning("wget - failed: %s", msg)
     except Exception as error:
         success = False
         msg = str(error)
@@ -904,7 +1032,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
 
 
 def _download_file_once(url, target_dir, request_headers=None):
-    """One HTTP download attempt. Raises requests.HTTPError on HTTP failure."""
+    """One HTTP download attempt. Raises DownloadFailure on HTTP failure."""
     final_url = url
     head_headers = {}
     try:
@@ -914,8 +1042,13 @@ def _download_file_once(url, target_dir, request_headers=None):
         final_url = h.url or url
         head_headers = h.headers
         if h.status_code >= 400:
-            final_url = url
-            head_headers = {}
+            raise DownloadFailure(
+                f"HTTP {h.status_code}",
+                status_code=h.status_code,
+                reason=_classify_download_failure(status_code=h.status_code),
+            )
+    except DownloadFailure:
+        raise
     except Exception:
         final_url = url
         head_headers = {}
@@ -927,7 +1060,12 @@ def _download_file_once(url, target_dir, request_headers=None):
         timeout=SIGNAL_TIMEOUT,
         headers=request_headers,
     ) as r:
-        r.raise_for_status()
+        if r.status_code >= 400:
+            raise DownloadFailure(
+                f"HTTP {r.status_code}",
+                status_code=r.status_code,
+                reason=_classify_download_failure(status_code=r.status_code),
+            )
         content_type = (r.headers.get("content-type") or "").lower()
         if "text/html" in content_type and _url_looks_like_binary_archive(url):
             raise _HtmlWhenBinaryExpected()
@@ -966,19 +1104,15 @@ def download_file(url, target_dir):
     last_i = len(attempts) - 1
     for i, req_headers in enumerate(attempts):
         try:
-            return _download_file_once(url, target_dir, req_headers)
-        except requests.exceptions.HTTPError as e:
-            if (
-                e.response is not None
-                and e.response.status_code == 403
-                and i < last_i
-            ):
+            return _download_file_once(url, target_dir, req_headers), None
+        except DownloadFailure as e:
+            if e.status_code == 403 and i < last_i:
                 logger.info(
                     "download_file: HTTP 403; retrying with alternate User-Agent"
                 )
                 continue
-            logger.warning(f"download_file - failed: {e}")
-            return None
+            logger.warning("download_file - failed: %s", e)
+            return None, _classify_download_failure(status_code=e.status_code, error=e)
         except _HtmlWhenBinaryExpected:
             if i < last_i:
                 logger.info(
@@ -989,7 +1123,7 @@ def download_file(url, target_dir):
             logger.warning(
                 "download_file: archive URL still returned HTML after retries"
             )
-            return None
+            return None, "html_interstitial"
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             if i < last_i:
                 logger.info(
@@ -999,12 +1133,12 @@ def download_file(url, target_dir):
                 )
                 continue
             logger.warning(f"download_file - failed: {e}")
-            return None
+            return None, "network_error"
         except Exception as e:
             logger.warning(f"download_file - failed: {e}")
-            return None
+            return None, "download_failed"
     logger.warning("download_file: failed after User-Agent retries")
-    return None
+    return None, "download_failed"
 
 
 def extract_rpm_payload(source_file: str, dest_path: str) -> bool:
@@ -1177,6 +1311,12 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
     success = True
     try:
         is_compressed_file = True
+        if not os.path.exists(fname):
+            logger.warning(f"Not a file: {fname}")
+            return False
+        if os.path.isdir(fname):
+            logger.warning(f"Path is a directory, not an archive: {fname}")
+            return False
         if os.path.isfile(fname):
             if fname.endswith(".tar.bz2"):
                 decompress_bz2(fname, extract_path)
@@ -1220,8 +1360,7 @@ def extract_compressed_file(fname, extract_path, remove_after_extract=True, comp
                         _tar_extractall_safe(fname, "r:*", extract_path)
                     else:
                         is_compressed_file = False
-                        if compressed_only:
-                            success = False
+                        success = False
                         logger.warning(f"Unsupported file extension: {fname}")
                 except Exception as e:
                     success = False
