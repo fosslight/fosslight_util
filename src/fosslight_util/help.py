@@ -69,6 +69,7 @@ _HELP_MESSAGE_DOWNLOAD = """
     -t <path>             Output directory to save the downloaded files
     -d <log_dir>          Directory to save the log file
     -c <branch/tag>       Checkout to branch, tag, or version after download
+    -l <GB>               Max download size in GB (omit for unlimited)
     -z                    Unzip only compressed file
     -o                    Generate summary output file
     -h                    Show this help message
@@ -80,6 +81,9 @@ _HELP_MESSAGE_DOWNLOAD = """
 
     # Download and checkout to a specific branch
     fosslight_download -s https://github.com/fosslight/fosslight -t output_dir -c develop
+
+    # Limit download size to 3 GB
+    fosslight_download -s https://github.com/fosslight/fosslight -t output_dir -l 3
 
     # Download and unzip a compressed file
     fosslight_download -s https://example.com/archive.zip -z -t output_dir

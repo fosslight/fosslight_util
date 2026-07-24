@@ -45,6 +45,8 @@ compression_extension = {
 }
 prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
+SIZE_CHECK_INTERVAL_SECONDS = 10
+_BYTES_PER_GB = 1024 ** 3
 
 # Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests' default
 # User-Agent, or 200 with a small text/html interstitial. Start with a curl-style UA
@@ -55,9 +57,20 @@ _HTTP_BROWSER_USER_AGENT = (
 )
 _HTTP_CURL_LIKE_USER_AGENT = "curl/8.7.1"
 
+# Substrings from actual size-limit error messages only
+# (git clone size guard / HTTP-wget size checks).
+_SIZE_LIMIT_BLOCK_MARKERS = (
+    "temporary directory size exceeded",  # Download aborted: temporary directory size exceeded limit ...
+    "Download aborted due to size limit",
+)
+
 
 class _HtmlWhenBinaryExpected(Exception):
     """Server returned HTML for a URL that should be a binary archive; try another client."""
+
+
+class SizeLimitExceeded(Exception):
+    """Raised when an HTTP/wget download exceeds ``size_limit_gb``."""
 
 
 def _url_looks_like_binary_archive(url: str) -> bool:
@@ -141,6 +154,12 @@ def change_ssh_link_to_https(src_link):
     return src_link
 
 
+def _is_size_limit_block_message(msg: str) -> bool:
+    if not msg:
+        return False
+    return any(marker in msg for marker in _SIZE_LIMIT_BLOCK_MARKERS)
+
+
 def parse_src_link(src_link):
     src_info = {"url": src_link}
     src_link_changed = ""
@@ -169,7 +188,9 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                              compressed_only: bool = False, ssh_key: str = "",
                              id: str = "", git_token: str = "",
                              called_cli: bool = True,
-                             output: bool = False) -> Tuple[bool, str, str, str, str]:
+                             output: bool = False,
+                             size_limit_gb: Optional[float] = None
+                             ) -> Tuple[bool, str, str, str, str]:
     global logger
 
     success = True
@@ -178,6 +199,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     oss_name = ""
     oss_version = ""
     downloaded_link = ""
+    size_limit_blocked = False
     log_file_name = "fosslight_download_" + \
         datetime.now().strftime('%Y%m%d_%H-%M-%S')+".txt"
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
@@ -204,18 +226,27 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             # General download (git clone, wget)
             success_git, msg, oss_name, oss_version, _ = download_git_clone(
                 link, target_dir, checkout_to, tag, branch,
-                ssh_key, id, git_token, called_cli)
+                ssh_key, id, git_token, called_cli, size_limit_gb=size_limit_gb)
             link = change_ssh_link_to_https(link)
             if success_git:
                 downloaded_link = link
-            if (not is_rubygems) and (not success_git):
+                success = True
+            size_limit_blocked = _is_size_limit_block_message(msg)
+            if size_limit_blocked:
+                success = False
+            elif (not is_rubygems) and (not success_git):
                 if os.path.isfile(target_dir):
                     shutil.rmtree(target_dir)
 
                 success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link = download_wget(
-                    link, target_dir, compressed_only, checkout_to
+                    link, target_dir, compressed_only, checkout_to,
+                    size_limit_gb=size_limit_gb,
                 )
-                if success and downloaded_file:
+                if _is_size_limit_block_message(msg_wget):
+                    size_limit_blocked = True
+                    success = False
+                    msg = msg_wget
+                elif success and downloaded_file:
                     success = extract_compressed_file(downloaded_file, target_dir, True, compressed_only)
                     if success:
                         downloaded_link = resolved_link
@@ -224,7 +255,10 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                 success = gem_download(link, target_dir, checkout_to)
                 if success:
                     downloaded_link = link
-        if msg:
+        if size_limit_blocked:
+            # Keep a clear size-limit message for callers/UI (do not wrap as git/wget fail)
+            pass
+        elif msg:
             msg = f'git fail: {msg}'
             if is_rubygems:
                 msg = f'gem download: {success}'
@@ -680,11 +714,208 @@ def get_github_token(git_url):
     return github_token
 
 
-def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_cli=True):
+def _size_limit_bytes(size_limit_gb: Optional[float]) -> Optional[int]:
+    if size_limit_gb is None or size_limit_gb <= 0:
+        return None
+    return int(float(size_limit_gb) * _BYTES_PER_GB)
+
+
+def _size_limit_abort_message(
+    size_limit_gb: float, when: str, observed_bytes: int = 0
+) -> str:
+    observed = max(0, int(observed_bytes or 0))
+    observed_gb = observed / _BYTES_PER_GB
+    return (
+        f"Download aborted: temporary directory size exceeded "
+        f"limit ({float(size_limit_gb):g} GB) {when} "
+        f"(observed {observed_gb:.2f}GB, observed_bytes={observed})."
+    )
+
+
+def _content_length_from_headers(headers) -> int:
+    try:
+        return int(headers.get("Content-Length") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _raise_if_content_length_over_limit(headers, size_limit_gb: Optional[float], when: str) -> None:
+    limit = _size_limit_bytes(size_limit_gb)
+    if limit is None:
+        return
+    content_length = _content_length_from_headers(headers)
+    if content_length >= limit:
+        raise SizeLimitExceeded(
+            _size_limit_abort_message(size_limit_gb, when, content_length)
+        )
+
+
+def _raise_if_bytes_over_limit(num_bytes: int, size_limit_gb: Optional[float], when: str) -> None:
+    limit = _size_limit_bytes(size_limit_gb)
+    if limit is None:
+        return
+    if num_bytes >= limit:
+        raise SizeLimitExceeded(
+            _size_limit_abort_message(size_limit_gb, when, num_bytes)
+        )
+
+
+def _dir_size_bytes(path: str) -> int:
+    total = 0
+    if not path or not os.path.exists(path):
+        return 0
+    for root, _dirs, files in os.walk(path):
+        for name in files:
+            fp = os.path.join(root, name)
+            try:
+                if os.path.islink(fp):
+                    continue
+                total += os.path.getsize(fp)
+            except OSError:
+                continue
+    return total
+
+
+def build_shallow_clone_cmd(git_url: str, target_dir: str, refs_to_checkout: str = "") -> List[str]:
+    cmd = [
+        "git", "-c", "credential.helper=", "-c", "credential.helper=!",
+        "clone", "--depth", "1", "--single-branch",
+    ]
+    if refs_to_checkout:
+        cmd.extend(["--branch", refs_to_checkout])
+    cmd.extend([git_url, target_dir])
+    return cmd
+
+
+def _cleanup_target_dir(target_dir: str) -> None:
+    try:
+        if target_dir and os.path.exists(target_dir):
+            shutil.rmtree(target_dir, ignore_errors=True)
+    except Exception as e:
+        logger.info(f"Failed to remove target dir {target_dir}: {e}")
+
+
+def run_git_clone_with_size_guard(
+    cmd: List[str],
+    env: dict,
+    target_dir: str,
+    size_limit_gb: Optional[float] = None,
+    size_check_after_sec: int = SIGNAL_TIMEOUT,
+    size_check_interval_sec: int = SIZE_CHECK_INTERVAL_SECONDS,
+) -> Tuple[bool, str]:
+    """Run git clone via Popen with delayed, periodic, and post-clone size checks.
+
+    After ``size_check_after_sec``, check directory size once while still running.
+    If under the limit, re-check every ``size_check_interval_sec``.
+    When clone finishes successfully, check the final directory size again.
+    Over limit → kill (if needed), cleanup, fail.
+
+    Returns (success, error_message).
+    """
+    limit = _size_limit_bytes(size_limit_gb)
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            stdin=subprocess.DEVNULL,
+        )
+    except Exception as e:
+        return False, str(e)
+
+    def _fail_for_size(elapsed_hint: str, current: int, kill_proc: bool = True) -> Tuple[bool, str]:
+        logger.info(
+            f"Clone exceeded size limit after {elapsed_hint} "
+            f"({current} bytes >= {limit}); aborting."
+        )
+        if kill_proc:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            try:
+                proc.communicate(timeout=60)
+            except Exception:
+                pass
+        _cleanup_target_dir(target_dir)
+        return False, _size_limit_abort_message(
+            size_limit_gb, f"after {elapsed_hint}", current
+        )
+
+    stdout = stderr = ""
+    try:
+        next_timeout = size_check_after_sec
+        first_check_done = False
+        while True:
+            try:
+                stdout, stderr = proc.communicate(timeout=next_timeout)
+                break
+            except subprocess.TimeoutExpired:
+                if limit is not None:
+                    current = _dir_size_bytes(target_dir)
+                    if current >= limit:
+                        elapsed = (
+                            f"{size_check_after_sec} seconds"
+                            if not first_check_done
+                            else (
+                                f"{size_check_after_sec}s + periodic "
+                                f"{size_check_interval_sec}s checks"
+                            )
+                        )
+                        return _fail_for_size(elapsed, current, kill_proc=True)
+                first_check_done = True
+                # Under limit (or no limit): keep waiting in interval slices
+                next_timeout = size_check_interval_sec
+    except Exception as e:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        return False, str(e)
+
+    if proc.returncode != 0:
+        err = (stderr or "").strip() or f"git clone failed (rc={proc.returncode})"
+        logger.info(f"Git clone error: {err}")
+        return False, err
+
+    if not os.path.isdir(target_dir) or not any(Path(target_dir).iterdir()):
+        logger.info(f"No files found in {target_dir} after clone.")
+        return False, "No files found after clone."
+
+    # Clone finished within the first wait (or later): still enforce size_limit_gb
+    if limit is not None:
+        current = _dir_size_bytes(target_dir)
+        if current >= limit:
+            return _fail_for_size("clone completed", current, kill_proc=False)
+
+    return True, ""
+
+
+def download_git_repository(
+    refs_to_checkout,
+    git_url,
+    target_dir,
+    tag="",
+    called_cli=True,
+    size_limit_gb: Optional[float] = None,
+    credential_id: str = "",
+    git_token: str = "",
+):
     success = False
     oss_version = ""
+    msg = ""
 
     logger.info(f"Download git url :{git_url}, version:{refs_to_checkout}")
+
+    # Avoid hard process exit from parent SIGALRM while size-guarded clone may run longer
+    try:
+        if platform.system() != "Windows":
+            signal.alarm(0)
+    except Exception:
+        pass
+
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
     if platform.system() == "Windows":
@@ -692,7 +923,6 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
     else:
         env["GIT_ASKPASS"] = "/bin/echo"
     env["GIT_CREDENTIAL_HELPER"] = ""
-    # Disable credential helper via config
     if "GIT_CONFIG_COUNT" not in env:
         env["GIT_CONFIG_COUNT"] = "1"
         env["GIT_CONFIG_KEY_0"] = "credential.helper"
@@ -702,74 +932,48 @@ def download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_c
     else:
         env["GIT_SSH_COMMAND"] = env["GIT_SSH_COMMAND"] + " -o BatchMode=yes"
 
-    if refs_to_checkout:
-        try:
-            # For tags, we need full history. For branches, shallow clone is possible but
-            # we use full clone to ensure compatibility with all cases
-            # Use subprocess to ensure environment variables are properly passed
-            cmd = ["git", "-c", "credential.helper=", "-c", "credential.helper=!", "clone", git_url, target_dir]
-            result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=600, stdin=subprocess.DEVNULL)
-            if result.returncode == 0:
-                # Checkout the specific branch or tag
-                checkout_cmd = ["git", "-C", target_dir, "checkout", refs_to_checkout]
-                checkout_result = subprocess.run(
-                    checkout_cmd, env=env, capture_output=True, text=True,
-                    timeout=60, stdin=subprocess.DEVNULL)
-                if checkout_result.returncode == 0:
-                    if any(Path(target_dir).iterdir()):
-                        success = True
-                        oss_version = refs_to_checkout
-                        logger.info(f"Files found in {target_dir} after clone and checkout.")
-                    else:
-                        logger.info(f"No files found in {target_dir} after clone.")
-                        success = False
-                else:
-                    logger.info(f"Git checkout error: {checkout_result.stderr}")
-                    # Clone succeeded but checkout failed (e.g. non-existent ref):
-                    # repo has default branch; treat as success with empty version
-                    if any(Path(target_dir).iterdir()):
-                        success = True
-                        oss_version = ""
-                        logger.info("Checkout failed; keeping default branch.")
-            else:
-                logger.info(f"Git clone error: {result.stderr}")
-                success = False
-        except subprocess.TimeoutExpired:
-            logger.info("Git clone timeout")
-            success = False
-        except Exception as e:
-            logger.info(f"Git clone error:{e}")
-            success = False
+    # If target already exists from a failed attempt, empty it before clone
+    if os.path.isdir(target_dir) and any(Path(target_dir).iterdir()):
+        _cleanup_target_dir(target_dir)
+        Path(target_dir).mkdir(parents=True, exist_ok=True)
 
-    if not success:
-        try:
-            # Use subprocess to ensure environment variables are properly passed
-            # No checkout needed, so shallow clone is sufficient
-            cmd = [
-                "git", "-c", "credential.helper=", "-c", "credential.helper=!",
-                "clone", "--depth", "1", git_url, target_dir
-            ]
-            result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=600, stdin=subprocess.DEVNULL)
-            if result.returncode == 0:
-                if any(Path(target_dir).iterdir()):
-                    success = True
-                else:
-                    logger.info(f"No files found in {target_dir} after clone.")
-                    success = False
-            else:
-                logger.info(f"Git clone error: {result.stderr}")
-                success = False
-        except subprocess.TimeoutExpired:
-            logger.info("Git clone timeout")
-            success = False
-        except Exception as e:
-            logger.info(f"Git clone error:{e}")
-            success = False
-    return success, oss_version
+    cmd = build_shallow_clone_cmd(git_url, target_dir, refs_to_checkout)
+    logger.info(f"Shallow clone cmd: {' '.join(cmd)}")
+    ok, err = run_git_clone_with_size_guard(
+        cmd, env, target_dir, size_limit_gb=size_limit_gb
+    )
+    if ok:
+        success = True
+        oss_version = refs_to_checkout or ""
+        logger.info(f"Files found in {target_dir} after shallow clone.")
+        return success, oss_version, msg
+
+    msg = err
+    # If branch/tag clone failed, fall back to default-branch shallow clone
+    if refs_to_checkout:
+        logger.info(
+            f"Shallow clone with ref '{refs_to_checkout}' failed; "
+            "retrying default branch shallow clone."
+        )
+        _cleanup_target_dir(target_dir)
+        Path(target_dir).mkdir(parents=True, exist_ok=True)
+        fallback_cmd = build_shallow_clone_cmd(git_url, target_dir, "")
+        ok2, err2 = run_git_clone_with_size_guard(
+            fallback_cmd, env, target_dir, size_limit_gb=size_limit_gb
+        )
+        if ok2:
+            success = True
+            oss_version = ""
+            msg = ""
+            logger.info("Fallback shallow clone succeeded (default branch).")
+            return success, oss_version, msg
+        msg = err2 or err
+    return success, oss_version, msg
 
 
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
-                       ssh_key="", id="", git_token="", called_cli=True):
+                       ssh_key="", id="", git_token="", called_cli=True,
+                       size_limit_gb: Optional[float] = None):
     oss_name = get_github_ossname(git_url)
     refs_to_checkout, decided_clarified = _resolve_refs_to_checkout(
         checkout_to, tag, branch, git_url, credential_id=id, git_token=git_token
@@ -796,10 +1000,20 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                 logger.info(f"Download git with ssh_key:{git_url}")
                 git_ssh_cmd = f'ssh -i {ssh_key}'
                 with Git().custom_environment(GIT_SSH_COMMAND=git_ssh_cmd):
-                    success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_cli)
+                    success, oss_version, repo_msg = download_git_repository(
+                        refs_to_checkout, git_url, target_dir, tag, called_cli,
+                        size_limit_gb=size_limit_gb,
+                        credential_id=id, git_token=git_token,
+                    )
             else:
                 git_url = _git_url_with_http_credentials(git_url, credential_id=id, git_token=git_token)
-                success, oss_version = download_git_repository(refs_to_checkout, git_url, target_dir, tag, called_cli)
+                success, oss_version, repo_msg = download_git_repository(
+                    refs_to_checkout, git_url, target_dir, tag, called_cli,
+                    size_limit_gb=size_limit_gb,
+                    credential_id=id, git_token=git_token,
+                )
+            if repo_msg and not success:
+                msg = repo_msg
 
             logger.info(f"git checkout version: {oss_version}")
             refs_to_checkout = oss_version
@@ -822,7 +1036,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
     return success, msg, oss_name, refs_to_checkout, clarified_version
 
 
-def download_wget(link, target_dir, compressed_only, checkout_to):
+def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=None):
     success = False
     msg = ""
     oss_name = ""
@@ -877,7 +1091,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
                 raise Exception('Not a downloadable link')
 
         logger.info(f"wget: {link}")
-        downloaded_file = download_file(link, target_dir)
+        downloaded_file = download_file(link, target_dir, size_limit_gb=size_limit_gb)
         if platform.system() != "Windows":
             signal.alarm(0)
         else:
@@ -895,6 +1109,15 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
             success = False
             msg = f"Download failed: {link}"
             logger.warning("wget - failed: download_file returned no file: %s", link)
+    except SizeLimitExceeded as error:
+        success = False
+        msg = str(error)
+        logger.warning(f"wget - size limit: {error}")
+        try:
+            if platform.system() != "Windows":
+                signal.alarm(0)
+        except Exception:
+            pass
     except Exception as error:
         success = False
         msg = str(error)
@@ -903,7 +1126,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to):
     return success, downloaded_file, msg, oss_name, oss_version, resolved_link
 
 
-def _download_file_once(url, target_dir, request_headers=None):
+def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=None):
     """One HTTP download attempt. Raises requests.HTTPError on HTTP failure."""
     final_url = url
     head_headers = {}
@@ -916,57 +1139,113 @@ def _download_file_once(url, target_dir, request_headers=None):
         if h.status_code >= 400:
             final_url = url
             head_headers = {}
+        else:
+            # Before download: Content-Length size check
+            _raise_if_content_length_over_limit(
+                head_headers, size_limit_gb, "before download"
+            )
+    except SizeLimitExceeded:
+        raise
     except Exception:
         final_url = url
         head_headers = {}
 
-    with requests.get(
-        final_url,
-        stream=True,
-        allow_redirects=True,
-        timeout=SIGNAL_TIMEOUT,
-        headers=request_headers,
-    ) as r:
-        r.raise_for_status()
-        content_type = (r.headers.get("content-type") or "").lower()
-        if "text/html" in content_type and _url_looks_like_binary_archive(url):
-            raise _HtmlWhenBinaryExpected()
+    local_path = None
+    try:
+        with requests.get(
+            final_url,
+            stream=True,
+            allow_redirects=True,
+            timeout=SIGNAL_TIMEOUT,
+            headers=request_headers,
+        ) as r:
+            r.raise_for_status()
+            # GET headers may also expose Content-Length
+            _raise_if_content_length_over_limit(
+                r.headers, size_limit_gb, "before download"
+            )
+            content_type = (r.headers.get("content-type") or "").lower()
+            if "text/html" in content_type and _url_looks_like_binary_archive(url):
+                raise _HtmlWhenBinaryExpected()
 
-        filename = ""
-        cd = r.headers.get("Content-Disposition") or head_headers.get(
-            "Content-Disposition"
-        )
-        if cd:
-            m_star = re.search(r"filename\*=(?:UTF-8'')?([^;\r\n]+)", cd)
-            if m_star:
-                filename = urllib.parse.unquote(m_star.group(1).strip('"\''))
-            else:
-                m = re.search(r"filename=([^;\r\n]+)", cd)
-                if m:
-                    filename = m.group(1).strip('"\'')
-        if not filename:
-            final_for_name = r.url or final_url
-            filename = os.path.basename(urllib.parse.urlparse(final_for_name).path)
+            filename = ""
+            cd = r.headers.get("Content-Disposition") or head_headers.get(
+                "Content-Disposition"
+            )
+            if cd:
+                m_star = re.search(r"filename\*=(?:UTF-8'')?([^;\r\n]+)", cd)
+                if m_star:
+                    filename = urllib.parse.unquote(m_star.group(1).strip('"\''))
+                else:
+                    m = re.search(r"filename=([^;\r\n]+)", cd)
+                    if m:
+                        filename = m.group(1).strip('"\'')
             if not filename:
-                filename = "downloaded_file"
-        if os.path.isdir(target_dir):
-            local_path = os.path.join(target_dir, filename)
-        else:
-            local_path = target_dir
+                final_for_name = r.url or final_url
+                filename = os.path.basename(urllib.parse.urlparse(final_for_name).path)
+                if not filename:
+                    filename = "downloaded_file"
+            filename = os.path.basename(filename) or "downloaded_file"
 
-        with open(local_path, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
+            if os.path.isdir(target_dir):
+                local_path = os.path.join(target_dir, filename)
+            else:
+                local_path = target_dir
+
+            written = 0
+            with open(local_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    if not chunk:
+                        continue
+                    f.write(chunk)
+                    written += len(chunk)
+                    # During download: abort as soon as written bytes exceed limit
+                    try:
+                        _raise_if_bytes_over_limit(
+                            written, size_limit_gb, "during download"
+                        )
+                    except SizeLimitExceeded:
+                        f.close()
+                        try:
+                            os.remove(local_path)
+                        except OSError:
+                            pass
+                        raise
+    except SizeLimitExceeded:
+        if local_path:
+            try:
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+            except OSError:
+                pass
+        raise
+
+    # After download: final file size check
+    if local_path and os.path.exists(local_path):
+        try:
+            _raise_if_bytes_over_limit(
+                os.path.getsize(local_path), size_limit_gb, "after download"
+            )
+        except SizeLimitExceeded:
+            try:
+                os.remove(local_path)
+            except OSError:
+                pass
+            raise
     return local_path
 
 
-def download_file(url, target_dir):
+def download_file(url, target_dir, size_limit_gb=None):
     """Download via HTTP(S); retry on 403 or HTML interstitial for archive URLs."""
     attempts = _download_http_header_attempts()
     last_i = len(attempts) - 1
     for i, req_headers in enumerate(attempts):
         try:
-            return _download_file_once(url, target_dir, req_headers)
+            return _download_file_once(
+                url, target_dir, req_headers, size_limit_gb=size_limit_gb
+            )
+        except SizeLimitExceeded:
+            raise
         except requests.exceptions.HTTPError as e:
             if (
                 e.response is not None
@@ -1318,6 +1597,8 @@ def main():
     parser.add_argument('-z', '--compressed_only', help='Unzip only compressed file',
                         action='store_true', dest='compressed_only', default=False)
     parser.add_argument('-o', '--output', help='Generate output file', action='store_true', dest='output', default=False)
+    parser.add_argument('-l', '--size-limit', help='Max download size in GB (omit for unlimited)',
+                        type=float, dest='size_limit', default=None)
 
     src_link = ""
     target_dir = os.getcwd()
@@ -1325,6 +1606,7 @@ def main():
     checkout_to = ""
     compressed_only = False
     output = False
+    size_limit_gb = None
 
     try:
         args = parser.parse_args()
@@ -1345,13 +1627,15 @@ def main():
         compressed_only = args.compressed_only
     if args.output:
         output = args.output
+    if args.size_limit is not None:
+        size_limit_gb = args.size_limit
 
     if not src_link:
         print_help_msg_download()
     else:
         cli_download_and_extract(src_link, target_dir, log_dir, checkout_to,
                                  compressed_only, "", "", "", False,
-                                 output)
+                                 output, size_limit_gb=size_limit_gb)
 
 
 if __name__ == '__main__':

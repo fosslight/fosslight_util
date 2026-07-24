@@ -130,6 +130,10 @@ If you give a link, the source is downloaded to the target directory through git
 ```
 $ fosslight_download -s "https://github.com/LGE-OSS/example" -t target_dir/
 ```
+Limit download size (GB) with `--size-limit` / `-l` (omit for unlimited):
+```
+$ fosslight_download -s "https://github.com/LGE-OSS/example" -t target_dir/ -l 5
+```
 If you want to try with private repository, set your github token like below.
 ```
 $ fosslight_download -s "https://my_github_token@github.com/Foo/private_repo -t target_dir/"
