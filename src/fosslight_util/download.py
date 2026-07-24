@@ -932,10 +932,10 @@ def download_git_repository(
     else:
         env["GIT_SSH_COMMAND"] = env["GIT_SSH_COMMAND"] + " -o BatchMode=yes"
 
-    # If target already exists from a failed attempt, remove before clone
+    # If target already exists from a failed attempt, empty it before clone
     if os.path.isdir(target_dir) and any(Path(target_dir).iterdir()):
-        # clone into existing non-empty dir fails; keep mkdir from caller but ensure empty
-        pass
+        _cleanup_target_dir(target_dir)
+        Path(target_dir).mkdir(parents=True, exist_ok=True)
 
     cmd = build_shallow_clone_cmd(git_url, target_dir, refs_to_checkout)
     logger.info(f"Shallow clone cmd: {' '.join(cmd)}")
@@ -1185,6 +1185,8 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
                 filename = os.path.basename(urllib.parse.urlparse(final_for_name).path)
                 if not filename:
                     filename = "downloaded_file"
+            filename = os.path.basename(filename) or "downloaded_file"
+
             if os.path.isdir(target_dir):
                 local_path = os.path.join(target_dir, filename)
             else:
