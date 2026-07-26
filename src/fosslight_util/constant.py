@@ -41,6 +41,7 @@ SHEET_NAME_FOR_SCANNER = {
 # Cocoapods : https://cocoapods.org/(package)
 # go : https://pkg.go.dev/(package_name_with_slash)@(version)
 # cargo : https://crates.io/crates/(crate_name)/(version)
+# packagist : https://packagist.org/packages/(vendor)/(package)[#v(version)|/(version)]
 PKG_PATTERN = {
     "pypi": r'https?:\/\/pypi\.org\/project\/([^\/]+)[\/]?([^\/]*)',
     "pypi2": r'https?:\/\/files\.pythonhosted\.org\/packages\/source\/[\w]\/([^\/]+)\/[\S]+-([^\-]+)\.tar\.gz',
@@ -53,4 +54,5 @@ PKG_PATTERN = {
     "cocoapods": r'https?:\/\/cocoapods\.org\/pods\/([^\/]+)',
     "go": r'https?:\/\/pkg.go.dev\/([^\@]+)\@?v?([^\/]*)',
     "cargo": r'https?:\/\/crates\.io\/crates\/([^\/]+)\/?([^\/]*)',
+    "packagist": r'https?:\/\/packagist\.org\/packages\/([^\/]+\/[^\/#?]+)(?:\/([^\/#?]+))?(?:\#v?([^\/#?]*))?',
 }
