@@ -83,6 +83,10 @@ _HELP_MESSAGE_DOWNLOAD = """
 
     # Download and unzip a compressed file
     fosslight_download -s https://example.com/archive.zip -z -t output_dir
+
+    # Download a Packagist (PHP/Composer) package
+    fosslight_download -s https://packagist.org/packages/mustache/mustache -t output_dir
+    fosslight_download -s https://packagist.org/packages/mustache/mustache -c v2.14.2 -t output_dir
 """
 
 

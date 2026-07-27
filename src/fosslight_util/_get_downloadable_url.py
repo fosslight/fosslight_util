@@ -203,6 +203,79 @@ def _resolve_debian_search_to_source_tarball(
     return "", ""
 
 
+def _fetch_packagist_packages(package_name: str) -> list:
+    """Return package version entries from Packagist Composer v2 metadata API."""
+    try:
+        r = requests.get(f"https://repo.packagist.org/p2/{package_name}.json", timeout=10)
+        if r.status_code != 200:
+            return []
+        return r.json().get("packages", {}).get(package_name, []) or []
+    except Exception as e:
+        logger.info(f"Fail to fetch packagist metadata ({package_name}): {e}")
+        return []
+
+
+def _packagist_version_candidates(version: str) -> list[str]:
+    v = (version or "").strip()
+    if not v:
+        return []
+    no_v = v[1:] if v.lower().startswith("v") else v
+    candidates = [v, no_v, f"v{no_v}"]
+    return [c for c in dict.fromkeys(candidates) if c]
+
+
+def _find_packagist_package_entry(packages: list, version: str = ""):
+    """Pick a Packagist package entry for version, or the newest entry when version is empty."""
+    if not packages:
+        return None
+    if not version:
+        return packages[0]
+    candidates = _packagist_version_candidates(version)
+    candidate_set = set(candidates)
+    candidate_no_v = {c[1:] if c.lower().startswith("v") else c for c in candidates}
+    for pkg in packages:
+        ver = (pkg.get("version") or "").strip()
+        norm = (pkg.get("version_normalized") or "").strip()
+        ver_no_v = ver[1:] if ver.lower().startswith("v") else ver
+        if ver in candidate_set or norm in candidate_set or ver_no_v in candidate_no_v:
+            return pkg
+    return None
+
+
+def _archive_url_from_packagist_source(source: dict) -> str:
+    """Build a downloadable archive URL from Composer source metadata when dist is missing."""
+    if not source or source.get("type") != "git":
+        return ""
+    src_url = (source.get("url") or "").strip()
+    ref = (source.get("reference") or "").strip()
+    if not src_url or not ref:
+        return ""
+
+    github = re.match(
+        r"https?://(?:www\.)?github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$",
+        src_url,
+        re.IGNORECASE,
+    )
+    if github:
+        owner, repo = github.group(1), github.group(2)
+        if repo.endswith(".git"):
+            repo = repo[:-4]
+        return f"https://github.com/{owner}/{repo}/archive/{ref}.zip"
+
+    gitlab = re.match(
+        r"https?://(?:www\.)?gitlab\.com/([^/]+)/([^/]+?)(?:\.git)?/?$",
+        src_url,
+        re.IGNORECASE,
+    )
+    if gitlab:
+        owner, repo = gitlab.group(1), gitlab.group(2)
+        if repo.endswith(".git"):
+            repo = repo[:-4]
+        return f"https://gitlab.com/{owner}/{repo}/-/archive/{ref}/{repo}-{ref}.zip"
+
+    return ""
+
+
 def version_exists(pkg_type, origin_name, version):
     try:
         if pkg_type in ['npm', 'npm2']:
@@ -234,6 +307,9 @@ def version_exists(pkg_type, origin_name, version):
             if r.status_code == 200:
                 listed = r.text.splitlines()
                 return version in listed
+        elif pkg_type == 'packagist':
+            packages = _fetch_packagist_packages(origin_name)
+            return _find_packagist_package_entry(packages, version) is not None
     except Exception as e:
         logger.info(f'version_exists check failed ({pkg_type}:{origin_name}:{version}) {e}')
         return True
@@ -311,6 +387,9 @@ def extract_name_version_from_link(link, checkout_version):
                     elif key == "cargo":
                         oss_name = f"cargo:{origin_name}"
                         oss_version = match.group(2)
+                    elif key == "packagist":
+                        oss_name = f"packagist:{origin_name}"
+                        oss_version = (match.group(2) or match.group(3) or "").strip()
                 except Exception as ex:
                     logger.info(f"extract_name_version_from_link {key}:{ex}")
                 if oss_name:
@@ -323,7 +402,7 @@ def extract_name_version_from_link(link, checkout_version):
         need_latest = False
         if not oss_version and checkout_version:
             oss_version = checkout_version.strip()
-        if pkg_type in ["pypi", "maven", "npm", "npm2", "pub", "go"]:
+        if pkg_type in ["pypi", "maven", "npm", "npm2", "pub", "go", "packagist"]:
             if oss_version:
                 try:
                     if not version_exists(pkg_type, origin_name, oss_version):
@@ -445,6 +524,8 @@ def get_new_link_with_version(link, pkg_type, oss_name, oss_version):
         link = f'https://pkg.go.dev/{oss_name}@{oss_version}'
     elif pkg_type == "cargo":
         link = f'https://crates.io/crates/{oss_name}/{oss_version}'
+    elif pkg_type == "packagist":
+        link = f'https://packagist.org/packages/{oss_name}/{oss_version}'
     return link
 
 
@@ -513,6 +594,11 @@ def get_latest_package_version(link, pkg_type, oss_name):
                 find_version = go_response.json().get('Version')
                 if find_version.startswith('v'):
                     find_version = find_version[1:]
+        elif pkg_type == 'packagist':
+            packages = _fetch_packagist_packages(oss_name)
+            latest_pkg = _find_packagist_package_entry(packages)
+            if latest_pkg:
+                find_version = (latest_pkg.get('version') or '').strip()
     except Exception as e:
         logger.info(f'Fail to get latest package version({link}:{e})')
     return find_version
@@ -546,7 +632,55 @@ def get_downloadable_url(link, checkout_version):
         ret, result_link = get_download_location_for_go(new_link)
     elif pkg_type == "cargo":
         ret, result_link = get_download_location_for_cargo(new_link)
+    elif pkg_type == "packagist" or new_link.startswith('packagist.org/packages/'):
+        ret, result_link = get_download_location_for_packagist(new_link)
     return ret, result_link, oss_name, oss_version, pkg_type
+
+
+def get_download_location_for_packagist(link):
+    """
+    Resolve Packagist package page URL to a direct source archive URL.
+
+    Input examples (https:// stripped by caller):
+      packagist.org/packages/mustache/mustache
+      packagist.org/packages/mustache/mustache/v2.14.2
+      packagist.org/packages/mustache/mustache#v2.14.2
+    """
+    ret = False
+    new_link = ''
+
+    try:
+        matched = re.search(
+            r'packagist\.org/packages/([^/]+/[^/#?]+)(?:/([^/#?]+))?(?:#v?([^/#?]*))?',
+            link,
+        )
+        if not matched:
+            return False, ''
+
+        package_name = matched.group(1)
+        oss_version = (matched.group(2) or matched.group(3) or '').strip()
+        packages = _fetch_packagist_packages(package_name)
+        pkg = _find_packagist_package_entry(packages, oss_version)
+        if not pkg:
+            logger.warning(f'Cannot find packagist package entry ({package_name}:{oss_version or "latest"})')
+            return False, ''
+
+        dist = pkg.get('dist') or {}
+        dist_url = (dist.get('url') or '').strip()
+        if dist_url:
+            return True, dist_url
+
+        source_archive = _archive_url_from_packagist_source(pkg.get('source') or {})
+        if source_archive:
+            return True, source_archive
+
+        logger.warning(
+            f'No dist/source archive for packagist package ({package_name}:{pkg.get("version", "")})'
+        )
+    except Exception as error:
+        logger.warning(f'Cannot find the link for packagist (url:{link}) {error}')
+
+    return ret, new_link
 
 
 def get_download_location_for_cargo(link):
