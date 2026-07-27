@@ -160,6 +160,47 @@ def _is_size_limit_block_message(msg: str) -> bool:
     return any(marker in msg for marker in _SIZE_LIMIT_BLOCK_MARKERS)
 
 
+def _reject_empty_or_html_download(path: str, link: str) -> None:
+    """
+    Reject empty or HTML/XML error-page downloads after HTTP fetch.
+
+    Matches former scancode fetch_http post-wget checks so analysis does not
+    treat HTML interstitial/error pages as valid input.
+    """
+    if not path or not os.path.isfile(path):
+        raise Exception(f"Download failed: {link}")
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        raise Exception(f"Download failed: {link}")
+    if size == 0:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        raise Exception(f"wget downloaded an empty file: {link}")
+
+    try:
+        with open(path, "rb") as f:
+            raw = f.read(512)
+    except OSError as error:
+        raise Exception(f"Download failed: {link}") from error
+
+    content_start = raw.lstrip(b"\xef\xbb\xbf \t\r\n").lower()
+    html_signatures = (b"<!doctype", b"<html", b"<head", b"<body", b"<?xml")
+    suffix = Path(path).suffix.lower()
+    if suffix in (".html", ".htm") or any(
+        content_start.startswith(sig) for sig in html_signatures
+    ):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        raise Exception(
+            f"wget downloaded an HTML page instead of the expected file: {link}"
+        )
+
+
 def parse_src_link(src_link):
     src_info = {"url": src_link}
     src_link_changed = ""
@@ -223,7 +264,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             branch = ''.join(src_info.get("branch", "")).split('=')[-1]
             is_rubygems = src_info.get("rubygems", False)
 
-            # General download (git clone, wget)
+            # General download: git clone → requests → system wget
             success_git, msg, oss_name, oss_version, _ = download_git_clone(
                 link, target_dir, checkout_to, tag, branch,
                 ssh_key, id, git_token, called_cli, size_limit_gb=size_limit_gb)
@@ -247,9 +288,22 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                     success = False
                     msg = msg_wget
                 elif success and downloaded_file:
-                    success = extract_compressed_file(downloaded_file, target_dir, True, compressed_only)
+                    success = extract_compressed_file(
+                        downloaded_file, target_dir, True, compressed_only
+                    )
                     if success:
                         downloaded_link = resolved_link
+                    else:
+                        # Extract failed (e.g. non-archive when compressed_only): fail
+                        msg_wget = (
+                            f"Failed to extract downloaded file: {downloaded_file}"
+                        )
+                        msg = msg_wget
+                        try:
+                            if os.path.isfile(downloaded_file):
+                                os.remove(downloaded_file)
+                        except OSError:
+                            pass
             # Download from rubygems.org
             elif is_rubygems and shutil.which("gem"):
                 success = gem_download(link, target_dir, checkout_to)
@@ -1036,6 +1090,136 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
     return success, msg, oss_name, refs_to_checkout, clarified_version
 
 
+def _cleanup_new_paths(directory, before_paths):
+    """Remove files/dirs under ``directory`` that were not in ``before_paths``."""
+    root = Path(directory)
+    if not root.is_dir():
+        return
+    keep = {Path(p).resolve() for p in before_paths}
+    for entry in list(root.iterdir()):
+        try:
+            if entry.resolve() in keep:
+                continue
+        except OSError:
+            pass
+        try:
+            if entry.is_file() or entry.is_symlink():
+                entry.unlink(missing_ok=True)
+            elif entry.is_dir():
+                shutil.rmtree(entry, ignore_errors=True)
+        except OSError:
+            continue
+
+
+def _download_with_system_wget(url, target_dir, size_limit_gb=None):
+    """
+    Download ``url`` with the system ``wget`` binary.
+
+    precheck Content-Length, poll directory size while wget runs, then
+    enforce final file size. Raises SizeLimitExceeded on overflow.
+    Returns local file path on success, or None on failure.
+    """
+    if not shutil.which("wget"):
+        logger.warning("system wget not found; skip wget fallback")
+        return None
+
+    Path(target_dir).mkdir(parents=True, exist_ok=True)
+
+    # Before download: best-effort Content-Length check
+    try:
+        head = requests.head(url, timeout=10, allow_redirects=True)
+        if head.status_code < 400:
+            _raise_if_content_length_over_limit(
+                head.headers, size_limit_gb, "before download"
+            )
+    except SizeLimitExceeded:
+        raise
+    except Exception:
+        pass
+
+    before = set()
+    try:
+        before = {p.resolve() for p in Path(target_dir).iterdir()}
+    except OSError:
+        before = set()
+
+    try:
+        proc = subprocess.Popen(
+            [
+                "wget",
+                "--tries=20",
+                "--timeout=60",
+                "--waitretry=5",
+                "-c",
+                "-P", str(target_dir),
+                url,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            stdin=subprocess.DEVNULL,
+        )
+    except Exception as error:
+        logger.warning(f"system wget - failed to start: {error}")
+        return None
+
+    limit = _size_limit_bytes(size_limit_gb)
+    while proc.poll() is None:
+        if limit is not None:
+            current = _dir_size_bytes(target_dir)
+            if current >= limit:
+                logger.info(
+                    "system wget exceeded size limit during progress "
+                    f"({current} bytes >= {limit}); aborting."
+                )
+                proc.terminate()
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    try:
+                        proc.wait(timeout=5)
+                    except Exception:
+                        pass
+                _cleanup_new_paths(target_dir, before)
+                raise SizeLimitExceeded(
+                    _size_limit_abort_message(
+                        size_limit_gb, "during download", current
+                    )
+                )
+        time.sleep(SIZE_CHECK_INTERVAL_SECONDS)
+
+    _stdout, stderr = proc.communicate()
+    if proc.returncode != 0:
+        logger.warning(
+            f"system wget failed (rc={proc.returncode}): {(stderr or '').strip()}"
+        )
+        _cleanup_new_paths(target_dir, before)
+        return None
+
+    try:
+        candidates = [
+            p for p in Path(target_dir).iterdir()
+            if p.is_file() and not p.is_symlink()
+        ]
+    except OSError:
+        return None
+    new_files = [p for p in candidates if p.resolve() not in before]
+    pick_from = new_files or candidates
+    if not pick_from:
+        return None
+    local_path = str(max(pick_from, key=lambda p: p.stat().st_size))
+
+    try:
+        _raise_if_bytes_over_limit(
+            os.path.getsize(local_path), size_limit_gb, "after download"
+        )
+    except SizeLimitExceeded:
+        _cleanup_new_paths(target_dir, before)
+        raise
+    return local_path
+
+
 def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=None):
     success = False
     msg = ""
@@ -1090,29 +1274,52 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
             else:
                 raise Exception('Not a downloadable link')
 
-        logger.info(f"wget: {link}")
-        downloaded_file = download_file(link, target_dir, size_limit_gb=size_limit_gb)
+        # 2차: requests HTTP download
+        logger.info(f"HTTP(requests) download: {link}")
+        try:
+            downloaded_file = download_file(
+                link, target_dir, size_limit_gb=size_limit_gb
+            )
+        except SizeLimitExceeded:
+            raise
+        except Exception as error:
+            logger.warning(
+                f"requests download failed: {error}; trying system wget"
+            )
+            downloaded_file = None
+
+        # 3차: system wget fallback (former scancode fetch_http wget path)
+        if not downloaded_file:
+            logger.info(f"system wget fallback: {link}")
+            downloaded_file = _download_with_system_wget(
+                link, target_dir, size_limit_gb=size_limit_gb
+            )
+
         if platform.system() != "Windows":
             signal.alarm(0)
         else:
             del alarm
 
         if downloaded_file:
+            _reject_empty_or_html_download(downloaded_file, link)
             success = True
             hint = _oss_version_hint_from_wget_link(link, downloaded_file)
             # Keep version resolved by get_downloadable_url() when present.
             # File-name hint is only a fallback when no version was detected.
             if hint and not oss_version:
                 oss_version = hint
-            logger.debug(f"wget - downloaded: {downloaded_file}")
+            logger.debug(f"HTTP/wget - downloaded: {downloaded_file}")
         else:
             success = False
             msg = f"Download failed: {link}"
-            logger.warning("wget - failed: download_file returned no file: %s", link)
+            logger.warning(
+                "HTTP/wget - failed: no file after requests and system wget: %s",
+                link,
+            )
     except SizeLimitExceeded as error:
         success = False
         msg = str(error)
-        logger.warning(f"wget - size limit: {error}")
+        logger.warning(f"HTTP/wget - size limit: {error}")
         try:
             if platform.system() != "Windows":
                 signal.alarm(0)
@@ -1121,7 +1328,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
     except Exception as error:
         success = False
         msg = str(error)
-        logger.warning(f"wget - failed: {error}")
+        logger.warning(f"HTTP/wget - failed: {error}")
 
     return success, downloaded_file, msg, oss_name, oss_version, resolved_link
 
