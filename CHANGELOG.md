@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.3 (27/07/2026)
+## Changes
+## 🚀 Features
+
+- feat(download): support Packagist PHP package source download @soimkim (#296)
+
+---
+
 ## v2.2.2 (09/07/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -261,9 +269,3 @@
 - Update help message @bjk7119 (#249)
 - Modify excel sheet order (DEP,SRC,BIN) @dd-jy (#251)
 - Fix spdx-tools==0.8.2 @bjk7119 (#248)
-
----
-
-## v2.1.38 (26/01/2026)
-## Changes
-- Sort scanner info comment order @dd-jy (#246)
