@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.4 (28/07/2026)
+## Changes
+## 🔧 Maintenance
+
+- Add size limit guard for git clone and wget downloads @bjk7119 (#295)
+
+---
+
 ## v2.2.3 (27/07/2026)
 ## Changes
 ## 🚀 Features
@@ -255,17 +263,3 @@
 ## 🔧 Maintenance
 
 - Apply glob pattern matching for excluding @soimkim (#252)
-
----
-
-## v2.1.39 (30/01/2026)
-## Changes
-## 🐛 Hotfixes
-
-- Fix a bug that causes github's login prompt to be activated @soimkim (#247)
-
-## 🔧 Maintenance
-
-- Update help message @bjk7119 (#249)
-- Modify excel sheet order (DEP,SRC,BIN) @dd-jy (#251)
-- Fix spdx-tools==0.8.2 @bjk7119 (#248)
