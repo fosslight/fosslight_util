@@ -47,6 +47,8 @@ prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 SIZE_CHECK_INTERVAL_SECONDS = 10
 _BYTES_PER_GB = 1024 ** 3
+# Active Windows Alarm so nested helpers (e.g. git clone) can cancel it.
+_active_download_alarm = None
 
 # Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests' default
 # User-Agent, or 200 with a small text/html interstitial. Start with a curl-style UA
@@ -87,15 +89,53 @@ def _download_http_header_attempts():
 
 
 class Alarm(threading.Thread):
+    """Windows download watchdog; call ``cancel()`` to stop before timeout."""
+
     def __init__(self, timeout):
         threading.Thread.__init__(self)
         self.timeout = timeout
-        self.setDaemon(True)
+        self._cancelled = threading.Event()
+        self.daemon = True
 
     def run(self):
-        time.sleep(self.timeout)
+        # Wait until timeout or cancel(); do not use bare time.sleep.
+        if self._cancelled.wait(self.timeout):
+            return
         logger.error("download timeout! (%d sec)", SIGNAL_TIMEOUT)
         os._exit(1)
+
+    def cancel(self):
+        """Stop the watchdog so a successful download is not killed later."""
+        self._cancelled.set()
+
+
+def _start_download_watchdog():
+    """Start SIGALRM (Unix) or Alarm thread (Windows). Return Alarm or None."""
+    global _active_download_alarm
+    if platform.system() != "Windows":
+        signal.signal(signal.SIGALRM, alarm_handler)
+        signal.alarm(SIGNAL_TIMEOUT)
+        return None
+    alarm = Alarm(SIGNAL_TIMEOUT)
+    alarm.start()
+    _active_download_alarm = alarm
+    return alarm
+
+
+def _cancel_download_watchdog(alarm=None):
+    """Cancel SIGALRM or the Windows Alarm watchdog."""
+    global _active_download_alarm
+    if platform.system() != "Windows":
+        try:
+            signal.alarm(0)
+        except Exception:
+            pass
+        return
+    target = alarm if alarm is not None else _active_download_alarm
+    if target is not None:
+        target.cancel()
+    if alarm is None or alarm is _active_download_alarm:
+        _active_download_alarm = None
 
 
 class TimeOutException(Exception):
@@ -298,7 +338,6 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                         msg_wget = (
                             f"Failed to extract downloaded file: {downloaded_file}"
                         )
-                        msg = msg_wget
                         try:
                             if os.path.isfile(downloaded_file):
                                 os.remove(downloaded_file)
@@ -963,10 +1002,9 @@ def download_git_repository(
 
     logger.info(f"Download git url :{git_url}, version:{refs_to_checkout}")
 
-    # Avoid hard process exit from parent SIGALRM while size-guarded clone may run longer
+    # Avoid hard process exit from parent watchdog while size-guarded clone may run longer
     try:
-        if platform.system() != "Windows":
-            signal.alarm(0)
+        _cancel_download_watchdog()
     except Exception:
         pass
 
@@ -1035,14 +1073,10 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
     msg = ""
     success = True
     oss_version = ""
+    alarm = None
 
     try:
-        if platform.system() != "Windows":
-            signal.signal(signal.SIGALRM, alarm_handler)
-            signal.alarm(SIGNAL_TIMEOUT)
-        else:
-            alarm = Alarm(SIGNAL_TIMEOUT)
-            alarm.start()
+        alarm = _start_download_watchdog()
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -1071,15 +1105,12 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
 
             logger.info(f"git checkout version: {oss_version}")
             refs_to_checkout = oss_version
-
-            if platform.system() != "Windows":
-                signal.alarm(0)
-            else:
-                del alarm
     except Exception as error:
         success = False
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
+    finally:
+        _cancel_download_watchdog(alarm)
 
     if oss_version:
         clarified_version = decided_clarified or clarified_version_from_oss_version(
@@ -1147,6 +1178,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
         proc = subprocess.Popen(
             [
                 "wget",
+                "-nv",
                 "--tries=20",
                 "--timeout=60",
                 "--waitretry=5",
@@ -1154,7 +1186,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
                 "-P", str(target_dir),
                 url,
             ],
-            stdout=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
             stdin=subprocess.DEVNULL,
@@ -1181,6 +1213,11 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
                         proc.wait(timeout=5)
                     except Exception:
                         pass
+                # Drain stderr after exit to avoid leaving a blocked pipe reader.
+                try:
+                    proc.communicate(timeout=5)
+                except Exception:
+                    pass
                 _cleanup_new_paths(target_dir, before)
                 raise SizeLimitExceeded(
                     _size_limit_abort_message(
@@ -1227,14 +1264,10 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
     oss_version = ""
     downloaded_file = ""
     resolved_link = ""
+    alarm = None
 
     try:
-        if platform.system() != "Windows":
-            signal.signal(signal.SIGALRM, alarm_handler)
-            signal.alarm(SIGNAL_TIMEOUT)
-        else:
-            alarm = Alarm(SIGNAL_TIMEOUT)
-            alarm.start()
+        alarm = _start_download_watchdog()
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -1295,11 +1328,6 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
                 link, target_dir, size_limit_gb=size_limit_gb
             )
 
-        if platform.system() != "Windows":
-            signal.alarm(0)
-        else:
-            del alarm
-
         if downloaded_file:
             _reject_empty_or_html_download(downloaded_file, link)
             success = True
@@ -1320,15 +1348,12 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
         success = False
         msg = str(error)
         logger.warning(f"HTTP/wget - size limit: {error}")
-        try:
-            if platform.system() != "Windows":
-                signal.alarm(0)
-        except Exception:
-            pass
     except Exception as error:
         success = False
         msg = str(error)
         logger.warning(f"HTTP/wget - failed: {error}")
+    finally:
+        _cancel_download_watchdog(alarm)
 
     return success, downloaded_file, msg, oss_name, oss_version, resolved_link
 
