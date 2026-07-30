@@ -78,6 +78,17 @@ from fosslight_util import _get_downloadable_url as downloadable_url
             "/wrong/path.txt",
             "1.0.190",
         ),
+        # Archive basename with no version must not become oss_version
+        (
+            "https://web.archive.org/web/20160315015917/http://www.sparetimelabs.com/tinyprintf/printf.zip",
+            "/tmp/printf.zip",
+            "",
+        ),
+        (
+            "https://example.com/files/printf.zip",
+            "",
+            "",
+        ),
     ],
 )
 def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):

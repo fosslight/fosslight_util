@@ -558,7 +558,11 @@ def _strip_known_archive_suffixes(filename: str) -> str:
 
 
 def _version_string_from_archive_stem(stem: str) -> str:
-    """Take trailing version segment from name-version stems (e.g. bison-3.8.2 -> 3.8.2)."""
+    """Take trailing version segment from name-version stems (e.g. bison-3.8.2 -> 3.8.2).
+
+    If the basename itself is a version (e.g. v3.28.3, 1.1.7.7), return it.
+    Plain package names without a version (e.g. printf) return "".
+    """
     if not stem:
         return ""
     m = _ARCHIVE_VERSION_TAIL.search(stem)
@@ -570,7 +574,14 @@ def _version_string_from_archive_stem(stem: str) -> str:
         if classifier:
             return classifier.group(1)
         return version
-    return stem
+    core = _strip_leading_v_prefix(_strip_debian_epoch_prefix(stem))
+    if (
+        _PURE_DOT_NUMERIC_VERSION.match(core)
+        or _BASE_SEMVER_FOR_CHECKOUT.match(core)
+        or _CLARIFIED_MAJOR_ONLY_FULL.match(core)
+    ):
+        return stem
+    return ""
 
 
 def _oss_version_hint_from_wget_link(link: str, downloaded_file: str) -> str:
@@ -597,7 +608,9 @@ def _oss_version_hint_from_wget_link(link: str, downloaded_file: str) -> str:
         stem = _strip_known_archive_suffixes(base)
         if not stem or stem.lower() == "download":
             continue
-        return _version_string_from_archive_stem(stem)
+        hint = _version_string_from_archive_stem(stem)
+        if hint:
+            return hint
     return ""
 
 
