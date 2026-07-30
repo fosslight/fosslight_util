@@ -89,6 +89,8 @@ def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):
     "hint,expected_clarified",
     [
         ("0.2.3", "0.2.3"),
+        ("0.3.6", "0.3.6"),
+        ("v0.3.6", "0.3.6"),
         ("3.8.2", "3.8.2"),
         ("2.31.0", "2.31.0"),
         ("4.17.21", "4.17.21"),
@@ -98,6 +100,13 @@ def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):
         ("v3.28.3", "3.28.3"),
         ("4:10.2.1-1", "10.2.1"),
         ("1:3.118+deb11u1", "3.118"),
+        # Embedded three-part versions must not collapse to trailing x.y
+        ("R0.3.6", "0.3.6"),
+        ("rel0.3.6", "0.3.6"),
+        ("@serenityjs/logger@0.3.6", "0.3.6"),
+        ("1.2.3", "1.2.3"),
+        ("0.3", "0.3"),
+        ("foo-1.2", "1.2"),
     ],
 )
 def test_clarified_follows_hint_for_semver(hint, expected_clarified):
