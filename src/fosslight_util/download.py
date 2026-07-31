@@ -91,6 +91,9 @@ def _download_http_header_attempts():
 class Alarm(threading.Thread):
     """Windows download watchdog; call ``cancel()`` to stop before timeout."""
 
+    # Seconds to let the main thread unwind after the timeout before forcing exit.
+    GRACE_PERIOD = 10
+
     def __init__(self, timeout):
         threading.Thread.__init__(self)
         self.timeout = timeout
@@ -101,8 +104,19 @@ class Alarm(threading.Thread):
         # Wait until timeout or cancel(); do not use bare time.sleep.
         if self._cancelled.wait(self.timeout):
             return
-        logger.error("download timeout! (%d sec)", SIGNAL_TIMEOUT)
-        os._exit(1)
+        logger.error("download timeout! (%d sec)", self.timeout)
+        # Interrupt the main thread first so it can flush logs and clean up temporary
+        # files. os._exit() kills the process immediately and loses both. Fall back to
+        # a hard exit if the main thread does not stop within the grace period, so a
+        # genuinely hung download still cannot block forever.
+        try:
+            import _thread
+
+            _thread.interrupt_main()
+        except Exception:
+            os._exit(1)
+        if not self._cancelled.wait(self.GRACE_PERIOD):
+            os._exit(1)
 
     def cancel(self):
         """Stop the watchdog so a successful download is not killed later."""
