@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.5 (02/08/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Preserve 0.x.y clarified_version and match npm scope tages @soimkim (#297)
+
+---
+
 ## v2.2.4 (28/07/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -255,11 +263,3 @@
 ## 🚀 Features
 
 - download: improve decide_checkout ref resolution @soimkim (#253)
-
----
-
-## v2.1.40 (03/02/2026)
-## Changes
-## 🔧 Maintenance
-
-- Apply glob pattern matching for excluding @soimkim (#252)
