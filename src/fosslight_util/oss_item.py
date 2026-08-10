@@ -63,11 +63,9 @@ class OssItem:
     @copyright.setter
     def copyright(self, value):
         if value:
-            if isinstance(value, list):
-                value = list(set(value))
-            else:
-                value = set(value.split("\n"))
-            value = "\n".join(value).strip()
+            if not isinstance(value, list):
+                value = value.split("\n")
+            value = "\n".join(sorted(set(value), reverse=True)).strip()
         self._copyright = value
 
     @property
