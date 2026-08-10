@@ -63,10 +63,18 @@ class OssItem:
     @copyright.setter
     def copyright(self, value):
         if value:
-            if not isinstance(value, list):
-                value = value.split("\n")
-            value = "\n".join(sorted(set(value), reverse=True)).strip()
+            if isinstance(value, list):
+                value = list(set(value))
+            else:
+                value = set(value.split("\n"))
+            value = "\n".join(value).strip()
         self._copyright = value
+
+    def sort_copyright(self):
+        if self._copyright:
+            self._copyright = "\n".join(
+                sorted(set(self._copyright.split("\n")), reverse=True)
+            ).strip()
 
     @property
     def version(self):
@@ -239,6 +247,12 @@ class ScannerItem:
         for file_item in self.file_items[scanner_name]:
             items.extend(file_item.get_print_json())
         return items
+
+    def sort_copyrights(self):
+        for file_items in self.file_items.values():
+            for file_item in file_items:
+                for oss_item in file_item.oss_items:
+                    oss_item.sort_copyright()
 
     def __del__(self):
         pass

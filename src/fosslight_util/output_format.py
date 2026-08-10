@@ -174,6 +174,9 @@ def write_output_file(output_file_without_ext: str, file_extension: str, scan_it
     success = True
     msg = ''
 
+    if scan_item:
+        scan_item.sort_copyrights()
+
     if file_extension == '':
         file_extension = '.xlsx'
     result_file = output_file_without_ext + file_extension
