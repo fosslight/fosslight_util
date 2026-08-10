@@ -81,7 +81,7 @@ def get_merged_item(oss_items):
         oi_name = oi.get("name", '')
         oi_version = oi.get("version", '')
         oi_license = oi.get("license", '')
-        if not (oi_name and oi_version and oi_license):
+        if not oi_name and not oi_version and not oi_license:
             continue
         item_info = {NAME: oi_name, VERSION: oi_version, LICENSE: oi_license}
 
