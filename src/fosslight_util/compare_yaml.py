@@ -40,14 +40,23 @@ def compare_yaml(before_fileitems: List[FileItem], after_fileitems: List[FileIte
 
     comp_out = {ADD: [], DELETE: [], CHANGE: []}
 
-    b_name = set([bi[NAME] for bi in new_before])
-    a_name = set([ai[NAME] for ai in after_items])
+    # Empty-name items cannot use NAME as a stable key — treat as add/delete only.
+    nameless_before = [bi for bi in new_before if not bi[NAME]]
+    named_before = [bi for bi in new_before if bi[NAME]]
+    nameless_after = [ai for ai in after_items if not ai[NAME]]
+    named_after = [ai for ai in after_items if ai[NAME]]
+
+    comp_out[DELETE].extend(nameless_before)
+    comp_out[ADD].extend(nameless_after)
+
+    b_name = set([bi[NAME] for bi in named_before])
+    a_name = set([ai[NAME] for ai in named_after])
 
     removed_name = b_name - a_name
     changed_name = b_name - removed_name
     added_name = a_name - changed_name
 
-    for bi in new_before:
+    for bi in named_before:
         if bi[NAME] in removed_name:
             comp_out[DELETE].append(bi)
         elif bi[NAME] in changed_name:
@@ -61,7 +70,7 @@ def compare_yaml(before_fileitems: List[FileItem], after_fileitems: List[FileIte
                 item_info[PREV].append(bi)
                 comp_out[CHANGE].append(item_info)
 
-    for ai in after_items:
+    for ai in named_after:
         if ai[NAME] in added_name:
             comp_out[ADD].append(ai)
         elif ai[NAME] in changed_name:
@@ -71,6 +80,12 @@ def compare_yaml(before_fileitems: List[FileItem], after_fileitems: List[FileIte
                 filtered[NOW].append(ai)
 
     return comp_out
+
+
+def _license_key(license_value):
+    if isinstance(license_value, list):
+        return tuple(sorted(license_value))
+    return license_value
 
 
 def get_merged_item(oss_items):
@@ -84,6 +99,21 @@ def get_merged_item(oss_items):
         if not oi_name and not oi_version and not oi_license:
             continue
         item_info = {NAME: oi_name, VERSION: oi_version, LICENSE: oi_license}
+
+        if not oi_name:
+            # Nameless items have no stable merge key — keep distinct records.
+            already = next(
+                filter(
+                    lambda oss_dict: oss_dict[NAME] == oi_name
+                    and oss_dict[VERSION] == oi_version
+                    and _license_key(oss_dict[LICENSE]) == _license_key(oi_license),
+                    item_list,
+                ),
+                None,
+            )
+            if not already:
+                item_list.append(item_info)
+            continue
 
         filtered = next(filter(lambda oss_dict: oss_dict[NAME] == oi_name and oss_dict[VERSION] == oi_version, item_list), None)
         if filtered:
