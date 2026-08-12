@@ -617,7 +617,8 @@ def get_latest_package_version(link, pkg_type, oss_name):
                         break
             if not find_version:
                 maven_response = requests.get(
-                    f'https://api.deps.dev/v3alpha/systems/maven/packages/{oss_name}'
+                    f'https://api.deps.dev/v3alpha/systems/maven/packages/{oss_name}',
+                    timeout=MAVEN_HTTP_TIMEOUT,
                 )
                 if maven_response.status_code == 200:
                     versions = maven_response.json().get('versions', [])
