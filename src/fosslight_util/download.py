@@ -352,15 +352,15 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         if size_limit_blocked:
             # Keep a clear size-limit message for callers/UI (do not wrap as git/wget fail)
             pass
+        elif success:
+            # wget/gem may succeed after git failed; do not keep leftover git fail text
+            msg = ""
         elif msg:
             msg = f'git fail: {msg}'
             if is_rubygems:
                 msg = f'gem download: {success}'
-            else:
-                if msg_wget:
-                    msg = f'{msg}, wget fail: {msg_wget}'
-                else:
-                    msg = f'{msg}, wget success'
+            elif msg_wget:
+                msg = f'{msg}, wget fail: {msg_wget}'
         elif msg_wget:
             msg = f'wget fail: {msg_wget}'
 
