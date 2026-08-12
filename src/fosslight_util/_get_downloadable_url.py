@@ -12,6 +12,28 @@ import fosslight_util.constant as constant
 
 logger = logging.getLogger(constant.LOGGER_NAME)
 
+# Probe order for mvnrepository.com → concrete Maven repository hosts.
+# Prefer *-sources.jar (then -source.jar / -src.jar) under each base.
+# Ordered by how commonly these hosts are used in practice.
+MAVEN_REPOSITORY_BASES = (
+    "https://repo1.maven.org/maven2",  # Maven Central
+    "https://dl.google.com/android/maven2",  # Google Android
+    "https://maven.google.com",  # Google Maven
+    "https://repo.spring.io/release",  # Spring
+    "https://repo.spring.io/artifactory/libs-release",  # Spring libs-release
+    "https://plugins.gradle.org/m2",  # Gradle Plugin Portal
+    "https://jitpack.io",  # JitPack (GitHub-based)
+    "https://repository.jboss.org/nexus/content/groups/public",  # JBoss public
+    "https://repository.jboss.org/nexus/content/repositories/releases",  # JBoss releases
+    "https://packages.confluent.io/maven",  # Confluent
+    "https://maven.repository.redhat.com/ga",  # Red Hat GA
+    "https://oss.sonatype.org/content/repositories/releases",  # Sonatype OSS releases
+    "https://repo.clojars.org",  # Clojars
+    "https://packages.atlassian.com/content/repositories/atlassian-public",  # Atlassian
+    "https://repo.hortonworks.com/repository/releases",  # Hortonworks
+)
+MAVEN_SOURCE_CLASSIFIERS = ("sources", "source", "src")
+
 
 def _absolute_packages_debian_url(href: str) -> str:
     if not href:
@@ -826,9 +848,68 @@ def get_download_location_for_pypi(link):
     return ret, new_link
 
 
+def _maven_http_ok(url: str, timeout: float = 8) -> bool:
+    try:
+        response = requests.head(url, allow_redirects=True, timeout=timeout)
+        if response.status_code == 200:
+            return True
+        # Some Maven hosts reject HEAD; fall back to a streamed GET.
+        if response.status_code in (403, 405, 501):
+            response = requests.get(url, stream=True, allow_redirects=True, timeout=timeout)
+            try:
+                return response.status_code == 200
+            finally:
+                response.close()
+    except Exception:
+        return False
+    return False
+
+
+def _maven_sources_from_directory(version_dir: str, artifact_id: str, version: str) -> str:
+    """Parse a Maven version directory listing for a sources jar link."""
+    preferred = f"{artifact_id}-{version}-sources.jar"
+    try:
+        html = urlopen(f"{version_dir.rstrip('/')}/").read().decode("utf8")
+        bs_obj = BeautifulSoup(html, "html.parser")
+        found = ""
+        for anchor in bs_obj.findAll("a"):
+            href = anchor.get("href") or ""
+            text = (anchor.text or "").strip()
+            if text == preferred or href.rstrip("/").endswith(preferred):
+                return f"{version_dir.rstrip('/')}/{href}"
+            if href.endswith(("sources.jar", "source.jar", "src.jar")):
+                found = f"{version_dir.rstrip('/')}/{href}"
+        return found
+    except Exception:
+        return ""
+
+
+def _probe_maven_sources_jar(group_path: str, artifact_id: str, version: str) -> str:
+    for repo_base in MAVEN_REPOSITORY_BASES:
+        version_dir = f"{repo_base}/{group_path}/{artifact_id}/{version}"
+        for classifier in MAVEN_SOURCE_CLASSIFIERS:
+            sources_url = f"{version_dir}/{artifact_id}-{version}-{classifier}.jar"
+            if _maven_http_ok(sources_url):
+                logger.info(f"Maven sources found: {sources_url}")
+                return sources_url
+        listed = _maven_sources_from_directory(version_dir, artifact_id, version)
+        if listed:
+            logger.info(f"Maven sources found via listing: {listed}")
+            return listed
+    return ""
+
+
+def _probe_maven_artifact_base(group_path: str, artifact_id: str) -> str:
+    for repo_base in MAVEN_REPOSITORY_BASES:
+        artifact_base = f"{repo_base}/{group_path}/{artifact_id}"
+        if _maven_http_ok(artifact_base) or _maven_http_ok(f"{artifact_base}/"):
+            logger.info(f"Maven artifact base found: {artifact_base}")
+            return artifact_base
+    return ""
+
+
 def get_download_location_for_maven(link):
-    # get the url for downloading source file in
-    # repo1.maven.org/maven2/(group_id(split to separator '/'))/(artifact_id)/(oss_version)
+    # Resolve a downloadable sources jar (or artifact base when version is absent).
     ret = False
     new_link = ''
 
@@ -842,29 +923,21 @@ def get_download_location_for_maven(link):
             version = parts[2] if len(parts) > 2 and parts[2] else ''
             group_path = group_raw.replace('.', '/')
 
-            repo_base = f'https://repo1.maven.org/maven2/{group_path}/{artifact_id}'
-            try:
-                urlopen(repo_base)
-                if version:
-                    dn_loc = f'{repo_base}/{version}'
-                else:
-                    new_link = repo_base
-                    ret = True
-                    return ret, new_link
-            except Exception:
-                google_base = f'https://dl.google.com/android/maven2/{group_path}/{artifact_id}'
-                if version:
-                    google_sources = f'{google_base}/{version}/{artifact_id}-{version}-sources.jar'
-                    try:
-                        res_g = urlopen(google_sources)
-                        if res_g.getcode() == 200:
-                            ret = True
-                            return ret, google_sources
-                    except Exception:
-                        pass
-                new_link = google_base
-                ret = True
-                return ret, new_link
+            if version:
+                sources_url = _probe_maven_sources_jar(group_path, artifact_id, version)
+                if sources_url:
+                    return True, sources_url
+                raise Exception(
+                    f'no sources jar found in known Maven repositories '
+                    f'for {group_raw}:{artifact_id}:{version}'
+                )
+
+            artifact_base = _probe_maven_artifact_base(group_path, artifact_id)
+            if artifact_base:
+                return True, artifact_base
+            raise Exception(
+                f'artifact not found in known Maven repositories for {group_raw}:{artifact_id}'
+            )
 
         elif link.startswith('repo1.maven.org/maven2/'):
             if link.endswith('.tar.gz') or link.endswith('.jar') or link.endswith('.tar.xz'):
