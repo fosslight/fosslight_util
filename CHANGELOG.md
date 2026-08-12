@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.6 (12/08/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Probe known Maven repos for sources jars @soimkim (#301)
+
+---
+
 ## v2.2.5 (02/08/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -255,11 +263,3 @@
 
 - Remove "Type of change" section from PR default template @woocheol-lge (#257)
 - Update CodeRabbit config @soimkim (#256)
-
----
-
-## v2.1.41 (05/02/2026)
-## Changes
-## 🚀 Features
-
-- download: improve decide_checkout ref resolution @soimkim (#253)
