@@ -99,8 +99,9 @@ def test_probe_maven_sources_prefers_repo_with_exact_version(monkeypatch):
         "MAVEN_REPOSITORY_BASES",
         (central, spring_milestone),
     )
+    downloadable_url._MAVEN_SOURCES_PROBE_CACHE.clear()
 
-    def fake_http_ok(url, timeout=8):
+    def fake_http_ok(url, timeout=None):
         return (
             url
             == f"{spring_milestone}/org/springframework/spring-core/6.2.0-M1/"
@@ -121,6 +122,49 @@ def test_probe_maven_sources_prefers_repo_with_exact_version(monkeypatch):
         f"{spring_milestone}/org/springframework/spring-core/6.2.0-M1/"
         "spring-core-6.2.0-M1-sources.jar"
     )
+
+
+def test_maven_repo_bases_for_prefers_group_hints():
+    bases = downloadable_url._maven_repo_bases_for("io/confluent")
+    assert bases[0] == "https://packages.confluent.io/maven"
+    assert "https://repo1.maven.org/maven2" in bases
+
+    spring_bases = downloadable_url._maven_repo_bases_for("org/springframework")
+    assert spring_bases[0] == "https://repo.spring.io/milestone"
+
+
+def test_probe_maven_sources_reuses_cache(monkeypatch):
+    downloadable_url._MAVEN_SOURCES_PROBE_CACHE.clear()
+    calls = {"n": 0}
+
+    def fake_http_ok(url, timeout=None):
+        calls["n"] += 1
+        return url.endswith("common-utils-8.2.1-sources.jar") and "packages.confluent.io" in url
+
+    monkeypatch.setattr(downloadable_url, "_maven_http_ok", fake_http_ok)
+    monkeypatch.setattr(
+        downloadable_url,
+        "_maven_sources_from_directory",
+        lambda *_args, **_kwargs: "",
+    )
+    monkeypatch.setattr(
+        downloadable_url,
+        "MAVEN_REPOSITORY_BASES",
+        (
+            "https://repo1.maven.org/maven2",
+            "https://packages.confluent.io/maven",
+        ),
+    )
+
+    first = downloadable_url._probe_maven_sources_jar(
+        "io/confluent", "common-utils", "8.2.1"
+    )
+    second = downloadable_url._probe_maven_sources_jar(
+        "io/confluent", "common-utils", "8.2.1"
+    )
+    assert first == second
+    assert first.endswith("common-utils-8.2.1-sources.jar")
+    assert calls["n"] == 1  # second call served from cache
 
 
 def test_get_download_location_for_maven_uses_candidate_sources(monkeypatch):
@@ -149,8 +193,8 @@ def test_get_latest_package_version_uses_highest_priority_repo_metadata(monkeypa
     spring = "https://repo.spring.io/milestone"
     monkeypatch.setattr(
         downloadable_url,
-        "MAVEN_REPOSITORY_BASES",
-        (central, spring),
+        "_maven_repo_bases_for",
+        lambda group_path: (central, spring),
     )
 
     def fake_latest(repo_base, group_path, artifact_id):

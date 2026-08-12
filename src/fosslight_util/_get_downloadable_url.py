@@ -35,6 +35,34 @@ MAVEN_REPOSITORY_BASES = (
     "https://repo.hortonworks.com/repository/releases",  # Hortonworks
 )
 MAVEN_SOURCE_CLASSIFIERS = ("sources", "source", "src")
+# (connect, read) — keep probes snappy; dead hosts must not stall the CLI.
+MAVEN_HTTP_TIMEOUT = (2, 2)
+# groupPath prefix → try these hosts before the default popularity order.
+_MAVEN_GROUP_REPO_HINTS = (
+    ("io/confluent", ("https://packages.confluent.io/maven",)),
+    (
+        "org/springframework",
+        (
+            "https://repo.spring.io/milestone",
+            "https://repo.spring.io/release",
+            "https://repo.spring.io/artifactory/libs-release",
+        ),
+    ),
+    (
+        "com/google/android",
+        ("https://dl.google.com/android/maven2", "https://maven.google.com"),
+    ),
+    (
+        "androidx",
+        ("https://dl.google.com/android/maven2", "https://maven.google.com"),
+    ),
+    (
+        "com/atlassian",
+        ("https://packages.atlassian.com/content/repositories/atlassian-public",),
+    ),
+)
+# Cache sources-jar probe results so version_exists + download resolve once.
+_MAVEN_SOURCES_PROBE_CACHE: dict[tuple[str, str, str], str] = {}
 
 
 def _absolute_packages_debian_url(href: str) -> str:
@@ -578,7 +606,7 @@ def get_latest_package_version(link, pkg_type, oss_name):
             # Prefer the highest-priority known repository that hosts this package.
             group_path, artifact_id = _maven_group_artifact(oss_name)
             if group_path and artifact_id:
-                for repo_base in MAVEN_REPOSITORY_BASES:
+                for repo_base in _maven_repo_bases_for(group_path):
                     find_version = _maven_latest_version_from_repo(
                         repo_base, group_path, artifact_id
                     )
@@ -876,7 +904,7 @@ def get_download_location_for_pypi(link):
     return ret, new_link
 
 
-def _maven_http_ok(url: str, timeout: float = 8) -> bool:
+def _maven_http_ok(url: str, timeout=MAVEN_HTTP_TIMEOUT) -> bool:
     try:
         response = requests.head(url, allow_redirects=True, timeout=timeout)
         if response.status_code == 200:
@@ -905,18 +933,34 @@ def _maven_group_artifact(origin_name: str) -> tuple[str, str]:
     return group_id.replace('.', '/'), artifact_id
 
 
+def _maven_repo_bases_for(group_path: str) -> tuple[str, ...]:
+    """Prefer host hints matching ``group_path``, then the default popularity order."""
+    preferred: list[str] = []
+    gp = (group_path or "").strip().strip("/")
+    if gp:
+        for prefix, repos in _MAVEN_GROUP_REPO_HINTS:
+            if gp == prefix or gp.startswith(f"{prefix}/"):
+                preferred.extend(repos)
+                break
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for base in (*preferred, *MAVEN_REPOSITORY_BASES):
+        if base not in seen:
+            seen.add(base)
+            ordered.append(base)
+    return tuple(ordered)
+
+
 def _maven_version_available(group_path: str, artifact_id: str, version: str) -> bool:
-    """True if any known Maven host has this exact GAV (sources/pom/jar/dir)."""
-    for repo_base in MAVEN_REPOSITORY_BASES:
-        version_dir = f"{repo_base}/{group_path}/{artifact_id}/{version}"
-        for classifier in MAVEN_SOURCE_CLASSIFIERS:
-            if _maven_http_ok(f"{version_dir}/{artifact_id}-{version}-{classifier}.jar"):
-                return True
-        if _maven_http_ok(f"{version_dir}/{artifact_id}-{version}.pom"):
-            return True
-        if _maven_http_ok(f"{version_dir}/{artifact_id}-{version}.jar"):
-            return True
-        if _maven_http_ok(version_dir) or _maven_http_ok(f"{version_dir}/"):
+    """True if a known host has this GAV as sources jar or pom (reuse sources probe cache)."""
+    if _probe_maven_sources_jar(group_path, artifact_id, version):
+        return True
+    for repo_base in _maven_repo_bases_for(group_path):
+        pom_url = (
+            f"{repo_base}/{group_path}/{artifact_id}/{version}/"
+            f"{artifact_id}-{version}.pom"
+        )
+        if _maven_http_ok(pom_url):
             return True
     return False
 
@@ -925,7 +969,7 @@ def _maven_latest_version_from_repo(repo_base: str, group_path: str, artifact_id
     """Read ``maven-metadata.xml`` and return release/latest/last listed version."""
     metadata_url = f"{repo_base}/{group_path}/{artifact_id}/maven-metadata.xml"
     try:
-        response = requests.get(metadata_url, timeout=8)
+        response = requests.get(metadata_url, timeout=MAVEN_HTTP_TIMEOUT)
         if response.status_code != 200:
             return ""
         root = ET.fromstring(response.content)
@@ -949,8 +993,13 @@ def _maven_sources_from_directory(version_dir: str, artifact_id: str, version: s
     """Parse a Maven version directory listing for a sources jar link."""
     preferred = f"{artifact_id}-{version}-sources.jar"
     try:
-        html = urlopen(f"{version_dir.rstrip('/')}/").read().decode("utf8")
-        bs_obj = BeautifulSoup(html, "html.parser")
+        response = requests.get(
+            f"{version_dir.rstrip('/')}/",
+            timeout=MAVEN_HTTP_TIMEOUT,
+        )
+        if response.status_code != 200:
+            return ""
+        bs_obj = BeautifulSoup(response.text, "html.parser")
         found = ""
         for anchor in bs_obj.findAll("a"):
             href = anchor.get("href") or ""
@@ -965,22 +1014,34 @@ def _maven_sources_from_directory(version_dir: str, artifact_id: str, version: s
 
 
 def _probe_maven_sources_jar(group_path: str, artifact_id: str, version: str) -> str:
-    for repo_base in MAVEN_REPOSITORY_BASES:
+    cache_key = (group_path, artifact_id, version)
+    if cache_key in _MAVEN_SOURCES_PROBE_CACHE:
+        return _MAVEN_SOURCES_PROBE_CACHE[cache_key]
+
+    found = ""
+    for repo_base in _maven_repo_bases_for(group_path):
         version_dir = f"{repo_base}/{group_path}/{artifact_id}/{version}"
         for classifier in MAVEN_SOURCE_CLASSIFIERS:
             sources_url = f"{version_dir}/{artifact_id}-{version}-{classifier}.jar"
             if _maven_http_ok(sources_url):
                 logger.info(f"Maven sources found: {sources_url}")
-                return sources_url
+                found = sources_url
+                break
+        if found:
+            break
+        # Directory listing only when classifier URLs miss; bounded by MAVEN_HTTP_TIMEOUT.
         listed = _maven_sources_from_directory(version_dir, artifact_id, version)
         if listed:
             logger.info(f"Maven sources found via listing: {listed}")
-            return listed
-    return ""
+            found = listed
+            break
+
+    _MAVEN_SOURCES_PROBE_CACHE[cache_key] = found
+    return found
 
 
 def _probe_maven_artifact_base(group_path: str, artifact_id: str) -> str:
-    for repo_base in MAVEN_REPOSITORY_BASES:
+    for repo_base in _maven_repo_bases_for(group_path):
         artifact_base = f"{repo_base}/{group_path}/{artifact_id}"
         if _maven_http_ok(artifact_base) or _maven_http_ok(f"{artifact_base}/"):
             logger.info(f"Maven artifact base found: {artifact_base}")
