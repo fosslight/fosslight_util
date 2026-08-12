@@ -5,12 +5,64 @@
 import logging
 import re
 import requests
+import xml.etree.ElementTree as ET
 from lastversion import latest
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 import fosslight_util.constant as constant
 
 logger = logging.getLogger(constant.LOGGER_NAME)
+
+# Probe order for mvnrepository.com → concrete Maven repository hosts.
+# Prefer *-sources.jar (then -source.jar / -src.jar) under each base.
+# Ordered by how commonly these hosts are used in practice.
+MAVEN_REPOSITORY_BASES = (
+    "https://repo1.maven.org/maven2",  # Maven Central
+    "https://dl.google.com/android/maven2",  # Google Android
+    "https://maven.google.com",  # Google Maven
+    "https://repo.spring.io/release",  # Spring
+    "https://repo.spring.io/artifactory/libs-release",  # Spring libs-release
+    "https://repo.spring.io/milestone",  # Spring milestone
+    "https://plugins.gradle.org/m2",  # Gradle Plugin Portal
+    "https://jitpack.io",  # JitPack (GitHub-based)
+    "https://repository.jboss.org/nexus/content/groups/public",  # JBoss public
+    "https://repository.jboss.org/nexus/content/repositories/releases",  # JBoss releases
+    "https://packages.confluent.io/maven",  # Confluent
+    "https://maven.repository.redhat.com/ga",  # Red Hat GA
+    "https://oss.sonatype.org/content/repositories/releases",  # Sonatype OSS releases
+    "https://repo.clojars.org",  # Clojars
+    "https://packages.atlassian.com/content/repositories/atlassian-public",  # Atlassian
+    "https://repo.hortonworks.com/repository/releases",  # Hortonworks
+)
+MAVEN_SOURCE_CLASSIFIERS = ("sources", "source", "src")
+# (connect, read) — keep probes snappy; dead hosts must not stall the CLI.
+MAVEN_HTTP_TIMEOUT = (2, 2)
+# groupPath prefix → try these hosts before the default popularity order.
+_MAVEN_GROUP_REPO_HINTS = (
+    ("io/confluent", ("https://packages.confluent.io/maven",)),
+    (
+        "org/springframework",
+        (
+            "https://repo.spring.io/milestone",
+            "https://repo.spring.io/release",
+            "https://repo.spring.io/artifactory/libs-release",
+        ),
+    ),
+    (
+        "com/google/android",
+        ("https://dl.google.com/android/maven2", "https://maven.google.com"),
+    ),
+    (
+        "androidx",
+        ("https://dl.google.com/android/maven2", "https://maven.google.com"),
+    ),
+    (
+        "com/atlassian",
+        ("https://packages.atlassian.com/content/repositories/atlassian-public",),
+    ),
+)
+# Cache sources-jar probe results so version_exists + download resolve once.
+_MAVEN_SOURCES_PROBE_CACHE: dict[tuple[str, str, str], str] = {}
 
 
 def _absolute_packages_debian_url(href: str) -> str:
@@ -287,14 +339,25 @@ def version_exists(pkg_type, origin_name, version):
             r = requests.get(f"https://pypi.org/pypi/{origin_name}/{version}/json", timeout=5)
             return r.status_code == 200
         elif pkg_type == 'maven':
-            r = requests.get(f'https://api.deps.dev/v3alpha/systems/maven/packages/{origin_name}', timeout=5)
-            if r.status_code == 200:
-                versions = r.json().get('versions', [])
-                for vobj in versions:
-                    vkey = vobj.get('versionKey') or {}
-                    if vkey.get('version') == version:
-                        return True
-                return False
+            # Prefer Central index when available, then probe known Maven hosts for the
+            # exact version so non-Central releases (e.g. Spring milestones) are kept.
+            try:
+                r = requests.get(
+                    f'https://api.deps.dev/v3alpha/systems/maven/packages/{origin_name}',
+                    timeout=5,
+                )
+                if r.status_code == 200:
+                    versions = r.json().get('versions', [])
+                    for vobj in versions:
+                        vkey = vobj.get('versionKey') or {}
+                        if vkey.get('version') == version:
+                            return True
+            except Exception as e:
+                logger.debug(f'Maven Central version index check failed: {e}')
+            group_path, artifact_id = _maven_group_artifact(origin_name)
+            if group_path and artifact_id and version:
+                return _maven_version_available(group_path, artifact_id, version)
+            return False
         elif pkg_type == 'pub':
             r = requests.get(f'https://pub.dev/api/packages/{origin_name}', timeout=5)
             if r.status_code == 200:
@@ -540,50 +603,66 @@ def get_latest_package_version(link, pkg_type, oss_name):
         elif pkg_type == 'pypi':
             find_version = str(latest(oss_name, at='pip', output_format='version', pre_ok=True))
         elif pkg_type == 'maven':
-            maven_response = requests.get(f'https://api.deps.dev/v3alpha/systems/maven/packages/{oss_name}')
-            if maven_response.status_code == 200:
-                versions = maven_response.json().get('versions', [])
-                if versions:
-                    # Some version entries may miss publishedAt; fallback to semantic version ordering.
-                    def sem_key(vstr: str):
-                        # Parse semantic version with optional prerelease label
-                        # Examples: 1.9.0, 1.10.0-alpha, 2.0.0-rc
-                        m = re.match(r'^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-.]([A-Za-z0-9]+))?$', vstr)
-                        if not m:
-                            return (0, 0, 0, 999)
-                        major = int(m.group(1) or 0)
-                        minor = int(m.group(2) or 0)
-                        patch = int(m.group(3) or 0)
-                        label = (m.group(4) or '').lower()
-                        # Assign label weights: stable > rc > beta > alpha
-                        label_weight_map = {
-                            'alpha': -3,
-                            'beta': -2,
-                            'rc': -1
-                        }
-                        weight = label_weight_map.get(label, 0 if label == '' else -4)
-                        return (major, minor, patch, weight)
+            # Prefer the highest-priority known repository that hosts this package.
+            group_path, artifact_id = _maven_group_artifact(oss_name)
+            if group_path and artifact_id:
+                for repo_base in _maven_repo_bases_for(group_path):
+                    find_version = _maven_latest_version_from_repo(
+                        repo_base, group_path, artifact_id
+                    )
+                    if find_version:
+                        logger.info(
+                            f'Maven latest version {find_version} from {repo_base}'
+                        )
+                        break
+            if not find_version:
+                maven_response = requests.get(
+                    f'https://api.deps.dev/v3alpha/systems/maven/packages/{oss_name}',
+                    timeout=MAVEN_HTTP_TIMEOUT,
+                )
+                if maven_response.status_code == 200:
+                    versions = maven_response.json().get('versions', [])
+                    if versions:
+                        # Some version entries may miss publishedAt; fallback to semantic version ordering.
+                        def sem_key(vstr: str):
+                            # Parse semantic version with optional prerelease label
+                            # Examples: 1.9.0, 1.10.0-alpha, 2.0.0-rc
+                            m = re.match(r'^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-.]([A-Za-z0-9]+))?$', vstr)
+                            if not m:
+                                return (0, 0, 0, 999)
+                            major = int(m.group(1) or 0)
+                            minor = int(m.group(2) or 0)
+                            patch = int(m.group(3) or 0)
+                            label = (m.group(4) or '').lower()
+                            # Assign label weights: stable > rc > beta > alpha
+                            label_weight_map = {
+                                'alpha': -3,
+                                'beta': -2,
+                                'rc': -1
+                            }
+                            weight = label_weight_map.get(label, 0 if label == '' else -4)
+                            return (major, minor, patch, weight)
 
-                    with_pub = [v for v in versions if v.get('publishedAt')]
-                    if with_pub:
-                        cand = max(with_pub, key=lambda v: v.get('publishedAt'))
-                    else:
-                        decorated = []
-                        for v in versions:
-                            vkey = v.get('versionKey', {})
-                            ver = vkey.get('version', '')
-                            if ver:
-                                decorated.append((sem_key(ver), ver, v))
-                        if decorated:
-                            decorated.sort(key=lambda t: t[0])
-                            stable_candidates = [t for t in decorated if t[0][3] == 0]
-                            if stable_candidates:
-                                cand = stable_candidates[-1][2]
-                            else:
-                                cand = decorated[-1][2]
+                        with_pub = [v for v in versions if v.get('publishedAt')]
+                        if with_pub:
+                            cand = max(with_pub, key=lambda v: v.get('publishedAt'))
                         else:
-                            cand = versions[-1]
-                    find_version = cand.get('versionKey', {}).get('version', '')
+                            decorated = []
+                            for v in versions:
+                                vkey = v.get('versionKey', {})
+                                ver = vkey.get('version', '')
+                                if ver:
+                                    decorated.append((sem_key(ver), ver, v))
+                            if decorated:
+                                decorated.sort(key=lambda t: t[0])
+                                stable_candidates = [t for t in decorated if t[0][3] == 0]
+                                if stable_candidates:
+                                    cand = stable_candidates[-1][2]
+                                else:
+                                    cand = decorated[-1][2]
+                            else:
+                                cand = versions[-1]
+                        find_version = cand.get('versionKey', {}).get('version', '')
         elif pkg_type == 'pub':
             pub_response = requests.get(f'https://pub.dev/api/packages/{oss_name}')
             if pub_response.status_code == 200:
@@ -826,9 +905,153 @@ def get_download_location_for_pypi(link):
     return ret, new_link
 
 
+def _maven_http_ok(url: str, timeout=MAVEN_HTTP_TIMEOUT) -> bool:
+    try:
+        response = requests.head(url, allow_redirects=True, timeout=timeout)
+        if response.status_code == 200:
+            return True
+        # Some Maven hosts reject HEAD; fall back to a streamed GET.
+        if response.status_code in (403, 405, 501):
+            response = requests.get(url, stream=True, allow_redirects=True, timeout=timeout)
+            try:
+                return response.status_code == 200
+            finally:
+                response.close()
+    except Exception:
+        return False
+    return False
+
+
+def _maven_group_artifact(origin_name: str) -> tuple[str, str]:
+    """Return ``(group_path, artifact_id)`` from ``groupId:artifactId``."""
+    if not origin_name or ':' not in origin_name:
+        return "", ""
+    group_id, artifact_id = origin_name.split(':', 1)
+    group_id = group_id.strip()
+    artifact_id = artifact_id.strip()
+    if not group_id or not artifact_id:
+        return "", ""
+    return group_id.replace('.', '/'), artifact_id
+
+
+def _maven_repo_bases_for(group_path: str) -> tuple[str, ...]:
+    """Prefer host hints matching ``group_path``, then the default popularity order."""
+    preferred: list[str] = []
+    gp = (group_path or "").strip().strip("/")
+    if gp:
+        for prefix, repos in _MAVEN_GROUP_REPO_HINTS:
+            if gp == prefix or gp.startswith(f"{prefix}/"):
+                preferred.extend(repos)
+                break
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for base in (*preferred, *MAVEN_REPOSITORY_BASES):
+        if base not in seen:
+            seen.add(base)
+            ordered.append(base)
+    return tuple(ordered)
+
+
+def _maven_version_available(group_path: str, artifact_id: str, version: str) -> bool:
+    """True if a known host has this GAV as sources jar or pom (reuse sources probe cache)."""
+    if _probe_maven_sources_jar(group_path, artifact_id, version):
+        return True
+    for repo_base in _maven_repo_bases_for(group_path):
+        pom_url = (
+            f"{repo_base}/{group_path}/{artifact_id}/{version}/"
+            f"{artifact_id}-{version}.pom"
+        )
+        if _maven_http_ok(pom_url):
+            return True
+    return False
+
+
+def _maven_latest_version_from_repo(repo_base: str, group_path: str, artifact_id: str) -> str:
+    """Read ``maven-metadata.xml`` and return release/latest/last listed version."""
+    metadata_url = f"{repo_base}/{group_path}/{artifact_id}/maven-metadata.xml"
+    try:
+        response = requests.get(metadata_url, timeout=MAVEN_HTTP_TIMEOUT)
+        if response.status_code != 200:
+            return ""
+        root = ET.fromstring(response.content)
+        for tag in ("release", "latest"):
+            value = (root.findtext(f"versioning/{tag}") or "").strip()
+            if value:
+                return value
+        versions = [
+            (node.text or "").strip()
+            for node in root.findall("versioning/versions/version")
+            if (node.text or "").strip()
+        ]
+        if versions:
+            return versions[-1]
+    except Exception as ex:
+        logger.debug(f"Failed to read Maven metadata ({metadata_url}): {ex}")
+    return ""
+
+
+def _maven_sources_from_directory(version_dir: str, artifact_id: str, version: str) -> str:
+    """Parse a Maven version directory listing for a sources jar link."""
+    preferred = f"{artifact_id}-{version}-sources.jar"
+    try:
+        response = requests.get(
+            f"{version_dir.rstrip('/')}/",
+            timeout=MAVEN_HTTP_TIMEOUT,
+        )
+        if response.status_code != 200:
+            return ""
+        bs_obj = BeautifulSoup(response.text, "html.parser")
+        found = ""
+        for anchor in bs_obj.findAll("a"):
+            href = anchor.get("href") or ""
+            text = (anchor.text or "").strip()
+            if text == preferred or href.rstrip("/").endswith(preferred):
+                return f"{version_dir.rstrip('/')}/{href}"
+            if href.endswith(("sources.jar", "source.jar", "src.jar")):
+                found = f"{version_dir.rstrip('/')}/{href}"
+        return found
+    except Exception:
+        return ""
+
+
+def _probe_maven_sources_jar(group_path: str, artifact_id: str, version: str) -> str:
+    cache_key = (group_path, artifact_id, version)
+    if cache_key in _MAVEN_SOURCES_PROBE_CACHE:
+        return _MAVEN_SOURCES_PROBE_CACHE[cache_key]
+
+    found = ""
+    for repo_base in _maven_repo_bases_for(group_path):
+        version_dir = f"{repo_base}/{group_path}/{artifact_id}/{version}"
+        for classifier in MAVEN_SOURCE_CLASSIFIERS:
+            sources_url = f"{version_dir}/{artifact_id}-{version}-{classifier}.jar"
+            if _maven_http_ok(sources_url):
+                logger.info(f"Maven sources found: {sources_url}")
+                found = sources_url
+                break
+        if found:
+            break
+        # Directory listing only when classifier URLs miss; bounded by MAVEN_HTTP_TIMEOUT.
+        listed = _maven_sources_from_directory(version_dir, artifact_id, version)
+        if listed:
+            logger.info(f"Maven sources found via listing: {listed}")
+            found = listed
+            break
+
+    _MAVEN_SOURCES_PROBE_CACHE[cache_key] = found
+    return found
+
+
+def _probe_maven_artifact_base(group_path: str, artifact_id: str) -> str:
+    for repo_base in _maven_repo_bases_for(group_path):
+        artifact_base = f"{repo_base}/{group_path}/{artifact_id}"
+        if _maven_http_ok(artifact_base) or _maven_http_ok(f"{artifact_base}/"):
+            logger.info(f"Maven artifact base found: {artifact_base}")
+            return artifact_base
+    return ""
+
+
 def get_download_location_for_maven(link):
-    # get the url for downloading source file in
-    # repo1.maven.org/maven2/(group_id(split to separator '/'))/(artifact_id)/(oss_version)
+    # Resolve a downloadable sources jar (or artifact base when version is absent).
     ret = False
     new_link = ''
 
@@ -842,29 +1065,21 @@ def get_download_location_for_maven(link):
             version = parts[2] if len(parts) > 2 and parts[2] else ''
             group_path = group_raw.replace('.', '/')
 
-            repo_base = f'https://repo1.maven.org/maven2/{group_path}/{artifact_id}'
-            try:
-                urlopen(repo_base)
-                if version:
-                    dn_loc = f'{repo_base}/{version}'
-                else:
-                    new_link = repo_base
-                    ret = True
-                    return ret, new_link
-            except Exception:
-                google_base = f'https://dl.google.com/android/maven2/{group_path}/{artifact_id}'
-                if version:
-                    google_sources = f'{google_base}/{version}/{artifact_id}-{version}-sources.jar'
-                    try:
-                        res_g = urlopen(google_sources)
-                        if res_g.getcode() == 200:
-                            ret = True
-                            return ret, google_sources
-                    except Exception:
-                        pass
-                new_link = google_base
-                ret = True
-                return ret, new_link
+            if version:
+                sources_url = _probe_maven_sources_jar(group_path, artifact_id, version)
+                if sources_url:
+                    return True, sources_url
+                raise Exception(
+                    f'no sources jar found in known Maven repositories '
+                    f'for {group_raw}:{artifact_id}:{version}'
+                )
+
+            artifact_base = _probe_maven_artifact_base(group_path, artifact_id)
+            if artifact_base:
+                return True, artifact_base
+            raise Exception(
+                f'artifact not found in known Maven repositories for {group_raw}:{artifact_id}'
+            )
 
         elif link.startswith('repo1.maven.org/maven2/'):
             if link.endswith('.tar.gz') or link.endswith('.jar') or link.endswith('.tar.xz'):

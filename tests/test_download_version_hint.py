@@ -288,6 +288,7 @@ def test_cli_output_result_includes_downloaded_link(tmp_path, monkeypatch):
 
     assert result["success"] is True
     assert result["link"] == "http://deb.debian.org/debian/pool/main/p/pkg/pkg_1.0.0.tar.xz"
+    assert result["message"] == ""
 
 
 def test_cli_output_result_uses_empty_link_on_failure(tmp_path, monkeypatch):
