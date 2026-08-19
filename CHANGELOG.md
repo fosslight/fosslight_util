@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.7 (19/08/2026)
+## Changes
+## 🔧 Maintenance
+
+- Upgrade cyclonedx-python-lib to v11 @JustinWonjaePark (#302)
+
+---
+
 ## v2.2.6 (12/08/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -254,12 +262,3 @@
 ## 🐛 Hotfixes
 
 - Improve downloadability check and compressed file detection @dd-jy (#258)
-
----
-
-## v2.1.42 (05/03/2026)
-## Changes
-## 🔧 Maintenance
-
-- Remove "Type of change" section from PR default template @woocheol-lge (#257)
-- Update CodeRabbit config @soimkim (#256)
