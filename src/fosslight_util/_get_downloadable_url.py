@@ -704,7 +704,11 @@ def get_downloadable_url(link, checkout_version):
     elif pkg_type == "maven" or new_link.startswith('repo1.maven.org/') or new_link.startswith('dl.google.com/android/maven2/'):
         ret, result_link = get_download_location_for_maven(new_link)
     elif (pkg_type in ["npm", "npm2"]) or new_link.startswith('registry.npmjs.org/'):
-        ret, result_link = get_download_location_for_npm(new_link)
+        ret, result_link = get_download_location_for_npm(new_link, checkout_version)
+        if ret and not oss_version and checkout_version:
+            is_tarball = '/-/' in new_link and new_link.rstrip('/').endswith('.tgz')
+            if not is_tarball:
+                oss_version = checkout_version.strip()
     elif pkg_type == "pub":
         ret, result_link = get_download_location_for_pub(new_link)
     elif pkg_type == "go":
@@ -1122,37 +1126,72 @@ def get_download_location_for_maven(link):
     return ret, new_link
 
 
-def get_download_location_for_npm(link):
-    # url format : registry.npmjs.org/packagename/-/packagename-version.tgz
+def _parse_npm_package_link(link):
+    """Parse npm registry/npmjs.com URL into (package_name, version or None)."""
+    parts = link.split('/')
+    idx = 2 if len(parts) > 1 and parts[1] == 'package' else 1
+    if idx >= len(parts):
+        return None, None
+
+    if parts[idx].startswith('@'):
+        if idx + 1 >= len(parts):
+            return parts[idx], None
+        package_name = f'{parts[idx]}/{parts[idx + 1]}'
+        version_idx = idx + 2
+    else:
+        package_name = parts[idx]
+        version_idx = idx + 1
+
+    version = None
+    remaining = parts[version_idx:]
+    if remaining and remaining[0] == 'v' and len(remaining) > 1:
+        version = remaining[1].rstrip('/')
+
+    return package_name, version
+
+
+def get_download_location_for_npm(link, checkout_version=""):
     ret = False
     new_link = ''
-    oss_version = ""
-    oss_name_npm = ""
-    tar_name = ""
 
     link = link.replace('%40', '@')
-    if link.startswith('www.npmjs.com/') or link.startswith('registry.npmjs.org/'):
-        try:
-            dn_loc_split = link.split('/')
-            if dn_loc_split[1] == 'package':
-                idx = 2
-            else:
-                idx = 1
-            if dn_loc_split[idx].startswith('@'):
-                oss_name_npm = dn_loc_split[idx]+'/'+dn_loc_split[idx+1]
-                tar_name = dn_loc_split[idx+1]
-                oss_version = dn_loc_split[idx+3]
-            else:
-                oss_name_npm = dn_loc_split[idx]
-                tar_name = oss_name_npm
-                oss_version = dn_loc_split[idx+2]
+    if not (link.startswith('www.npmjs.com/') or link.startswith('registry.npmjs.org/')):
+        return ret, new_link
 
-            tar_name = f'{tar_name}-{oss_version}'
-            new_link = f'https://registry.npmjs.org/{oss_name_npm}/-/{tar_name}.tgz'
-            ret = True
-        except Exception as error:
-            ret = False
-            logger.warning('Cannot find the link for npm (url:'+link+') '+str(error))
+    # Type A: already a tarball URL (scoped/unscoped)
+    if '/-/' in link and link.rstrip('/').endswith('.tgz'):
+        return True, f'https://{link.lstrip("https://").lstrip("http://")}'
+
+    # Type B: package page URL — resolve via registry API
+    try:
+        oss_name_npm, oss_version = _parse_npm_package_link(link)
+        if not oss_name_npm:
+            return ret, new_link
+        if not oss_version and checkout_version:
+            oss_version = checkout_version.strip()
+
+        if oss_version:
+            api_url = f'https://registry.npmjs.org/{oss_name_npm}/{oss_version}'
+        else:
+            api_url = f'https://registry.npmjs.org/{oss_name_npm}'
+
+        npm_response = requests.get(api_url, timeout=5)
+        if npm_response.status_code == 200:
+            data = npm_response.json()
+            if oss_version:
+                tarball = data.get('dist', {}).get('tarball', '')
+            else:
+                latest_ver = data.get('dist-tags', {}).get('latest', '')
+                tarball = ''
+                if latest_ver:
+                    tarball = data.get('versions', {}).get(latest_ver, {}).get('dist', {}).get('tarball', '')
+            if tarball:
+                new_link = tarball
+                ret = True
+    except Exception as error:
+        ret = False
+        logger.warning('Cannot find the link for npm (url:'+link+') '+str(error))
+
     return ret, new_link
 
 
