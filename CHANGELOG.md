@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.8 (23/08/2026)
+## Changes
+## 🔧 Maintenance
+
+- Exclude gradle/vite/lockfiles @soimkim (#304)
+
+---
+
 ## v2.2.7 (19/08/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -254,11 +262,3 @@
 ## 🔧 Maintenance
 
 - Modified to search for a version that matches all major.minor.patch when provided as input @soimkim (#259)
-
----
-
-## v2.1.43 (23/03/2026)
-## Changes
-## 🐛 Hotfixes
-
-- Improve downloadability check and compressed file detection @dd-jy (#258)
