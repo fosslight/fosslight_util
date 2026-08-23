@@ -9,12 +9,22 @@ from typing import List
 
 EXCLUDE_DIRECTORY = ["test", "tests", "doc", "docs", "intermediates"]
 PACKAGE_DIRECTORY = ["node_modules", "venv", "Pods", "Carthage"]
-EXCLUDE_FILENAME = ["changelog", "config.guess", "config.sub", "changes", "ltmain.sh",
-                    "configure", "configure.ac", "depcomp", "compile", "missing", "makefile",
-                    'fosslight_bin', 'fosslight_bin.exe']
+EXCLUDE_FILENAME = [
+    "changelog", "config.guess", "config.sub", "changes", "ltmain.sh",
+    "configure", "configure.ac", "depcomp", "compile", "missing", "makefile",
+    "makefile.am",
+    "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts",
+    "vite.config.ts", "vite.config.js", "vite.config.mts", "vite.config.mjs",
+    "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml",
+    "fosslight_bin", "fosslight_bin.exe",
+]
 EXCLUDE_FILE_EXTENSION = ['qm', 'xlsx', 'pdf', 'pptx', 'jfif', 'docx', 'doc', 'whl',
                           'xls', 'xlsm', 'ppt', 'mp4', 'pyc', 'plist', 'dat',
                           "m4", "in", "po", "class"]
+
+
+def is_excluded_filename(file_path: str) -> bool:
+    return os.path.basename(file_path).lower() in EXCLUDE_FILENAME
 
 
 def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
