@@ -279,6 +279,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     msg_wget = ""
     oss_name = ""
     oss_version = ""
+    clarified_from_git = ""
     downloaded_link = ""
     size_limit_blocked = False
     log_file_name = "fosslight_download_" + \
@@ -305,7 +306,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
 
             # General download: git clone → requests → system wget
-            success_git, msg, oss_name, oss_version, _ = download_git_clone(
+            success_git, msg, oss_name, oss_version, clarified_from_git = download_git_clone(
                 link, target_dir, checkout_to, tag, branch,
                 ssh_key, id, git_token, called_cli, size_limit_gb=size_limit_gb)
             link = change_ssh_link_to_https(link)
@@ -351,15 +352,15 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         if size_limit_blocked:
             # Keep a clear size-limit message for callers/UI (do not wrap as git/wget fail)
             pass
+        elif success:
+            # wget/gem may succeed after git failed; do not keep leftover git fail text
+            msg = ""
         elif msg:
             msg = f'git fail: {msg}'
             if is_rubygems:
                 msg = f'gem download: {success}'
-            else:
-                if msg_wget:
-                    msg = f'{msg}, wget fail: {msg_wget}'
-                else:
-                    msg = f'{msg}, wget success'
+            elif msg_wget:
+                msg = f'{msg}, wget fail: {msg_wget}'
         elif msg_wget:
             msg = f'wget fail: {msg_wget}'
 
@@ -367,7 +368,11 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         success = False
         msg = str(error)
 
-    clarified_version = clarified_version_from_oss_version(oss_version)
+    clarified_version = (
+        clarified_from_git
+        if success and clarified_from_git
+        else clarified_version_from_oss_version(oss_version)
+    )
     output_link = downloaded_link if success else ""
     output_result = {
         "success": success,
@@ -446,18 +451,18 @@ _BASE_SEMVER_FOR_CHECKOUT = re.compile(
     re.IGNORECASE,
 )
 _SEMVER_IN_REF = re.compile(
-    r'(?:^v\.? ?|[-_]v\.? ?|[-_])'
+    r'(?:^v\.? ?|[-_@]v\.? ?|[-_@])'
     r'(\d+)\.(\d+)\.(\d+)'
     r'(?:(?:-[0-9A-Za-z.-]+)|(?:\.[A-Za-z][0-9A-Za-z.-]*))?'
     r'(?:\+[0-9A-Za-z.-]+)?'
-    r'(?=[-_]|$)',
+    r'(?=[-_@]|$)',
     re.IGNORECASE,
 )
 _SEMVER_AT_REF_START = re.compile(
     r'^(\d+)\.(\d+)\.(\d+)'
     r'(?:(?:-[0-9A-Za-z.-]+)|(?:\.[A-Za-z][0-9A-Za-z.-]*))?'
     r'(?:\+[0-9A-Za-z.-]+)?'
-    r'(?=[-_]|$)',
+    r'(?=[-_@]|$)',
     re.IGNORECASE,
 )
 _SEMVER_DOT_QUALIFIER_IN_STR = re.compile(
@@ -467,8 +472,11 @@ _SEMVER_DOT_QUALIFIER_IN_STR = re.compile(
 _CLARIFIED_MAJOR_ONLY_FULL = re.compile(r'^(?:v\.? ?)?(\d+)$', re.IGNORECASE)
 # Maven / OSGi style: 1.1.7.7 (more than three numeric segments; not strict semver)
 _PURE_DOT_NUMERIC_VERSION = re.compile(r'^\d+(\.\d+)+$')
-# Two-part x.y not followed by .digit (avoids taking "1.2" from "1.2.3")
-_CLARIFIED_TWO_IN_STR = re.compile(r'(\d+)\.(\d+)(?!\.\d)')
+# Three-part x.y.z anywhere (e.g. R0.3.6, pkg0.3.6) — tried before two-part fallback
+_SEMVER_THREE_IN_STR = re.compile(r'(\d+)\.(\d+)\.(\d+)')
+# Two-part x.y not preceded by digit. and not followed by .digit
+# (avoids taking "3.6" from "0.3.6" or "2.3" from "1.2.3")
+_CLARIFIED_TWO_IN_STR = re.compile(r'(?<!\d\.)(\d+)\.(\d+)(?!\.\d)')
 _CLARIFIED_MAJOR_IN_STR = re.compile(
     r'(?:^|[-_/])(?:v\.? ?)?(\d+)(?=[^.\d]|$)', re.IGNORECASE
 )
@@ -521,6 +529,9 @@ def clarified_version_from_oss_version(oss_version: str) -> str:
     m = _SEMVER_DOT_QUALIFIER_IN_STR.search(core)
     if m:
         return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
+    m = _SEMVER_THREE_IN_STR.search(core)
+    if m:
+        return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
     m = _CLARIFIED_TWO_IN_STR.search(core)
     if m:
         return f"{m.group(1)}.{m.group(2)}"
@@ -547,7 +558,11 @@ def _strip_known_archive_suffixes(filename: str) -> str:
 
 
 def _version_string_from_archive_stem(stem: str) -> str:
-    """Take trailing version segment from name-version stems (e.g. bison-3.8.2 -> 3.8.2)."""
+    """Take trailing version segment from name-version stems (e.g. bison-3.8.2 -> 3.8.2).
+
+    If the basename itself is a version (e.g. v3.28.3, 1.1.7.7), return it.
+    Plain package names without a version (e.g. printf) return "".
+    """
     if not stem:
         return ""
     m = _ARCHIVE_VERSION_TAIL.search(stem)
@@ -559,7 +574,14 @@ def _version_string_from_archive_stem(stem: str) -> str:
         if classifier:
             return classifier.group(1)
         return version
-    return stem
+    core = _strip_leading_v_prefix(_strip_debian_epoch_prefix(stem))
+    if (
+        _PURE_DOT_NUMERIC_VERSION.match(core)
+        or _BASE_SEMVER_FOR_CHECKOUT.match(core)
+        or _CLARIFIED_MAJOR_ONLY_FULL.match(core)
+    ):
+        return stem
+    return ""
 
 
 def _oss_version_hint_from_wget_link(link: str, downloaded_file: str) -> str:
@@ -586,7 +608,9 @@ def _oss_version_hint_from_wget_link(link: str, downloaded_file: str) -> str:
         stem = _strip_known_archive_suffixes(base)
         if not stem or stem.lower() == "download":
             continue
-        return _version_string_from_archive_stem(stem)
+        hint = _version_string_from_archive_stem(stem)
+        if hint:
+            return hint
     return ""
 
 
@@ -701,10 +725,11 @@ def _try_resolve_checkout_base(base: str, ref_set: set) -> Tuple[Optional[str], 
         return ref, clar
 
     # Fallback: find refs that end with the input version (case-insensitive),
-    # but only when the match starts at a separator boundary (-, _, /, .)
+    # but only when the match starts at a separator boundary (-, _, /, ., @)
     # or covers the entire ref. This prevents "2" from matching "3.02".
     # e.g. input "stable202002" matches branch "edk2-stable202002" (boundary: '-')
-    _BOUNDARY_CHARS = {'-', '_', '/', '.'}
+    # e.g. input "0.3.6" matches tag "@serenityjs/logger@0.3.6" (boundary: '@')
+    _BOUNDARY_CHARS = {'-', '_', '/', '.', '@'}
     base_lower = base.lower()
     containing_refs = []
     for r in ref_set:

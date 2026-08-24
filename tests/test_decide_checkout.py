@@ -130,6 +130,63 @@ def test_download_git_clone_android_libhwbinder_c_15_0(tmp_path, monkeypatch):
     assert clarified_version == "15.0.0"
 
 
+def test_clarified_version_keeps_leading_zero_major():
+    assert clarified_version_from_oss_version("0.3.6") == "0.3.6"
+    assert clarified_version_from_oss_version("v0.3.6") == "0.3.6"
+
+
+def test_decide_checkout_clarified_keeps_leading_zero_major(monkeypatch):
+    tags = ["0.3.6", "v0.3.6"]
+    monkeypatch.setattr(
+        "fosslight_util.download.get_remote_refs",
+        lambda _url: {"tags": tags, "branches": ["master"]},
+    )
+
+    ref, clar = decide_checkout(
+        checkout_to="0.3.6",
+        git_url="https://github.com/example/pkg",
+    )
+
+    assert ref in ("0.3.6", "v0.3.6")
+    assert clar == "0.3.6"
+
+
+def test_try_resolve_npm_scoped_package_tag():
+    ref_set = {
+        "@serenityjs/logger@0.3.5",
+        "@serenityjs/logger@0.3.6",
+        "@serenityjs/protocol@0.3.6",
+        "master",
+    }
+    ref, clar = _try_resolve_checkout_base("0.3.6", ref_set)
+    assert ref == "@serenityjs/logger@0.3.6"
+    assert clar == "0.3.6"
+
+
+def test_decide_checkout_resolves_npm_scoped_package_tag(monkeypatch):
+    tags = [
+        "@serenityjs/logger@0.3.5",
+        "@serenityjs/logger@0.3.6",
+        "@serenityjs/protocol@0.4.0",
+    ]
+    monkeypatch.setattr(
+        "fosslight_util.download.get_remote_refs",
+        lambda _url: {"tags": tags, "branches": ["main"]},
+    )
+
+    ref, clar = decide_checkout(
+        checkout_to="0.3.6",
+        git_url="https://github.com/SerenityJS/serenity",
+    )
+
+    assert ref == "@serenityjs/logger@0.3.6"
+    assert clar == "0.3.6"
+
+
+def test_clarified_version_from_npm_scoped_tag():
+    assert clarified_version_from_oss_version("@serenityjs/logger@0.3.6") == "0.3.6"
+
+
 def test_decide_checkout_resolves_repo_prefixed_tag(monkeypatch):
     tags = ["freezed-v2.4.4", "freezed_annotation-v2.4.4"]
     monkeypatch.setattr(

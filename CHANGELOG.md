@@ -1,5 +1,45 @@
 # Changelog
 
+## v2.2.8 (23/08/2026)
+## Changes
+## 🔧 Maintenance
+
+- Exclude gradle/vite/lockfiles @soimkim (#304)
+
+---
+
+## v2.2.7 (19/08/2026)
+## Changes
+## 🔧 Maintenance
+
+- Upgrade cyclonedx-python-lib to v11 @JustinWonjaePark (#302)
+
+---
+
+## v2.2.6 (12/08/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Probe known Maven repos for sources jars @soimkim (#301)
+
+---
+
+## v2.2.5 (02/08/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Preserve 0.x.y clarified_version and match npm scope tages @soimkim (#297)
+
+---
+
+## v2.2.4 (28/07/2026)
+## Changes
+## 🔧 Maintenance
+
+- Add size limit guard for git clone and wget downloads @bjk7119 (#295)
+
+---
+
 ## v2.2.3 (27/07/2026)
 ## Changes
 ## 🚀 Features
@@ -222,50 +262,3 @@
 ## 🔧 Maintenance
 
 - Modified to search for a version that matches all major.minor.patch when provided as input @soimkim (#259)
-
----
-
-## v2.1.43 (23/03/2026)
-## Changes
-## 🐛 Hotfixes
-
-- Improve downloadability check and compressed file detection @dd-jy (#258)
-
----
-
-## v2.1.42 (05/03/2026)
-## Changes
-## 🔧 Maintenance
-
-- Remove "Type of change" section from PR default template @woocheol-lge (#257)
-- Update CodeRabbit config @soimkim (#256)
-
----
-
-## v2.1.41 (05/02/2026)
-## Changes
-## 🚀 Features
-
-- download: improve decide_checkout ref resolution @soimkim (#253)
-
----
-
-## v2.1.40 (03/02/2026)
-## Changes
-## 🔧 Maintenance
-
-- Apply glob pattern matching for excluding @soimkim (#252)
-
----
-
-## v2.1.39 (30/01/2026)
-## Changes
-## 🐛 Hotfixes
-
-- Fix a bug that causes github's login prompt to be activated @soimkim (#247)
-
-## 🔧 Maintenance
-
-- Update help message @bjk7119 (#249)
-- Modify excel sheet order (DEP,SRC,BIN) @dd-jy (#251)
-- Fix spdx-tools==0.8.2 @bjk7119 (#248)

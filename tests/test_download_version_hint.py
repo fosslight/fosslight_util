@@ -78,6 +78,17 @@ from fosslight_util import _get_downloadable_url as downloadable_url
             "/wrong/path.txt",
             "1.0.190",
         ),
+        # Archive basename with no version must not become oss_version
+        (
+            "https://web.archive.org/web/20160315015917/http://www.sparetimelabs.com/tinyprintf/printf.zip",
+            "/tmp/printf.zip",
+            "",
+        ),
+        (
+            "https://example.com/files/printf.zip",
+            "",
+            "",
+        ),
     ],
 )
 def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):
@@ -89,6 +100,8 @@ def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):
     "hint,expected_clarified",
     [
         ("0.2.3", "0.2.3"),
+        ("0.3.6", "0.3.6"),
+        ("v0.3.6", "0.3.6"),
         ("3.8.2", "3.8.2"),
         ("2.31.0", "2.31.0"),
         ("4.17.21", "4.17.21"),
@@ -99,6 +112,13 @@ def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):
         ("android-15.0.0_r1", "15.0.0"),
         ("4:10.2.1-1", "10.2.1"),
         ("1:3.118+deb11u1", "3.118"),
+        # Embedded three-part versions must not collapse to trailing x.y
+        ("R0.3.6", "0.3.6"),
+        ("rel0.3.6", "0.3.6"),
+        ("@serenityjs/logger@0.3.6", "0.3.6"),
+        ("1.2.3", "1.2.3"),
+        ("0.3", "0.3"),
+        ("foo-1.2", "1.2"),
     ],
 )
 def test_clarified_follows_hint_for_semver(hint, expected_clarified):
@@ -319,6 +339,7 @@ def test_cli_output_result_includes_downloaded_link(tmp_path, monkeypatch):
 
     assert result["success"] is True
     assert result["link"] == "http://deb.debian.org/debian/pool/main/p/pkg/pkg_1.0.0.tar.xz"
+    assert result["message"] == ""
 
 
 def test_cli_output_result_uses_empty_link_on_failure(tmp_path, monkeypatch):
