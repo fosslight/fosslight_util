@@ -663,7 +663,13 @@ def _collect_same_major_minor_refs(
 
 
 def _try_semver_checkout(base: str, ref_set: set) -> Tuple[bool, str, str]:
-    """Return (resolved, ref_or_empty, clarified_version from base semver logic)."""
+    """Match ``base`` as SemVer against ``ref_set``.
+
+    Returns ``(resolved, ref_or_empty, clarified_version)``.
+    ``base`` is only the checkout hint (major.minor, optional patch).
+    ``clarified_version`` comes from ``clarified_version_from_oss_version``
+    on the selected ref, not from ``base``.
+    """
     _v = _BASE_SEMVER_FOR_CHECKOUT.match(base.strip())
     if not _v:
         return False, "", ""
@@ -674,16 +680,11 @@ def _try_semver_checkout(base: str, ref_set: set) -> Tuple[bool, str, str]:
         exact_patch = [x for x in same_maj_min if x[1] == base_patch]
         if exact_patch:
             ref = min(exact_patch, key=lambda x: (len(x[0]), x[0].lower()))[0]
-            clar = (
-                f"{base_major}.{base_minor}.{base_patch}"
-                if _v.group(3)
-                else f"{base_major}.{base_minor}"
-            )
-            return True, ref, clar
+            return True, ref, clarified_version_from_oss_version(ref)
         if _v.group(3):
             return True, "", ""
         ref = max(same_maj_min, key=lambda x: x[1])[0]
-        return True, ref, f"{base_major}.{base_minor}"
+        return True, ref, clarified_version_from_oss_version(ref)
     if _v.group(3):
         return True, "", ""
     return False, "", ""
