@@ -109,6 +109,7 @@ def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):
         ("1.1.7.7", "1.1.7.7"),
         ("v1.1.7.7", "1.1.7.7"),
         ("v3.28.3", "3.28.3"),
+        ("android-15.0.0_r1", "15.0.0"),
         ("4:10.2.1-1", "10.2.1"),
         ("1:3.118+deb11u1", "3.118"),
         # Embedded three-part versions must not collapse to trailing x.y
@@ -136,6 +137,56 @@ def test_mvnrepository_url_hint_then_clarified():
     hint = _oss_version_hint_from_wget_link(link, "")
     assert hint == "1.1.7.7"
     assert clarified_version_from_oss_version(hint) == "1.1.7.7"
+
+
+def test_maven_page_url_with_version_sets_clarified(monkeypatch):
+    monkeypatch.setattr(downloadable_url, "version_exists", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(
+        downloadable_url,
+        "get_download_location_for_maven",
+        lambda _link: (
+            True,
+            "https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/"
+            "1.1.7.7/snappy-java-1.1.7.7-sources.jar",
+        ),
+    )
+
+    ret, _new_link, oss_name, oss_version, pkg_type = downloadable_url.get_downloadable_url(
+        "https://mvnrepository.com/artifact/org.xerial.snappy/snappy-java/1.1.7.7",
+        "",
+    )
+
+    assert ret is True
+    assert pkg_type == "maven"
+    assert oss_name == "org.xerial.snappy:snappy-java"
+    assert oss_version == "1.1.7.7"
+    assert clarified_version_from_oss_version(oss_version) == "1.1.7.7"
+
+
+def test_maven_page_url_without_version_uses_latest_for_clarified(monkeypatch):
+    monkeypatch.setattr(
+        downloadable_url, "get_latest_package_version", lambda *_args, **_kwargs: "1.1.10.7"
+    )
+    monkeypatch.setattr(
+        downloadable_url,
+        "get_download_location_for_maven",
+        lambda _link: (
+            True,
+            "https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/"
+            "1.1.10.7/snappy-java-1.1.10.7-sources.jar",
+        ),
+    )
+
+    ret, _new_link, oss_name, oss_version, pkg_type = downloadable_url.get_downloadable_url(
+        "https://mvnrepository.com/artifact/org.xerial.snappy/snappy-java",
+        "",
+    )
+
+    assert ret is True
+    assert pkg_type == "maven"
+    assert oss_name == "org.xerial.snappy:snappy-java"
+    assert oss_version == "1.1.10.7"
+    assert clarified_version_from_oss_version(oss_version) == "1.1.10.7"
 
 
 class _FakeResponse:
