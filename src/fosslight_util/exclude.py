@@ -7,7 +7,7 @@ import os
 import fnmatch
 from typing import List
 
-EXCLUDE_DIRECTORY = ["test", "tests", "doc", "docs", "intermediates"]
+EXCLUDE_DIRECTORY = ["test", "tests", "__tests__", "doc", "docs", "intermediates"]
 PACKAGE_DIRECTORY = ["node_modules", "venv", "Pods", "Carthage"]
 EXCLUDE_FILENAME = [
     "changelog", "config.guess", "config.sub", "changes", "ltmain.sh",
