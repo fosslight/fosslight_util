@@ -182,6 +182,12 @@ def _start_download_watchdog():
     return alarm
 
 
+def _download_watchdog_timed_out(alarm=None):
+    """True if the Windows watchdog already fired for the current download."""
+    target = alarm if alarm is not None else _active_download_alarm
+    return target is not None and target.timed_out
+
+
 def _cancel_download_watchdog(alarm=None):
     """Cancel SIGALRM or the Windows Alarm watchdog."""
     global _active_download_alarm
@@ -1046,6 +1052,20 @@ def run_git_clone_with_size_guard(
                 first_check_done = True
                 # Under limit (or no limit): keep waiting in interval slices
                 next_timeout = size_check_interval_sec
+    except TimeOutException:
+        # The POSIX watchdog raises this from inside communicate(). Stop the clone and
+        # let the timeout reach the caller instead of degrading it to a generic git
+        # error, which would also trigger an unbounded fallback clone.
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        try:
+            proc.communicate(timeout=60)
+        except Exception:
+            pass
+        _cleanup_target_dir(target_dir)
+        raise
     except Exception as e:
         try:
             proc.kill()
@@ -1087,12 +1107,6 @@ def download_git_repository(
 
     logger.info(f"Download git url :{git_url}, version:{refs_to_checkout}")
 
-    # Avoid hard process exit from parent watchdog while size-guarded clone may run longer
-    try:
-        _cancel_download_watchdog()
-    except Exception:
-        pass
-
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
     if platform.system() == "Windows":
@@ -1126,8 +1140,10 @@ def download_git_repository(
         return success, oss_version, msg
 
     msg = err
-    # If branch/tag clone failed, fall back to default-branch shallow clone
-    if refs_to_checkout:
+    # If branch/tag clone failed, fall back to default-branch shallow clone.
+    # Skip it once the watchdog fired: the time budget is already spent and the watchdog
+    # is one-shot, so a second clone would run unbounded.
+    if refs_to_checkout and not _download_watchdog_timed_out():
         logger.info(
             f"Shallow clone with ref '{refs_to_checkout}' failed; "
             "retrying default branch shallow clone."
