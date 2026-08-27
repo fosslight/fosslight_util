@@ -14,6 +14,7 @@ EXCLUDE_FILENAME = [
     "configure", "configure.ac", "depcomp", "compile", "missing", "makefile",
     "makefile.am",
     "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts",
+    "gradlew", "gradlew.bat",
     "vite.config.ts", "vite.config.js", "vite.config.mts", "vite.config.mjs",
     "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml",
     "fosslight_bin", "fosslight_bin.exe",
