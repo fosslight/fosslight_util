@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.2.9 (27/08/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Download > derive clarified_version from the selected git ref @soimkim (#305)
+
+## 🔧 Maintenance
+
+- Add gradlew and gradlew.bat to exclude list @soimkim (#308)
+- Exclude __tests__ directories by default. @soimkim (#307)
+- Include improvement label in release drafter Features category. @soimkim (#306)
+
+---
+
 ## v2.2.8 (23/08/2026)
 ## Changes
 ## 🔧 Maintenance
@@ -254,11 +268,3 @@
 
 * fosslight_download > Retry version check without leading v when registry lookup fails. @soimkim (#260 )
 
-
----
-
-## v2.1.44 (24/03/2026)
-## Changes
-## 🔧 Maintenance
-
-- Modified to search for a version that matches all major.minor.patch when provided as input @soimkim (#259)
