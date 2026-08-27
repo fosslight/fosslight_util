@@ -46,6 +46,10 @@ compression_extension = {
 prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 SIZE_CHECK_INTERVAL_SECONDS = 10
+# First mid-clone size check. Must stay below SIGNAL_TIMEOUT: the watchdog starts before
+# the clone, so an equal budget would always fire first and the size checks below would
+# never run.
+SIZE_CHECK_AFTER_SECONDS = 60
 _BYTES_PER_GB = 1024 ** 3
 # Active Windows Alarm so nested helpers (e.g. git clone) can cancel it.
 _active_download_alarm = None
@@ -984,7 +988,7 @@ def run_git_clone_with_size_guard(
     env: dict,
     target_dir: str,
     size_limit_gb: Optional[float] = None,
-    size_check_after_sec: int = SIGNAL_TIMEOUT,
+    size_check_after_sec: int = SIZE_CHECK_AFTER_SECONDS,
     size_check_interval_sec: int = SIZE_CHECK_INTERVAL_SECONDS,
 ) -> Tuple[bool, str]:
     """Run git clone via Popen with delayed, periodic, and post-clone size checks.
