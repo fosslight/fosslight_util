@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.2.10 (30/08/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Write log files with utf-8 encoding @soimkim (#309)
+
+## 🔧 Maintenance
+
+- Include DEP sheets and relax empty-row filter @bjk7119 (#300)
+
+---
+
 ## v2.2.9 (27/08/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -260,11 +272,3 @@
 ## 🔧 Maintenance
 
 - feat(python): support Python 3.13/3.14 and migrate from setup.py to pyproject.toml @dd-jy (#261)
-
----
-
-## v2.1.45 (30/03/2026)
-## 🔧 Maintenance
-
-* fosslight_download > Retry version check without leading v when registry lookup fails. @soimkim (#260 )
-
