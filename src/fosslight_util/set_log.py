@@ -78,7 +78,7 @@ def init_log(log_file: str, create_file: bool = True, stream_log_level: int = lo
         coloredlogs.install(logger=logger)
 
         if create_file:
-            file_handlder = logging.FileHandler(log_file)
+            file_handlder = logging.FileHandler(log_file, encoding="utf-8")
             file_handlder.setLevel(file_log_level)
             file_formatter = logging.Formatter('[%(levelname)7s] %(message)s')
             file_handlder.setFormatter(file_formatter)
@@ -129,7 +129,7 @@ def move_log_file(prev_log_path, final_log_path):
     os.makedirs(os.path.dirname(final_log_path) or ".", exist_ok=True)
     try:
         shutil.move(prev_log_path, final_log_path)
-        new_handler = logging.FileHandler(final_log_path, mode='a')
+        new_handler = logging.FileHandler(final_log_path, mode='a', encoding="utf-8")
         if target_handler is not None:
             new_handler.setLevel(target_handler.level)
             if target_handler.formatter is not None:
@@ -140,7 +140,7 @@ def move_log_file(prev_log_path, final_log_path):
         logger.addHandler(new_handler)
     except Exception:
         # restore previous logging path when relocation fails
-        fallback = logging.FileHandler(prev_log_path, mode='a')
+        fallback = logging.FileHandler(prev_log_path, mode='a', encoding="utf-8")
         if target_handler is not None:
             fallback.setLevel(target_handler.level)
             if target_handler.formatter is not None:
