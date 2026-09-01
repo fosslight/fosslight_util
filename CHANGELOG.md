@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.11 (01/09/2026)
+## Changes
+## ✨ Improvements
+
+- Look up excluded parents in a set @soimkim (#310)
+
+---
+
 ## v2.2.10 (30/08/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -264,11 +272,3 @@
 ## 🔧 Maintenance
 
 - Improve checkout resolution and clarified_version @soimkim (#264)
-
----
-
-## v2.1.46 (03/04/2026)
-## Changes
-## 🔧 Maintenance
-
-- feat(python): support Python 3.13/3.14 and migrate from setup.py to pyproject.toml @dd-jy (#261)
