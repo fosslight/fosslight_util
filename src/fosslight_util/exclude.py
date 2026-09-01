@@ -85,7 +85,8 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
     return sorted(excluded_paths)
 
 
-def _has_parent_in_exclude_list(rel_path: str, path_to_exclude: list) -> bool:
+def _has_parent_in_exclude_list(rel_path: str, path_to_exclude) -> bool:
+    """``path_to_exclude`` should be a set: this runs once per walked entry."""
     path_parts = rel_path.replace('\\', '/').split('/')
     for i in range(1, len(path_parts)):
         parent_path = '/'.join(path_parts[:i])
@@ -117,6 +118,7 @@ def is_exclude_dir(rel_path: str) -> tuple:
 
 def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], custom_exclude_extension: list = []) -> tuple:
     path_to_exclude = []
+    path_to_exclude_lookup = set()
     path_to_exclude_with_dot = []
     excluded_files = set()  # Use set for O(1) operations
     abs_path_to_scan = os.path.abspath(path_to_scan)
@@ -129,30 +131,34 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], cust
         custom_excluded_normalized.append(p)
     cnt_file_except_skipped = 0
 
+    def mark_excluded(rel_path: str) -> None:
+        path_to_exclude.append(rel_path)
+        path_to_exclude_lookup.add(rel_path)
+
     for root, dirs, files in os.walk(path_to_scan):
         for dir_name in dirs:
             dir_path = os.path.join(root, dir_name)
             rel_path = os.path.relpath(dir_path, abs_path_to_scan).replace('\\', '/')
-            if not _has_parent_in_exclude_list(rel_path, path_to_exclude):
+            if not _has_parent_in_exclude_list(rel_path, path_to_exclude_lookup):
                 is_exclude, has_dot = is_exclude_dir(rel_path)
                 if is_exclude:
-                    path_to_exclude.append(rel_path)
+                    mark_excluded(rel_path)
                     if has_dot:
                         path_to_exclude_with_dot.append(rel_path)
                 elif rel_path in custom_excluded_normalized or rel_path + '/' in custom_excluded_normalized:
-                    path_to_exclude.append(rel_path)
+                    mark_excluded(rel_path)
                 elif any(
                     fnmatch.fnmatch(rel_path, pattern)
                     for pattern in custom_excluded_normalized
                 ):
-                    path_to_exclude.append(rel_path)
+                    mark_excluded(rel_path)
 
         for file_name in files:
             file_path = os.path.join(root, file_name)
             rel_path = os.path.relpath(file_path, abs_path_to_scan).replace('\\', '/')
             should_exclude = False
             except_info_sheet = False
-            if not _has_parent_in_exclude_list(rel_path, path_to_exclude):
+            if not _has_parent_in_exclude_list(rel_path, path_to_exclude_lookup):
                 file_ext = os.path.splitext(file_name)[1].lstrip('.').lower()
                 if any(
                     fnmatch.fnmatch(rel_path, pattern)
@@ -175,7 +181,7 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], cust
                     cnt_file_except_skipped += 1
 
                 if should_exclude:
-                    path_to_exclude.append(rel_path)
+                    mark_excluded(rel_path)
                     if except_info_sheet:
                         path_to_exclude_with_dot.append(rel_path)
                     excluded_files.add(rel_path)
