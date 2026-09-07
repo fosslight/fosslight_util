@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.12 (07/09/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Drop scanner-owned filename lists from util @soimkim (#311)
+
+---
+
 ## v2.2.11 (01/09/2026)
 ## Changes
 ## ✨ Improvements
@@ -262,13 +270,3 @@
 ## 🔧 Maintenance
 
 - Pick worksheet title when extended_header has multiple keys @soimkim (#265)
-
----
-
-## v2.1.47 (09/04/2026)
-## Changes
-- Security upgrade pyopenssl from 25.3.0 to 26.0.0 @bjk7119 (#263)
-
-## 🔧 Maintenance
-
-- Improve checkout resolution and clarified_version @soimkim (#264)
