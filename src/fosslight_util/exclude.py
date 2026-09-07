@@ -15,7 +15,11 @@ EXCLUDE_FILE_EXTENSION = ['qm', 'xlsx', 'pdf', 'pptx', 'jfif', 'docx', 'doc', 'w
 
 
 def is_excluded_filename(file_path: str, filenames=()) -> bool:
-    """Return True if the basename is in ``filenames`` (scanner-specific lists)."""
+    """Return True if the basename is in ``filenames`` (scanner-specific lists).
+
+    The basename is compared case-insensitively. ``filenames`` must already be
+    lowercase; callers own those lists and should not pass mixed-case names.
+    """
     if not filenames:
         return False
     return os.path.basename(file_path).lower() in filenames
