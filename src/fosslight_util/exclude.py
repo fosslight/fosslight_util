@@ -9,23 +9,16 @@ from typing import List
 
 EXCLUDE_DIRECTORY = ["test", "tests", "__tests__", "doc", "docs", "intermediates"]
 PACKAGE_DIRECTORY = ["node_modules", "venv", "Pods", "Carthage"]
-EXCLUDE_FILENAME = [
-    "changelog", "config.guess", "config.sub", "changes", "ltmain.sh",
-    "configure", "configure.ac", "depcomp", "compile", "missing", "makefile",
-    "makefile.am",
-    "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts",
-    "gradlew", "gradlew.bat",
-    "vite.config.ts", "vite.config.js", "vite.config.mts", "vite.config.mjs",
-    "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml",
-    "fosslight_bin", "fosslight_bin.exe",
-]
 EXCLUDE_FILE_EXTENSION = ['qm', 'xlsx', 'pdf', 'pptx', 'jfif', 'docx', 'doc', 'whl',
                           'xls', 'xlsm', 'ppt', 'mp4', 'pyc', 'plist', 'dat',
                           "m4", "in", "po", "class"]
 
 
-def is_excluded_filename(file_path: str) -> bool:
-    return os.path.basename(file_path).lower() in EXCLUDE_FILENAME
+def is_excluded_filename(file_path: str, filenames=()) -> bool:
+    """Return True if the basename is in ``filenames`` (scanner-specific lists)."""
+    if not filenames:
+        return False
+    return os.path.basename(file_path).lower() in filenames
 
 
 def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
@@ -116,12 +109,25 @@ def is_exclude_dir(rel_path: str) -> tuple:
     return False, False
 
 
-def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], custom_exclude_extension: list = []) -> tuple:
+def get_excluded_paths(
+    path_to_scan: str,
+    custom_excluded_paths: list = [],
+    custom_exclude_extension: list = [],
+    exclude_filenames=(),
+) -> tuple:
+    """
+    Walk ``path_to_scan`` and return excluded paths.
+
+    ``exclude_filenames`` is an optional basename list owned by each scanner
+    (e.g. source/binary). Empty by default so shared scanner and dependency
+    only apply -e / directory / extension rules.
+    """
     path_to_exclude = []
     path_to_exclude_lookup = set()
     path_to_exclude_with_dot = []
     excluded_files = set()  # Use set for O(1) operations
     abs_path_to_scan = os.path.abspath(path_to_scan)
+    exclude_filename_set = frozenset(name.lower() for name in (exclude_filenames or ()))
     # Normalize: backslash to slash; trailing /* -> / so directory matching works without special case
     custom_excluded_normalized = []
     for p in custom_excluded_paths:
@@ -171,7 +177,7 @@ def get_excluded_paths(path_to_scan: str, custom_excluded_paths: list = [], cust
                     except_info_sheet = True
                 elif file_ext and file_ext in custom_exclude_extension:
                     should_exclude = True
-                elif file_name.lower() in EXCLUDE_FILENAME:
+                elif file_name.lower() in exclude_filename_set:
                     should_exclude = True
                     except_info_sheet = True
                     cnt_file_except_skipped += 1
