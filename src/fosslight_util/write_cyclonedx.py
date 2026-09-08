@@ -14,6 +14,7 @@ import traceback
 
 logger = logging.getLogger(LOGGER_NAME)
 
+_cyclonedx_import_error = None
 try:
     from packageurl import PackageURL
     from cyclonedx.builder.this import this_component as cdx_lib_component
@@ -28,13 +29,17 @@ try:
     from cyclonedx.validation.json import JsonStrictValidator
     from cyclonedx.output.json import Json as JsonOutputter
     from cyclonedx.validation.xml import XmlValidator
-except Exception:
-    logger.info('No import cyclonedx-python-lib')
+except Exception as error:
+    _cyclonedx_import_error = error
+    logger.info(f'Failed to import cyclonedx-python-lib: {error}')
 
 
 def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
     success = True
     error_msg = ''
+
+    if _cyclonedx_import_error is not None:
+        return False, f'Failed to import cyclonedx-python-lib: {_cyclonedx_import_error}', ''
 
     bom = Bom()
     if scan_item:
@@ -155,17 +160,19 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
         result_file = output_file_without_ext + output_extension
         try:
             if output_extension == '.json':
-                write_cyclonedx_json(bom, result_file)
+                success = write_cyclonedx_json(bom, result_file)
             elif output_extension == '.xml':
-                write_cyclonedx_xml(bom, result_file)
+                success = write_cyclonedx_xml(bom, result_file)
             else:
                 success = False
                 error_msg = f'Not supported output_extension({output_extension})'
+            if not success and not error_msg:
+                error_msg = f'Failed to write CycloneDX document: {result_file}'
         except Exception as e:
             success = False
             error_msg = f'Failed to write CycloneDX document: {e}'
-            if os.path.exists(result_file):
-                os.remove(result_file)
+        if not success and os.path.exists(result_file):
+            os.remove(result_file)
 
     return success, error_msg, result_file
 

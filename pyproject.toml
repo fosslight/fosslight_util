@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fosslight_util"
-version = "2.2.12"
+version = "2.2.13"
 description = "FOSSLight Util"
 readme = "README.md"
 license = "Apache-2.0"
@@ -36,7 +36,7 @@ dependencies = [
     "numpy",
     "requests",
     "GitPython",
-    "cyclonedx-python-lib>=11.0.0; sys_platform == 'linux'",
+    "cyclonedx-python-lib>=11.0.0",
     "defusedxml",
 ]
 
