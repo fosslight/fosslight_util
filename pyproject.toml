@@ -36,7 +36,7 @@ dependencies = [
     "numpy",
     "requests",
     "GitPython>=3.1.62,<3.2",
-    "cyclonedx-python-lib>=11.0.0; sys_platform == 'linux'",
+    "cyclonedx-python-lib>=11.0.0",
     "defusedxml",
 ]
 
