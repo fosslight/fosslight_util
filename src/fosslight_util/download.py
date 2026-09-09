@@ -46,6 +46,10 @@ compression_extension = {
 prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 SIZE_CHECK_INTERVAL_SECONDS = 10
+# First mid-clone size check. Must stay below SIGNAL_TIMEOUT: the watchdog starts before
+# the clone, so an equal budget would always fire first and the size checks below would
+# never run.
+SIZE_CHECK_AFTER_SECONDS = 60
 _BYTES_PER_GB = 1024 ** 3
 # Active Windows Alarm so nested helpers (e.g. git clone) can cancel it.
 _active_download_alarm = None
@@ -88,30 +92,90 @@ def _download_http_header_attempts():
     ]
 
 
+# Child processes started for the current download, so the watchdog can stop them.
+_download_procs = []
+_download_procs_lock = threading.Lock()
+
+
+def register_download_process(proc):
+    """Track a child process so the watchdog can terminate it on timeout."""
+    if proc is None:
+        return proc
+    with _download_procs_lock:
+        _download_procs.append(proc)
+    return proc
+
+
+def _reset_download_processes():
+    with _download_procs_lock:
+        _download_procs.clear()
+
+
+def _kill_download_processes():
+    with _download_procs_lock:
+        procs = list(_download_procs)
+        _download_procs.clear()
+    for proc in procs:
+        try:
+            if proc.poll() is None:
+                proc.kill()
+        except Exception:
+            pass
+
+
 class Alarm(threading.Thread):
-    """Windows download watchdog; call ``cancel()`` to stop before timeout."""
+    """Windows download watchdog; call ``cancel()`` to stop before timeout.
+
+    On timeout the child process is terminated so the blocked caller returns, and
+    ``timed_out`` lets that caller raise TimeOutException instead of continuing with a
+    partial download. The process is not killed here: ending it directly would skip
+    target directory cleanup and the download result file.
+    """
 
     def __init__(self, timeout):
         threading.Thread.__init__(self)
         self.timeout = timeout
         self._cancelled = threading.Event()
+        self._timed_out = threading.Event()
         self.daemon = True
+
+    @property
+    def timed_out(self):
+        return self._timed_out.is_set()
 
     def run(self):
         # Wait until timeout or cancel(); do not use bare time.sleep.
         if self._cancelled.wait(self.timeout):
             return
-        logger.error("download timeout! (%d sec)", SIGNAL_TIMEOUT)
-        os._exit(1)
+        self._timed_out.set()
+        logger.error("download timeout! (%d sec)", self.timeout)
+        _kill_download_processes()
 
     def cancel(self):
         """Stop the watchdog so a successful download is not killed later."""
         self._cancelled.set()
 
 
+def raise_if_timed_out(alarm, target_dir=None):
+    """Raise TimeOutException if the watchdog fired, after cleaning the target dir.
+
+    Called once the blocking download call has returned. Matches the POSIX path, where
+    alarm_handler raises the same exception, so both platforms end up in the caller's
+    error handling and the failure reaches fosslight_download_output.json.
+    """
+    if alarm is None or not alarm.timed_out:
+        return
+    if target_dir:
+        _cleanup_target_dir(target_dir)
+    raise TimeOutException(f'Timeout ({alarm.timeout} sec)', 1)
+
+
 def _start_download_watchdog():
     """Start SIGALRM (Unix) or Alarm thread (Windows). Return Alarm or None."""
     global _active_download_alarm
+    # Drop child processes left registered by an earlier download so the watchdog only
+    # ever targets the current one.
+    _reset_download_processes()
     if platform.system() != "Windows":
         signal.signal(signal.SIGALRM, alarm_handler)
         signal.alarm(SIGNAL_TIMEOUT)
@@ -120,6 +184,12 @@ def _start_download_watchdog():
     alarm.start()
     _active_download_alarm = alarm
     return alarm
+
+
+def _download_watchdog_timed_out(alarm=None):
+    """True if the Windows watchdog already fired for the current download."""
+    target = alarm if alarm is not None else _active_download_alarm
+    return target is not None and target.timed_out
 
 
 def _cancel_download_watchdog(alarm=None):
@@ -919,7 +989,7 @@ def run_git_clone_with_size_guard(
     env: dict,
     target_dir: str,
     size_limit_gb: Optional[float] = None,
-    size_check_after_sec: int = SIGNAL_TIMEOUT,
+    size_check_after_sec: int = SIZE_CHECK_AFTER_SECONDS,
     size_check_interval_sec: int = SIZE_CHECK_INTERVAL_SECONDS,
 ) -> Tuple[bool, str]:
     """Run git clone via Popen with delayed, periodic, and post-clone size checks.
@@ -933,14 +1003,14 @@ def run_git_clone_with_size_guard(
     """
     limit = _size_limit_bytes(size_limit_gb)
     try:
-        proc = subprocess.Popen(
+        proc = register_download_process(subprocess.Popen(
             cmd,
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             stdin=subprocess.DEVNULL,
-        )
+        ))
     except Exception as e:
         return False, str(e)
 
@@ -987,6 +1057,20 @@ def run_git_clone_with_size_guard(
                 first_check_done = True
                 # Under limit (or no limit): keep waiting in interval slices
                 next_timeout = size_check_interval_sec
+    except TimeOutException:
+        # The POSIX watchdog raises this from inside communicate(). Stop the clone and
+        # let the timeout reach the caller instead of degrading it to a generic git
+        # error, which would also trigger an unbounded fallback clone.
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        try:
+            proc.communicate(timeout=60)
+        except Exception:
+            pass
+        _cleanup_target_dir(target_dir)
+        raise
     except Exception as e:
         try:
             proc.kill()
@@ -1028,12 +1112,6 @@ def download_git_repository(
 
     logger.info(f"Download git url :{git_url}, version:{refs_to_checkout}")
 
-    # Avoid hard process exit from parent watchdog while size-guarded clone may run longer
-    try:
-        _cancel_download_watchdog()
-    except Exception:
-        pass
-
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
     if platform.system() == "Windows":
@@ -1067,8 +1145,10 @@ def download_git_repository(
         return success, oss_version, msg
 
     msg = err
-    # If branch/tag clone failed, fall back to default-branch shallow clone
-    if refs_to_checkout:
+    # If branch/tag clone failed, fall back to default-branch shallow clone.
+    # Skip it once the watchdog fired: the time budget is already spent and the watchdog
+    # is one-shot, so a second clone would run unbounded.
+    if refs_to_checkout and not _download_watchdog_timed_out():
         logger.info(
             f"Shallow clone with ref '{refs_to_checkout}' failed; "
             "retrying default branch shallow clone."
@@ -1126,6 +1206,11 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                     size_limit_gb=size_limit_gb,
                     credential_id=id, git_token=git_token,
                 )
+            # The watchdog kills the clone on timeout, so the call above returns with a
+            # partial checkout. Turn that into TimeOutException instead of reporting a
+            # confusing git error, and clean the half-written target directory.
+            raise_if_timed_out(alarm, target_dir)
+
             if repo_msg and not success:
                 msg = repo_msg
 
@@ -1201,7 +1286,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
         before = set()
 
     try:
-        proc = subprocess.Popen(
+        proc = register_download_process(subprocess.Popen(
             [
                 "wget",
                 "-nv",
@@ -1216,7 +1301,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
             stderr=subprocess.PIPE,
             text=True,
             stdin=subprocess.DEVNULL,
-        )
+        ))
     except Exception as error:
         logger.warning(f"system wget - failed to start: {error}")
         return None
@@ -1353,6 +1438,11 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
             downloaded_file = _download_with_system_wget(
                 link, target_dir, size_limit_gb=size_limit_gb
             )
+
+        # A timeout kills wget mid-transfer, leaving a partial file behind. Report it as
+        # a timeout and clean the target directory rather than treating the fragment as
+        # a successful download.
+        raise_if_timed_out(alarm, target_dir)
 
         if downloaded_file:
             _reject_empty_or_html_download(downloaded_file, link)
