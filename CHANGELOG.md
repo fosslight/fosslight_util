@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.13 (14/09/2026)
+## Changes
+## 🐛 Hotfixes
+
+- Resolve npm registry tarball urls and honor checkout version @bjk7119 (#303)
+
+---
+
 ## v2.2.12 (07/09/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -262,11 +270,3 @@
 ## 🐛 Hotfixes
 
 - Parse crates.io version from API/web URL for oss_version @soimkim (#267)
-
----
-
-## v2.1.48 (15/04/2026)
-## Changes
-## 🔧 Maintenance
-
-- Pick worksheet title when extended_header has multiple keys @soimkim (#265)
