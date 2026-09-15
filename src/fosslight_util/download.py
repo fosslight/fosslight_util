@@ -317,9 +317,6 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             if size_limit_blocked:
                 success = False
             elif (not is_rubygems) and (not success_git):
-                if os.path.isfile(target_dir):
-                    shutil.rmtree(target_dir)
-
                 success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link = download_wget(
                     link, target_dir, compressed_only, checkout_to,
                     size_limit_gb=size_limit_gb,
@@ -906,14 +903,6 @@ def build_shallow_clone_cmd(git_url: str, target_dir: str, refs_to_checkout: str
     return cmd
 
 
-def _cleanup_target_dir(target_dir: str) -> None:
-    try:
-        if target_dir and os.path.exists(target_dir):
-            shutil.rmtree(target_dir, ignore_errors=True)
-    except Exception as e:
-        logger.info(f"Failed to remove target dir {target_dir}: {e}")
-
-
 def run_git_clone_with_size_guard(
     cmd: List[str],
     env: dict,
@@ -927,7 +916,7 @@ def run_git_clone_with_size_guard(
     After ``size_check_after_sec``, check directory size once while still running.
     If under the limit, re-check every ``size_check_interval_sec``.
     When clone finishes successfully, check the final directory size again.
-    Over limit → kill (if needed), cleanup, fail.
+    Over limit → kill (if needed), fail while preserving the target contents.
 
     Returns (success, error_message).
     """
@@ -958,7 +947,6 @@ def run_git_clone_with_size_guard(
                 proc.communicate(timeout=60)
             except Exception:
                 pass
-        _cleanup_target_dir(target_dir)
         return False, _size_limit_abort_message(
             size_limit_gb, f"after {elapsed_hint}", current
         )
@@ -1050,11 +1038,6 @@ def download_git_repository(
     else:
         env["GIT_SSH_COMMAND"] = env["GIT_SSH_COMMAND"] + " -o BatchMode=yes"
 
-    # If target already exists from a failed attempt, empty it before clone
-    if os.path.isdir(target_dir) and any(Path(target_dir).iterdir()):
-        _cleanup_target_dir(target_dir)
-        Path(target_dir).mkdir(parents=True, exist_ok=True)
-
     cmd = build_shallow_clone_cmd(git_url, target_dir, refs_to_checkout)
     logger.info(f"Shallow clone cmd: {' '.join(cmd)}")
     ok, err = run_git_clone_with_size_guard(
@@ -1073,7 +1056,6 @@ def download_git_repository(
             f"Shallow clone with ref '{refs_to_checkout}' failed; "
             "retrying default branch shallow clone."
         )
-        _cleanup_target_dir(target_dir)
         Path(target_dir).mkdir(parents=True, exist_ok=True)
         fallback_cmd = build_shallow_clone_cmd(git_url, target_dir, "")
         ok2, err2 = run_git_clone_with_size_guard(
@@ -1147,27 +1129,6 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
     return success, msg, oss_name, refs_to_checkout, clarified_version
 
 
-def _cleanup_new_paths(directory, before_paths):
-    """Remove files/dirs under ``directory`` that were not in ``before_paths``."""
-    root = Path(directory)
-    if not root.is_dir():
-        return
-    keep = {Path(p).resolve() for p in before_paths}
-    for entry in list(root.iterdir()):
-        try:
-            if entry.resolve() in keep:
-                continue
-        except OSError:
-            pass
-        try:
-            if entry.is_file() or entry.is_symlink():
-                entry.unlink(missing_ok=True)
-            elif entry.is_dir():
-                shutil.rmtree(entry, ignore_errors=True)
-        except OSError:
-            continue
-
-
 def _download_with_system_wget(url, target_dir, size_limit_gb=None):
     """
     Download ``url`` with the system ``wget`` binary.
@@ -1198,7 +1159,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
     try:
         before = {p.resolve() for p in Path(target_dir).iterdir()}
     except OSError:
-        before = set()
+        pass
 
     try:
         proc = subprocess.Popen(
@@ -1244,7 +1205,6 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
                     proc.communicate(timeout=5)
                 except Exception:
                     pass
-                _cleanup_new_paths(target_dir, before)
                 raise SizeLimitExceeded(
                     _size_limit_abort_message(
                         size_limit_gb, "during download", current
@@ -1257,7 +1217,6 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
         logger.warning(
             f"system wget failed (rc={proc.returncode}): {(stderr or '').strip()}"
         )
-        _cleanup_new_paths(target_dir, before)
         return None
 
     try:
@@ -1278,7 +1237,6 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
             os.path.getsize(local_path), size_limit_gb, "after download"
         )
     except SizeLimitExceeded:
-        _cleanup_new_paths(target_dir, before)
         raise
     return local_path
 
@@ -1463,19 +1421,8 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
                             written, size_limit_gb, "during download"
                         )
                     except SizeLimitExceeded:
-                        f.close()
-                        try:
-                            os.remove(local_path)
-                        except OSError:
-                            pass
                         raise
     except SizeLimitExceeded:
-        if local_path:
-            try:
-                if os.path.exists(local_path):
-                    os.remove(local_path)
-            except OSError:
-                pass
         raise
 
     # After download: final file size check
@@ -1485,10 +1432,6 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
                 os.path.getsize(local_path), size_limit_gb, "after download"
             )
         except SizeLimitExceeded:
-            try:
-                os.remove(local_path)
-            except OSError:
-                pass
             raise
     return local_path
 
