@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 import pytest
 
 from fosslight_util.download import cli_download_and_extract, download_git_clone
@@ -15,13 +16,17 @@ def test_download_from_github():
     log_dir = "test_result/download_log/example"
 
     # when
-    success, _, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
+    success, msg, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
 
     # then
-    assert success is True
+    assert success is True, msg
     assert len(os.listdir(target_dir)) > 0
 
 
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="kmod contains a path that cannot be checked out on NTFS",
+)
 @pytest.mark.parametrize("git_url",
                          ["git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;branch=hash-stat2",
                           "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git;protocol=git;tag=v32"])
@@ -31,10 +36,10 @@ def test_download_from_github_with_branch_or_tag(git_url):
     log_dir = "test_result/download_log/example"
 
     # when
-    success, _, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
+    success, msg, _, _, _ = cli_download_and_extract(git_url, target_dir, log_dir)
 
     # then
-    assert success is True
+    assert success is True, msg
     assert len(os.listdir(target_dir)) > 0
 
 
@@ -58,6 +63,10 @@ def test_download_from_wget(project_name, project_url):
     assert len(os.listdir(target_dir)) > 0
 
 
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="kmod contains a path that cannot be checked out on NTFS",
+)
 def test_download_git_clone_with_branch():
     # given
     git_url = "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
@@ -65,17 +74,21 @@ def test_download_git_clone_with_branch():
     branch_name = "hash-stat2"
 
     # when
-    success, _, oss_name, oss_version, clarified_version = download_git_clone(
+    success, msg, oss_name, oss_version, clarified_version = download_git_clone(
         git_url, target_dir, "", "", branch_name)
 
     # then
-    assert success is True
+    assert success is True, msg
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == ''
     assert oss_version == branch_name
     assert clarified_version == ""
 
 
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="kmod contains a path that cannot be checked out on NTFS",
+)
 def test_download_git_clone_with_tag():
     # given
     git_url = "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
@@ -83,11 +96,11 @@ def test_download_git_clone_with_tag():
     tag_name = "v32"
 
     # when
-    success, _, oss_name, oss_version, clarified_version = download_git_clone(
+    success, msg, oss_name, oss_version, clarified_version = download_git_clone(
         git_url, target_dir, "", tag_name)
 
     # then
-    assert success is True
+    assert success is True, msg
     assert len(os.listdir(target_dir)) > 0
     assert oss_name == ''
     assert oss_version == tag_name
