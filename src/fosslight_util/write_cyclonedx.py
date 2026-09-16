@@ -52,7 +52,8 @@ try:
     from cyclonedx.factory.license import LicenseFactory
     from cyclonedx.model import XsUri, ExternalReferenceType
     from cyclonedx.model.bom import Bom
-    from cyclonedx.model.component import Component, ComponentType, HashAlgorithm, HashType, ExternalReference
+    from cyclonedx.model.component import (Component, ComponentType, ExternalReference, HashAlgorithm,
+                                           HashType, Property)
     from cyclonedx.output import make_outputter, BaseOutput
     from cyclonedx.output.json import JsonV1Dot6
     from cyclonedx.schema import OutputFormat, SchemaVersion
@@ -96,17 +97,14 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item, scanne
                 for file_item in file_items:
                     if file_item.exclude:
                         continue
-                    if scanner_name == FOSSLIGHT_SOURCE:
+                    if scanner_name in (FOSSLIGHT_SOURCE, FOSSLIGHT_BINARY):
                         comp_type = ComponentType.FILE
                     else:
                         comp_type = ComponentType.LIBRARY
 
                     for oss_item in file_item.oss_items:
                         if oss_item.name == '' or oss_item.name == '-':
-                            if scanner_name == FOSSLIGHT_DEPENDENCY:
-                                continue
-                            else:
-                                comp_name = file_item.source_name_or_path
+                            comp_name = 'NOASSERTION'
                         else:
                             comp_name = oss_item.name
 
@@ -124,6 +122,10 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item, scanne
                         if scanner_name != FOSSLIGHT_DEPENDENCY:
                             if file_item.checksum != '0':
                                 comp.hashes = [HashType(alg=HashAlgorithm.SHA_1, content=file_item.checksum)]
+                        if scanner_name == FOSSLIGHT_BINARY:
+                            tlsh = str(getattr(file_item, 'tlsh', '') or '').strip()
+                            if tlsh and tlsh.upper() not in ('0', 'TNULL'):
+                                comp.properties = [Property(name='fosslight:tlsh', value=tlsh)]
 
                         if oss_item.download_location != '':
                             comp.external_references = [ExternalReference(url=XsUri(oss_item.download_location),

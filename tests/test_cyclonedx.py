@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from fosslight_util.output_format import write_output_file
-from fosslight_util.constant import FOSSLIGHT_DEPENDENCY
+from fosslight_util.constant import FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER, FOSSLIGHT_SOURCE
 from fosslight_util.oss_item import FileItem, OssItem, ScannerItem
 from fosslight_util.write_cyclonedx import write_cyclonedx
 from tests import constants
@@ -44,6 +44,86 @@ def _get_tool_components(result_file, extension):
 
 def _cover(package_name, version):
     return SimpleNamespace(tool_name=f"{package_name} v{version}")
+
+
+def _get_child(element, suffix):
+    return next((child for child in element if child.tag.endswith(suffix)), None)
+
+
+def _get_bom_components_and_dependencies(result_file, extension):
+    if extension == ".json":
+        with open(result_file, encoding="utf-8") as cyclonedx_file:
+            document = json.load(cyclonedx_file)
+        return document["components"], document.get("dependencies", [])
+
+    root = ElementTree.parse(result_file).getroot()
+    component_group = _get_child(root, "components")
+    components = []
+    for component in component_group:
+        values = {
+            "bom-ref": component.attrib["bom-ref"],
+            "name": _get_child(component, "name").text,
+            "type": component.attrib["type"],
+            "properties": [],
+        }
+        properties = _get_child(component, "properties")
+        if properties is not None:
+            values["properties"] = [
+                {"name": prop.attrib["name"], "value": prop.text}
+                for prop in properties
+            ]
+        components.append(values)
+
+    dependency_group = _get_child(root, "dependencies")
+    dependencies = []
+    if dependency_group is not None:
+        for dependency in dependency_group:
+            dependencies.append({
+                "ref": dependency.attrib["ref"],
+                "dependsOn": [child.attrib["ref"] for child in dependency],
+            })
+    return components, dependencies
+
+
+def _phase_three_scan_item(tmp_path, tlsh="T1VALID"):
+    scan_item = ScannerItem(FOSSLIGHT_SCANNER)
+    scan_item.set_cover_pathinfo(str(tmp_path / "project"), [])
+
+    source_file = FileItem("LICENSE")
+    source_file.source_name_or_path = "LICENSE"
+    source_file.oss_items.append(OssItem("", "", "MIT"))
+    scan_item.append_file_items([source_file], FOSSLIGHT_SOURCE)
+
+    binary_file = FileItem("app.bin")
+    binary_file.source_name_or_path = "app.bin"
+    binary_file.checksum = "af969fc2085b1bb6d31e517d5c456def5cdd7093"
+    binary_file.tlsh = tlsh
+    binary_file.oss_items.append(OssItem("-", "2.0.0", "Apache-2.0"))
+    scan_item.append_file_items([binary_file], FOSSLIGHT_BINARY)
+
+    direct_dependency = FileItem("requirements.txt")
+    direct_dependency.purl = "pkg:pypi/foo@1.0.0"
+    direct_dependency.depends_on = ["pkg:pypi/bar@2.0.0"]
+    direct_oss = OssItem("foo", "1.0.0", "MIT")
+    direct_oss.comment = "direct"
+    direct_dependency.oss_items.append(direct_oss)
+
+    transitive_dependency = FileItem("requirements.txt")
+    transitive_dependency.purl = "pkg:pypi/bar@2.0.0"
+    transitive_dependency.depends_on = []
+    transitive_oss = OssItem("bar", "2.0.0", "BSD-3-Clause")
+    transitive_oss.comment = "transitive"
+    transitive_dependency.oss_items.append(transitive_oss)
+
+    unnamed_dependency = FileItem("requirements.txt")
+    unnamed_dependency.purl = "pkg:pypi/unnamed@3.0.0"
+    unnamed_dependency.depends_on = []
+    unnamed_oss = OssItem("", "3.0.0", "ISC")
+    unnamed_oss.comment = "direct"
+    unnamed_dependency.oss_items.append(unnamed_oss)
+    scan_item.append_file_items([direct_dependency, transitive_dependency, unnamed_dependency], FOSSLIGHT_DEPENDENCY)
+
+    return scan_item
 
 
 @pytest.mark.parametrize("extension", [".json", ".xml"])
@@ -156,6 +236,60 @@ def test_tool_components_deduplicate_merged_scanner_cover(tmp_path):
     }
     assert components["FOSSLIGHT_SCANNER"]["version"] == "2.1.30"
     assert components["FOSSLIGHT_Dependency"]["version"] == "4.1.51"
+
+
+@pytest.mark.parametrize("extension", [".json", ".xml"])
+def test_scanner_component_mapping_and_dependency_refs(tmp_path, extension):
+    scan_item = _phase_three_scan_item(tmp_path)
+    output_file_without_ext = os.path.join(constants.TEST_RESULT_DIR, "cyclonedx", "component-mapping")
+
+    success, err_msg, result_file = write_cyclonedx(output_file_without_ext, extension, scan_item)
+
+    assert success is True, err_msg
+    components, dependencies = _get_bom_components_and_dependencies(result_file, extension)
+    source_component = next(component for component in components
+                            if component["name"] == "NOASSERTION" and component["type"] == "file"
+                            and not component.get("properties", []))
+    binary_component = next(component for component in components
+                            if component["name"] == "NOASSERTION" and component["type"] == "file"
+                            and component.get("properties", []))
+    dependency_components = [component for component in components if component["name"] in ("foo", "bar")]
+    unnamed_dependency_component = next(component for component in components
+                                        if component["name"] == "NOASSERTION" and component["type"] == "library")
+
+    assert source_component["type"] == "file"
+    assert binary_component["type"] == "file"
+    assert len(dependency_components) == 2
+    assert all(component["type"] == "library" for component in dependency_components)
+    assert unnamed_dependency_component["type"] == "library"
+    assert binary_component.get("properties", []) == [{
+        "name": "fosslight:tlsh",
+        "value": "T1VALID",
+    }]
+
+    component_refs = {component["bom-ref"] for component in components} | {"0"}
+    assert all(dependency["ref"] in component_refs for dependency in dependencies)
+    assert all(ref in component_refs
+               for dependency in dependencies for ref in dependency.get("dependsOn", []))
+    foo_ref = next(component["bom-ref"] for component in dependency_components if component["name"] == "foo")
+    bar_ref = next(component["bom-ref"] for component in dependency_components if component["name"] == "bar")
+    assert any(dependency["ref"] == "0" and foo_ref in dependency["dependsOn"] for dependency in dependencies)
+    assert any(dependency["ref"] == foo_ref and bar_ref in dependency["dependsOn"] for dependency in dependencies)
+
+
+@pytest.mark.parametrize("extension", [".json", ".xml"])
+@pytest.mark.parametrize("tlsh", ["", "0", "TNULL"])
+def test_binary_tlsh_null_markers_are_omitted(tmp_path, extension, tlsh):
+    scan_item = _phase_three_scan_item(tmp_path, tlsh=tlsh)
+    output_file_without_ext = os.path.join(constants.TEST_RESULT_DIR, "cyclonedx", "tlsh-null")
+
+    success, err_msg, result_file = write_cyclonedx(output_file_without_ext, extension, scan_item)
+
+    assert success is True, err_msg
+    components, _ = _get_bom_components_and_dependencies(result_file, extension)
+    binary_component = next(component for component in components
+                            if component["name"] == "NOASSERTION" and component["type"] == "file")
+    assert binary_component.get("properties", []) == []
 
 
 def test_write_output_file_forwards_scanner_covers(monkeypatch, tmp_path, scan_item):
