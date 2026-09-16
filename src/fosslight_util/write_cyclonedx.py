@@ -8,11 +8,41 @@ import os
 import logging
 import re
 from pathlib import Path
-from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
-                                     FOSSLIGHT_SOURCE)
+from fosslight_util.constant import (FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
+                                     FOSSLIGHT_SOURCE, LOGGER_NAME)
 import traceback
 
 logger = logging.getLogger(LOGGER_NAME)
+
+_SCANNER_TOOL_NAMES = {
+    FOSSLIGHT_SCANNER: 'FOSSLIGHT_SCANNER',
+    FOSSLIGHT_DEPENDENCY: 'FOSSLIGHT_Dependency',
+    FOSSLIGHT_SOURCE: 'FOSSLIGHT_Source',
+    FOSSLIGHT_BINARY: 'FOSSLIGHT_Binary',
+}
+_SCANNER_TOOL_PATTERN = re.compile(r'^(?P<name>[A-Za-z0-9_-]+)\s+v(?P<version>[^\s(]+)')
+
+
+def _get_scanner_tool_components(scanner_covers):
+    scanner_versions = {}
+    for cover in scanner_covers:
+        tool_name = getattr(cover, 'tool_name', '')
+        if not tool_name and hasattr(cover, 'get_print_json'):
+            tool_name = cover.get_print_json().get('Tool information', '')
+        match = _SCANNER_TOOL_PATTERN.match(tool_name.strip())
+        if match:
+            scanner_name = match.group('name').lower()
+            if scanner_name in _SCANNER_TOOL_NAMES:
+                scanner_versions[scanner_name] = match.group('version')
+
+    return [
+        Component(name=_SCANNER_TOOL_NAMES[scanner_name],
+                  type=ComponentType.APPLICATION,
+                  group='FOSSLight',
+                  version=scanner_versions[scanner_name])
+        for scanner_name in _SCANNER_TOOL_NAMES
+        if scanner_name in scanner_versions
+    ]
 
 _cyclonedx_import_error = None
 try:
@@ -34,7 +64,7 @@ except Exception as error:
     logger.info(f'Failed to import cyclonedx-python-lib: {error}')
 
 
-def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
+def write_cyclonedx(output_file_without_ext, output_extension, scan_item, scanner_covers=None):
     success = True
     error_msg = ''
 
@@ -43,21 +73,11 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
 
     bom = Bom()
     if scan_item:
-        try:
-            cover_name = scan_item.cover.get_print_json()["Tool information"].split('(').pop(0).strip()
-            match = re.search(r"(.+) v([0-9.]+)", cover_name)
-            if match:
-                scanner_name = match.group(1)
-            else:
-                scanner_name = FOSSLIGHT_SCANNER
-        except Exception:
-            cover_name = FOSSLIGHT_SCANNER
-            scanner_name = FOSSLIGHT_SCANNER
-
         lc_factory = LicenseFactory()
         bom.metadata.tools.components.add(cdx_lib_component())
-        bom.metadata.tools.components.add(Component(name=scanner_name.upper(),
-                                                    type=ComponentType.APPLICATION))
+        if scanner_covers is None:
+            scanner_covers = [scan_item.cover]
+        bom.metadata.tools.components.update(_get_scanner_tool_components(scanner_covers))
         comp_id = 0
         input_path = getattr(scan_item.cover, "input_path", "")
         root_name = os.path.basename(os.path.normpath(input_path)) if input_path else ""
