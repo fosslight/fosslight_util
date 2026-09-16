@@ -59,7 +59,11 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
         bom.metadata.tools.components.add(Component(name=scanner_name.upper(),
                                                     type=ComponentType.APPLICATION))
         comp_id = 0
-        bom.metadata.component = root_component = Component(name='Root Component',
+        input_path = getattr(scan_item.cover, "input_path", "")
+        root_name = os.path.basename(os.path.normpath(input_path)) if input_path else ""
+        if not root_name:
+            root_name = "Root Component"
+        bom.metadata.component = root_component = Component(name=root_name,
                                                             type=ComponentType.APPLICATION,
                                                             bom_ref=str(comp_id))
         relation_tree = {}
@@ -124,8 +128,6 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
                                             bom.register_dependency(root_component, [comp])
                                         elif oc == 'root package':
                                             root_package = True
-                                            root_component.name = comp_name
-                                            root_component.type = comp_type
                                             comp_id -= 1
                             else:
                                 bom.register_dependency(root_component, [comp])

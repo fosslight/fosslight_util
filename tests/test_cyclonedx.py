@@ -8,6 +8,8 @@ import xml.etree.ElementTree as ElementTree
 import pytest
 
 from fosslight_util.output_format import write_output_file
+from fosslight_util.constant import FOSSLIGHT_DEPENDENCY
+from fosslight_util.oss_item import FileItem, OssItem, ScannerItem
 from fosslight_util.write_cyclonedx import write_cyclonedx
 from tests import constants
 
@@ -26,9 +28,53 @@ def test_cyclonedx(scan_item, extension):
     assert os.path.isfile(result_file)
     if extension == ".json":
         with open(result_file, encoding="utf-8") as cyclonedx_file:
-            assert json.load(cyclonedx_file)["bomFormat"] == "CycloneDX"
+            document = json.load(cyclonedx_file)
+        assert document["bomFormat"] == "CycloneDX"
+        assert document["metadata"]["component"] == {
+            "bom-ref": "0",
+            "name": "test_excel_and_csv",
+            "type": "application",
+        }
     else:
-        assert ElementTree.parse(result_file).getroot().tag.endswith("bom")
+        root = ElementTree.parse(result_file).getroot()
+        assert root.tag.endswith("bom")
+        metadata = next(element for element in root if element.tag.endswith("metadata"))
+        component = next(element for element in metadata if element.tag.endswith("component"))
+        assert component.attrib == {"bom-ref": "0", "type": "application"}
+        assert next(element for element in component if element.tag.endswith("name")).text == "test_excel_and_csv"
+
+
+@pytest.mark.parametrize("extension", [".json", ".xml"])
+def test_root_package_does_not_override_metadata_component(tmp_path, extension):
+    scan_item = ScannerItem(FOSSLIGHT_DEPENDENCY)
+    scan_item.set_cover_pathinfo(str(tmp_path / "example"), [])
+
+    file_item = FileItem("requirements.txt")
+    file_item.purl = ""
+    file_item.depends_on = []
+    root_package = OssItem("root-package", "1.0.0", "MIT")
+    root_package.comment = "root package"
+    file_item.oss_items.append(root_package)
+    scan_item.append_file_items([file_item])
+
+    output_file_without_ext = os.path.join(constants.TEST_RESULT_DIR, "cyclonedx", "root-package")
+    success, err_msg, result_file = write_cyclonedx(output_file_without_ext, extension, scan_item)
+
+    assert success is True, err_msg
+    if extension == ".json":
+        with open(result_file, encoding="utf-8") as cyclonedx_file:
+            component = json.load(cyclonedx_file)["metadata"]["component"]
+        assert component == {
+            "bom-ref": "0",
+            "name": "example",
+            "type": "application",
+        }
+    else:
+        root = ElementTree.parse(result_file).getroot()
+        metadata = next(element for element in root if element.tag.endswith("metadata"))
+        component = next(element for element in metadata if element.tag.endswith("component"))
+        assert component.attrib == {"bom-ref": "0", "type": "application"}
+        assert next(element for element in component if element.tag.endswith("name")).text == "example"
 
 
 def test_cyclonedx_import_failure_is_reported(monkeypatch, scan_item):
