@@ -44,6 +44,7 @@ def _get_scanner_tool_components(scanner_covers):
         if scanner_name in scanner_versions
     ]
 
+
 _cyclonedx_import_error = None
 try:
     from packageurl import PackageURL
