@@ -195,8 +195,12 @@ def write_output_file(output_file_without_ext: str, file_extension: str, scan_it
             else:
                 success, msg, _ = write_spdx(output_file_without_ext, file_extension, scan_item, spdx_version)
         elif format.startswith('cyclonedx'):
-            success, msg, _ = write_cyclonedx(output_file_without_ext, file_extension, scan_item,
-                                              scanner_covers=scanner_covers)
+            success, msg, result_file = write_cyclonedx(
+                output_file_without_ext,
+                file_extension,
+                scan_item,
+                scanner_covers=scanner_covers,
+            )
     else:
         if file_extension == '.xlsx':
             success, msg = write_result_to_excel(result_file, scan_item, extended_header, hide_header)

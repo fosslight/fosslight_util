@@ -65,12 +65,19 @@ def _get_bom_components_and_dependencies(result_file, extension):
             "name": _get_child(component, "name").text,
             "type": component.attrib["type"],
             "properties": [],
+            "hashes": [],
         }
         properties = _get_child(component, "properties")
         if properties is not None:
             values["properties"] = [
                 {"name": prop.attrib["name"], "value": prop.text}
                 for prop in properties
+            ]
+        hashes = _get_child(component, "hashes")
+        if hashes is not None:
+            values["hashes"] = [
+                {"alg": hash_value.attrib["alg"], "content": hash_value.text}
+                for hash_value in hashes
             ]
         components.append(values)
 
@@ -287,18 +294,27 @@ def test_binary_tlsh_null_markers_are_omitted(tmp_path, extension, tlsh):
 
     assert success is True, err_msg
     components, _ = _get_bom_components_and_dependencies(result_file, extension)
-    binary_component = next(component for component in components
-                            if component["name"] == "NOASSERTION" and component["type"] == "file")
+    binary_component = next(
+        component
+        for component in components
+        if component["name"] == "NOASSERTION"
+        and component["type"] == "file"
+        and any(
+            hash_value["content"] == "af969fc2085b1bb6d31e517d5c456def5cdd7093"
+            for hash_value in component.get("hashes", [])
+        )
+    )
     assert binary_component.get("properties", []) == []
 
 
 def test_write_output_file_forwards_scanner_covers(monkeypatch, tmp_path, scan_item):
     scanner_covers = [_cover("fosslight_source", "2.3.12")]
+    returned_result_file = os.path.join(tmp_path, "actual.json")
     captured = {}
 
     def fake_write_cyclonedx(output_file_without_ext, output_extension, item, scanner_covers=None):
         captured["scanner_covers"] = scanner_covers
-        return True, "", output_file_without_ext + output_extension
+        return True, "", returned_result_file
 
     monkeypatch.setattr("fosslight_util.output_format.write_cyclonedx", fake_write_cyclonedx)
     output_file_without_ext = os.path.join(tmp_path, "tools")
@@ -312,7 +328,7 @@ def test_write_output_file_forwards_scanner_covers(monkeypatch, tmp_path, scan_i
     )
 
     assert success is True, err_msg
-    assert result_file == output_file_without_ext + ".json"
+    assert result_file == returned_result_file
     assert captured["scanner_covers"] == scanner_covers
 
 
