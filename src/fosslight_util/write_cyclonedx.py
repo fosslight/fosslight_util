@@ -8,12 +8,44 @@ import os
 import logging
 import re
 from pathlib import Path
-from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
-                                     FOSSLIGHT_SOURCE)
+from fosslight_util.constant import (FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
+                                     FOSSLIGHT_SOURCE, LOGGER_NAME)
 import traceback
 
 logger = logging.getLogger(LOGGER_NAME)
 
+_SCANNER_TOOL_NAMES = {
+    FOSSLIGHT_SCANNER: 'FOSSLIGHT_SCANNER',
+    FOSSLIGHT_DEPENDENCY: 'FOSSLIGHT_Dependency',
+    FOSSLIGHT_SOURCE: 'FOSSLIGHT_Source',
+    FOSSLIGHT_BINARY: 'FOSSLIGHT_Binary',
+}
+_SCANNER_TOOL_PATTERN = re.compile(r'^(?P<name>[A-Za-z0-9_-]+)\s+v(?P<version>[^\s(]+)')
+
+
+def _get_scanner_tool_components(scanner_covers):
+    scanner_versions = {}
+    for cover in scanner_covers:
+        tool_name = getattr(cover, 'tool_name', '')
+        if not tool_name and hasattr(cover, 'get_print_json'):
+            tool_name = cover.get_print_json().get('Tool information', '')
+        match = _SCANNER_TOOL_PATTERN.match(tool_name.strip())
+        if match:
+            scanner_name = match.group('name').lower()
+            if scanner_name in _SCANNER_TOOL_NAMES:
+                scanner_versions[scanner_name] = match.group('version')
+
+    return [
+        Component(name=_SCANNER_TOOL_NAMES[scanner_name],
+                  type=ComponentType.APPLICATION,
+                  group='FOSSLight',
+                  version=scanner_versions[scanner_name])
+        for scanner_name in _SCANNER_TOOL_NAMES
+        if scanner_name in scanner_versions
+    ]
+
+
+_cyclonedx_import_error = None
 try:
     from packageurl import PackageURL
     from cyclonedx.builder.this import this_component as cdx_lib_component
@@ -21,40 +53,39 @@ try:
     from cyclonedx.factory.license import LicenseFactory
     from cyclonedx.model import XsUri, ExternalReferenceType
     from cyclonedx.model.bom import Bom
-    from cyclonedx.model.component import Component, ComponentType, HashAlgorithm, HashType, ExternalReference
+    from cyclonedx.model.component import (Component, ComponentType, ExternalReference, HashAlgorithm,
+                                           HashType, Property)
     from cyclonedx.output import make_outputter, BaseOutput
     from cyclonedx.output.json import JsonV1Dot6
     from cyclonedx.schema import OutputFormat, SchemaVersion
     from cyclonedx.validation.json import JsonStrictValidator
     from cyclonedx.output.json import Json as JsonOutputter
     from cyclonedx.validation.xml import XmlValidator
-except Exception:
-    logger.info('No import cyclonedx-python-lib')
+except Exception as error:
+    _cyclonedx_import_error = error
+    logger.info(f'Failed to import cyclonedx-python-lib: {error}')
 
 
-def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
+def write_cyclonedx(output_file_without_ext, output_extension, scan_item, scanner_covers=None):
     success = True
     error_msg = ''
 
+    if _cyclonedx_import_error is not None:
+        return False, f'Failed to import cyclonedx-python-lib: {_cyclonedx_import_error}', ''
+
     bom = Bom()
     if scan_item:
-        try:
-            cover_name = scan_item.cover.get_print_json()["Tool information"].split('(').pop(0).strip()
-            match = re.search(r"(.+) v([0-9.]+)", cover_name)
-            if match:
-                scanner_name = match.group(1)
-            else:
-                scanner_name = FOSSLIGHT_SCANNER
-        except Exception:
-            cover_name = FOSSLIGHT_SCANNER
-            scanner_name = FOSSLIGHT_SCANNER
-
         lc_factory = LicenseFactory()
         bom.metadata.tools.components.add(cdx_lib_component())
-        bom.metadata.tools.components.add(Component(name=scanner_name.upper(),
-                                                    type=ComponentType.APPLICATION))
+        if scanner_covers is None:
+            scanner_covers = [scan_item.cover]
+        bom.metadata.tools.components.update(_get_scanner_tool_components(scanner_covers))
         comp_id = 0
-        bom.metadata.component = root_component = Component(name='Root Component',
+        input_path = getattr(scan_item.cover, "input_path", "")
+        root_name = os.path.basename(os.path.normpath(input_path)) if input_path else ""
+        if not root_name:
+            root_name = "Root Component"
+        bom.metadata.component = root_component = Component(name=root_name,
                                                             type=ComponentType.APPLICATION,
                                                             bom_ref=str(comp_id))
         relation_tree = {}
@@ -67,17 +98,14 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
                 for file_item in file_items:
                     if file_item.exclude:
                         continue
-                    if scanner_name == FOSSLIGHT_SOURCE:
+                    if scanner_name in (FOSSLIGHT_SOURCE, FOSSLIGHT_BINARY):
                         comp_type = ComponentType.FILE
                     else:
                         comp_type = ComponentType.LIBRARY
 
                     for oss_item in file_item.oss_items:
                         if oss_item.name == '' or oss_item.name == '-':
-                            if scanner_name == FOSSLIGHT_DEPENDENCY:
-                                continue
-                            else:
-                                comp_name = file_item.source_name_or_path
+                            comp_name = 'NOASSERTION'
                         else:
                             comp_name = oss_item.name
 
@@ -95,6 +123,10 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
                         if scanner_name != FOSSLIGHT_DEPENDENCY:
                             if file_item.checksum != '0':
                                 comp.hashes = [HashType(alg=HashAlgorithm.SHA_1, content=file_item.checksum)]
+                        if scanner_name == FOSSLIGHT_BINARY:
+                            tlsh = str(getattr(file_item, 'tlsh', '') or '').strip()
+                            if tlsh and tlsh.upper() not in ('0', 'TNULL'):
+                                comp.properties = [Property(name='fosslight:tlsh', value=tlsh)]
 
                         if oss_item.download_location != '':
                             comp.external_references = [ExternalReference(url=XsUri(oss_item.download_location),
@@ -119,8 +151,6 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
                                             bom.register_dependency(root_component, [comp])
                                         elif oc == 'root package':
                                             root_package = True
-                                            root_component.name = comp_name
-                                            root_component.type = comp_type
                                             comp_id -= 1
                             else:
                                 bom.register_dependency(root_component, [comp])
@@ -155,17 +185,19 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item):
         result_file = output_file_without_ext + output_extension
         try:
             if output_extension == '.json':
-                write_cyclonedx_json(bom, result_file)
+                success = write_cyclonedx_json(bom, result_file)
             elif output_extension == '.xml':
-                write_cyclonedx_xml(bom, result_file)
+                success = write_cyclonedx_xml(bom, result_file)
             else:
                 success = False
                 error_msg = f'Not supported output_extension({output_extension})'
+            if not success and not error_msg:
+                error_msg = f'Failed to write CycloneDX document: {result_file}'
         except Exception as e:
             success = False
             error_msg = f'Failed to write CycloneDX document: {e}'
-            if os.path.exists(result_file):
-                os.remove(result_file)
+        if not success and os.path.exists(result_file):
+            os.remove(result_file)
 
     return success, error_msg, result_file
 

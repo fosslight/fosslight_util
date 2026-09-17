@@ -130,6 +130,38 @@ def test_download_git_clone_android_libhwbinder_c_15_0(tmp_path, monkeypatch):
     assert clarified_version == "15.0.0"
 
 
+def test_download_git_clone_normalizes_git_protocol_on_windows(tmp_path, monkeypatch):
+    observed_urls = []
+    monkeypatch.setattr("fosslight_util.download.platform.system", lambda: "Windows")
+    monkeypatch.setattr("fosslight_util.download._start_download_watchdog", lambda: None)
+    monkeypatch.setattr(
+        "fosslight_util.download._cancel_download_watchdog", lambda alarm=None: None
+    )
+    monkeypatch.setattr(
+        "fosslight_util.download._resolve_refs_to_checkout",
+        lambda *args, **kwargs: ("", ""),
+    )
+
+    def fake_download_git_repository(refs_to_checkout, git_url, target_dir, *args, **kwargs):
+        observed_urls.append(git_url)
+        return True, "", ""
+
+    monkeypatch.setattr(
+        "fosslight_util.download.download_git_repository",
+        fake_download_git_repository,
+    )
+
+    success, _, _, _, _ = download_git_clone(
+        "git://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git",
+        str(tmp_path / "kmod"),
+    )
+
+    assert success is True
+    assert observed_urls == [
+        "https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git"
+    ]
+
+
 def test_clarified_version_keeps_leading_zero_major():
     assert clarified_version_from_oss_version("0.3.6") == "0.3.6"
     assert clarified_version_from_oss_version("v0.3.6") == "0.3.6"

@@ -189,6 +189,12 @@ def change_src_link_to_https(src_link):
     return src_link
 
 
+def _normalize_git_url_for_clone(git_url):
+    if platform.system() == "Windows" and git_url.startswith("git://"):
+        return git_url.replace("git://", "https://", 1)
+    return git_url
+
+
 def change_ssh_link_to_https(src_link):
     src_link = src_link.replace("git@github.com:", "https://github.com/")
     return src_link
@@ -1067,13 +1073,17 @@ def download_git_repository(
             msg = ""
             logger.info("Fallback shallow clone succeeded (default branch).")
             return success, oss_version, msg
-        msg = err2 or err
+        if err and err2 and err2 != err:
+            msg = f"{err}; fallback clone failed: {err2}"
+        else:
+            msg = err2 or err
     return success, oss_version, msg
 
 
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                        ssh_key="", id="", git_token="", called_cli=True,
                        size_limit_gb: Optional[float] = None):
+    git_url = _normalize_git_url_for_clone(git_url)
     oss_name = get_github_ossname(git_url)
     refs_to_checkout, decided_clarified = _resolve_refs_to_checkout(
         checkout_to, tag, branch, git_url, credential_id=id, git_token=git_token

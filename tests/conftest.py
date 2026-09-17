@@ -1,6 +1,7 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import os
+import stat
 import shutil
 
 import pytest
@@ -16,6 +17,11 @@ set_up_directories = [
 remove_directories = [constants.TEST_RESULT_DIR]
 
 
+def _remove_readonly(func, path, _):
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
+
+
 @pytest.fixture(scope="function", autouse=True)
 def setup_test_result_dir_and_teardown():
     print("==============setup==============")
@@ -26,7 +32,7 @@ def setup_test_result_dir_and_teardown():
 
     print("==============tearDown==============")
     for dir in remove_directories:
-        shutil.rmtree(dir)
+        shutil.rmtree(dir, onerror=_remove_readonly)
 
 
 @pytest.fixture
