@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.2.14 (17/09/2026)
+## Changes
+## 🚀 Features
+
+- fix(cyclonedx): enable cross-platform output and update BOM metadata @JustinWonjaePark (#314)
+
+## 🐛 Hotfixes
+
+- Preserve target contents on failure @bjk7119 (#313)
+
+## 🔧 Maintenance
+
+- Pin gitpython and set package version @bjk7119 (#312)
+
+---
+
 ## v2.2.13 (14/09/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -258,15 +274,3 @@
 ## 🐛 Hotfixes
 
 - Avoid overwriting get_downloadable_url version with archive filename @soimkim (#268)
-
----
-
-## v2.1.49 (22/04/2026)
-## Changes
-## 🚀 Features
-
-- Retry with browser and curl-like UA on mirror blocks @soimkim (#266)
-
-## 🐛 Hotfixes
-
-- Parse crates.io version from API/web URL for oss_version @soimkim (#267)
