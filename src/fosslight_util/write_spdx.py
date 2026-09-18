@@ -16,6 +16,7 @@ from fosslight_util.oss_item import CHECKSUM_NULL, get_checksum_sha1
 import traceback
 
 logger = logging.getLogger(LOGGER_NAME)
+_spdx_import_error = None
 
 try:
     from spdx_tools.common.spdx_licensing import spdx_licensing
@@ -35,7 +36,8 @@ try:
     )
     from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
     from spdx_tools.spdx.writer.write_anything import write_file
-except Exception:
+except Exception as error:
+    _spdx_import_error = error
     logger.info('No import spdx-tools')
 
 
@@ -50,6 +52,9 @@ def get_license_list_version():
 
 
 def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_version='2.3'):
+    if _spdx_import_error is not None:
+        return False, f'Failed to import spdx-tools: {_spdx_import_error}', ''
+
     success = True
     error_msg = ''
 
