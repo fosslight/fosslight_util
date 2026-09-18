@@ -31,7 +31,7 @@ dependencies = [
     "coloredlogs",
     "beautifulsoup4",
     "jsonmerge",
-    "spdx-tools==0.8.2; sys_platform == 'linux'",
+    "spdx-tools==0.8.2",
     "setuptools>=65.5.1",
     "numpy",
     "requests",

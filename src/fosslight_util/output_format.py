@@ -3,7 +3,6 @@
 # Copyright (c) 2021 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 import os
-import platform
 from fosslight_util.write_excel import write_result_to_excel, write_result_to_csv
 from fosslight_util.write_opossum import write_opossum
 from fosslight_util.write_yaml import write_yaml
@@ -189,11 +188,7 @@ def write_output_file(output_file_without_ext: str, file_extension: str, scan_it
         elif format == 'yaml':
             success, msg, _ = write_yaml(result_file, scan_item, False)
         elif format.startswith('spdx'):
-            if platform.system() == 'Windows' or platform.system() == 'Darwin':
-                success = False
-                msg = f'{platform.system()} not support spdx format.'
-            else:
-                success, msg, _ = write_spdx(output_file_without_ext, file_extension, scan_item, spdx_version)
+            success, msg, _ = write_spdx(output_file_without_ext, file_extension, scan_item, spdx_version)
         elif format.startswith('cyclonedx'):
             success, msg, result_file = write_cyclonedx(
                 output_file_without_ext,
