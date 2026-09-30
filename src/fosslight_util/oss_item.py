@@ -16,6 +16,21 @@ CHECKSUM_NULL = "0"
 _CHECKSUM_CHUNK_SIZE = 1024 * 1024  # 1 MiB
 
 
+def _unique_preserve_order(items):
+    """Drop duplicates and keep the first-seen order.
+
+    set() iteration follows PYTHONHASHSEED, so the same copyright lines can
+    be reported in a different order on each run.
+    """
+    seen = set()
+    unique = []
+    for item in items:
+        if item not in seen:
+            seen.add(item)
+            unique.append(item)
+    return unique
+
+
 class OssItem:
 
     def __init__(self, name="", version="", license="", dl_url=""):
@@ -64,10 +79,10 @@ class OssItem:
     def copyright(self, value):
         if value:
             if isinstance(value, list):
-                value = list(set(value))
+                lines = value
             else:
-                value = set(value.split("\n"))
-            value = "\n".join(value).strip()
+                lines = value.split("\n")
+            value = "\n".join(_unique_preserve_order(lines)).strip()
         self._copyright = value
 
     @property
