@@ -30,7 +30,7 @@ def read_oss_report(excel_file: str, sheet_names: str = "", basepath: str = "") 
         sheet_name_to_read = SHEET_PREFIX_TO_READ
 
     try:
-        logger.info(f"Read data from : {excel_file}")
+        logger.debug(f"Read data from : {excel_file}")
         xl_workbook = pd.ExcelFile(excel_file, engine='openpyxl')
         all_sheet_in_excel = xl_workbook.sheet_names
         for sheet_to_read in sheet_name_to_read:
