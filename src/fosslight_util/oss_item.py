@@ -64,10 +64,11 @@ class OssItem:
     def copyright(self, value):
         if value:
             if isinstance(value, list):
-                value = list(set(value))
+                lines = value
             else:
-                value = set(value.split("\n"))
-            value = "\n".join(value).strip()
+                lines = value.split("\n")
+            # set() drops duplicates but its order follows PYTHONHASHSEED.
+            value = "\n".join(sorted(set(lines))).strip()
         self._copyright = value
 
     @property
