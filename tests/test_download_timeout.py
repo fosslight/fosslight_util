@@ -69,6 +69,38 @@ def slow_archive_url():
 
 
 @pytest.fixture
+def stalling_archive_url():
+    """Serve the headers of a .tar.gz and then stall without ever sending the body."""
+    stalled = threading.Event()
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path != "/pkg.tar.gz":
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/gzip")
+            self.send_header("Content-Length", str(_BLOCK))
+            self.end_headers()
+            self.wfile.flush()
+            stalled.wait(60)
+
+        def do_HEAD(self):
+            self.send_error(404)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}/pkg.tar.gz"
+    finally:
+        stalled.set()
+        server.shutdown()
+
+
+@pytest.fixture
 def no_system_wget(monkeypatch):
     """Fail the test if the download is started over with system wget."""
     def fail(*args, **kwargs):
@@ -149,3 +181,63 @@ def test_timeout_stops_system_wget(tmp_path, monkeypatch):
         download._cancel_download_watchdog(alarm)
 
     assert started and started[0].poll() is not None, "wget should have been stopped"
+
+
+def test_timeout_rejects_system_wget_that_finished_after_the_deadline(tmp_path, monkeypatch):
+    # given: a "wget" that succeeds after the deadline, while the poll loop sleeps
+    downloaded = tmp_path / "pkg.tar.gz"
+    real_popen = subprocess.Popen
+
+    def fake_popen(args, **kwargs):
+        script = f"import time; time.sleep(0.3); open({str(downloaded)!r}, 'wb').write(b'x' * 16)"
+        return real_popen([sys.executable, "-c", script], **kwargs)
+
+    def offline(*args, **kwargs):
+        raise OSError("offline")
+
+    monkeypatch.setattr(download.shutil, "which", lambda name: "wget")
+    monkeypatch.setattr(download.requests, "head", offline)
+    monkeypatch.setattr(download.subprocess, "Popen", fake_popen)
+    # One sleep long enough that wget exits and the watchdog fires inside it.
+    monkeypatch.setattr(download, "SIZE_CHECK_INTERVAL_SECONDS", 2)
+    alarm = download._start_download_watchdog(1)
+
+    # when / then: the expired download is not accepted as a success
+    try:
+        with pytest.raises(download.TimeOutException, match="Download timeout 1s"):
+            download._download_with_system_wget("http://127.0.0.1:9/pkg.tar.gz", str(tmp_path))
+    finally:
+        download._cancel_download_watchdog(alarm)
+
+
+def test_blocking_http_waits_are_bounded_by_the_deadline():
+    # given: a 1 second overall timeout
+    alarm = download._start_download_watchdog(1)
+
+    # when / then: a long per-request timeout is cut down to what is left
+    try:
+        assert download._download_request_timeout(download.SIGNAL_TIMEOUT) <= 1
+    finally:
+        download._cancel_download_watchdog(alarm)
+
+    # with the watchdog off, the per-request timeout is left alone
+    assert download._download_request_timeout(30) == 30
+
+
+def test_timeout_stops_a_stalled_response(tmp_path, stalling_archive_url, no_system_wget,
+                                          monkeypatch):
+    # given: a server that sends headers and then never sends a body. The per-request
+    # timeout is shortened so an unbounded read fails the test instead of hanging on it.
+    monkeypatch.setattr(download, "SIGNAL_TIMEOUT", 20)
+    target = tmp_path / "target"
+
+    # when
+    started = time.monotonic()
+    success, msg, *_ = cli_download_and_extract(
+        stalling_archive_url, str(target), str(tmp_path), timeout=1
+    )
+    elapsed = time.monotonic() - started
+
+    # then: the deadline interrupts the blocked read instead of waiting it out
+    assert success is False
+    assert elapsed < 10, f"a stalled read should stop near the timeout, took {elapsed:.1f}s"

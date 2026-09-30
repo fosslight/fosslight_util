@@ -99,6 +99,7 @@ class Alarm(threading.Thread):
     def __init__(self, timeout):
         threading.Thread.__init__(self)
         self.timeout = timeout
+        self.deadline = time.monotonic() + timeout
         self._cancelled = threading.Event()
         self._timed_out = threading.Event()
         self.daemon = True
@@ -151,6 +152,19 @@ def _raise_if_download_timed_out():
     alarm = _active_download_alarm
     if alarm is not None and alarm.timed_out:
         raise TimeOutException(f"Download timeout {alarm.timeout}s", 1)
+
+
+def _download_request_timeout(default):
+    """Bound a blocking requests timeout by what is left of the download deadline.
+
+    Requests' own timeout measures inactivity, not the overall duration, so without
+    this a stalled server could keep a connect or read blocked long past the download
+    timeout. Returns ``default`` unchanged when no watchdog is running.
+    """
+    alarm = _active_download_alarm
+    if alarm is None:
+        return default
+    return max(0.1, min(default, alarm.deadline - time.monotonic()))
 
 
 def is_downloadable(url):
@@ -1178,7 +1192,9 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
 
     # Before download: best-effort Content-Length check
     try:
-        head = requests.head(url, timeout=10, allow_redirects=True)
+        head = requests.head(
+            url, timeout=_download_request_timeout(10), allow_redirects=True
+        )
         if head.status_code < 400:
             _raise_if_content_length_over_limit(
                 head.headers, size_limit_gb, "before download"
@@ -1238,6 +1254,9 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
         time.sleep(SIZE_CHECK_INTERVAL_SECONDS)
 
     _stdout, stderr = proc.communicate()
+    # wget may have exited during the sleep above, after the deadline: the loop then
+    # ends without reaching its check, so reject the expired download here.
+    _raise_if_download_timed_out()
     if proc.returncode != 0:
         logger.warning(
             f"system wget failed (rc={proc.returncode}): {(stderr or '').strip()}"
@@ -1377,11 +1396,14 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
 
 def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=None):
     """One HTTP download attempt. Raises requests.HTTPError on HTTP failure."""
+    # Also stops download_file() from retrying once the deadline has passed.
+    _raise_if_download_timed_out()
     final_url = url
     head_headers = {}
     try:
         h = requests.head(
-            url, allow_redirects=True, timeout=30, headers=request_headers
+            url, allow_redirects=True, timeout=_download_request_timeout(30),
+            headers=request_headers,
         )
         final_url = h.url or url
         head_headers = h.headers
@@ -1405,7 +1427,7 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
             final_url,
             stream=True,
             allow_redirects=True,
-            timeout=SIGNAL_TIMEOUT,
+            timeout=_download_request_timeout(SIGNAL_TIMEOUT),
             headers=request_headers,
         ) as r:
             r.raise_for_status()
