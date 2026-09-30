@@ -19,7 +19,6 @@ from fosslight_util._get_downloadable_url import get_downloadable_url
 from fosslight_util.help import print_help_msg_download
 import fosslight_util.constant as constant
 from fosslight_util.set_log import init_log
-import signal
 import time
 import threading
 import platform
@@ -47,7 +46,8 @@ prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 SIZE_CHECK_INTERVAL_SECONDS = 10
 _BYTES_PER_GB = 1024 ** 3
-# Active Windows Alarm so nested helpers (e.g. git clone) can cancel it.
+# Active download Alarm, so nested helpers (e.g. git clone) can cancel it and the
+# download loops can check whether it fired.
 _active_download_alarm = None
 
 # Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests' default
@@ -89,48 +89,50 @@ def _download_http_header_attempts():
 
 
 class Alarm(threading.Thread):
-    """Windows download watchdog; call ``cancel()`` to stop before timeout."""
+    """Download watchdog; call ``cancel()`` to stop before timeout.
+
+    It only raises a flag when the time runs out. The download loops check it through
+    _raise_if_download_timed_out() and stop the download themselves, so the caller gets
+    a failure result instead of the whole process being ended.
+    """
 
     def __init__(self, timeout):
         threading.Thread.__init__(self)
         self.timeout = timeout
         self._cancelled = threading.Event()
+        self._timed_out = threading.Event()
         self.daemon = True
+
+    @property
+    def timed_out(self):
+        return self._timed_out.is_set()
 
     def run(self):
         # Wait until timeout or cancel(); do not use bare time.sleep.
         if self._cancelled.wait(self.timeout):
             return
-        logger.error("download timeout! (%d sec)", SIGNAL_TIMEOUT)
-        os._exit(1)
+        self._timed_out.set()
+        logger.error("download timeout! (%d sec)", self.timeout)
 
     def cancel(self):
         """Stop the watchdog so a successful download is not killed later."""
         self._cancelled.set()
 
 
-def _start_download_watchdog():
-    """Start SIGALRM (Unix) or Alarm thread (Windows). Return Alarm or None."""
+def _start_download_watchdog(timeout=SIGNAL_TIMEOUT):
+    """Start the download watchdog. Return the Alarm, or None when timeout <= 0 (off)."""
     global _active_download_alarm
-    if platform.system() != "Windows":
-        signal.signal(signal.SIGALRM, alarm_handler)
-        signal.alarm(SIGNAL_TIMEOUT)
+    if timeout <= 0:
         return None
-    alarm = Alarm(SIGNAL_TIMEOUT)
+    alarm = Alarm(timeout)
     alarm.start()
     _active_download_alarm = alarm
     return alarm
 
 
 def _cancel_download_watchdog(alarm=None):
-    """Cancel SIGALRM or the Windows Alarm watchdog."""
+    """Cancel the download watchdog."""
     global _active_download_alarm
-    if platform.system() != "Windows":
-        try:
-            signal.alarm(0)
-        except Exception:
-            pass
-        return
     target = alarm if alarm is not None else _active_download_alarm
     if target is not None:
         target.cancel()
@@ -144,9 +146,11 @@ class TimeOutException(Exception):
         self.error_code = error_code
 
 
-def alarm_handler(signum, frame):
-    logger.warning("download timeout! (%d sec)", SIGNAL_TIMEOUT)
-    raise TimeOutException(f'Timeout ({SIGNAL_TIMEOUT} sec)', 1)
+def _raise_if_download_timed_out():
+    """Raise TimeOutException once the watchdog of the current download has fired."""
+    alarm = _active_download_alarm
+    if alarm is not None and alarm.timed_out:
+        raise TimeOutException(f"Download timeout {alarm.timeout}s", 1)
 
 
 def is_downloadable(url):
@@ -276,7 +280,8 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                              id: str = "", git_token: str = "",
                              called_cli: bool = True,
                              output: bool = False,
-                             size_limit_gb: Optional[float] = None
+                             size_limit_gb: Optional[float] = None,
+                             timeout: int = SIGNAL_TIMEOUT
                              ) -> Tuple[bool, str, str, str, str]:
     global logger
 
@@ -325,7 +330,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             elif (not is_rubygems) and (not success_git):
                 success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link = download_wget(
                     link, target_dir, compressed_only, checkout_to,
-                    size_limit_gb=size_limit_gb,
+                    size_limit_gb=size_limit_gb, timeout=timeout,
                 )
                 if _is_size_limit_block_message(msg_wget):
                     size_limit_blocked = True
@@ -1139,6 +1144,24 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
     return success, msg, oss_name, refs_to_checkout, clarified_version
 
 
+def _stop_process(proc):
+    """Terminate a child process and reap it."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        try:
+            proc.wait(timeout=5)
+        except Exception:
+            pass
+    # Drain stderr after exit to avoid leaving a blocked pipe reader.
+    try:
+        proc.communicate(timeout=5)
+    except Exception:
+        pass
+
+
 def _download_with_system_wget(url, target_dir, size_limit_gb=None):
     """
     Download ``url`` with the system ``wget`` binary.
@@ -1194,6 +1217,11 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
 
     limit = _size_limit_bytes(size_limit_gb)
     while proc.poll() is None:
+        try:
+            _raise_if_download_timed_out()
+        except TimeOutException:
+            _stop_process(proc)
+            raise
         if limit is not None:
             current = _dir_size_bytes(target_dir)
             if current >= limit:
@@ -1201,20 +1229,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
                     "system wget exceeded size limit during progress "
                     f"({current} bytes >= {limit}); aborting."
                 )
-                proc.terminate()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                    try:
-                        proc.wait(timeout=5)
-                    except Exception:
-                        pass
-                # Drain stderr after exit to avoid leaving a blocked pipe reader.
-                try:
-                    proc.communicate(timeout=5)
-                except Exception:
-                    pass
+                _stop_process(proc)
                 raise SizeLimitExceeded(
                     _size_limit_abort_message(
                         size_limit_gb, "during download", current
@@ -1251,7 +1266,8 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
     return local_path
 
 
-def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=None):
+def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=None,
+                  timeout=SIGNAL_TIMEOUT):
     success = False
     msg = ""
     oss_name = ""
@@ -1261,7 +1277,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
     alarm = None
 
     try:
-        alarm = _start_download_watchdog()
+        alarm = _start_download_watchdog(timeout)
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -1307,13 +1323,16 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
             downloaded_file = download_file(
                 link, target_dir, size_limit_gb=size_limit_gb
             )
-        except SizeLimitExceeded:
+        except (SizeLimitExceeded, TimeOutException):
             raise
         except Exception as error:
             logger.warning(
                 f"requests download failed: {error}; trying system wget"
             )
             downloaded_file = None
+
+        # Out of time: do not start the download over with wget.
+        _raise_if_download_timed_out()
 
         # 3차: system wget fallback (former scancode fetch_http wget path)
         if not downloaded_file:
@@ -1342,6 +1361,10 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
         success = False
         msg = str(error)
         logger.warning(f"HTTP/wget - size limit: {error}")
+    except TimeOutException:
+        # Leave the partial download in place and let cli_download_and_extract report
+        # the timeout as the result, without trying other download methods.
+        raise
     except Exception as error:
         success = False
         msg = str(error)
@@ -1421,6 +1444,7 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
             written = 0
             with open(local_path, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192):
+                    _raise_if_download_timed_out()
                     if not chunk:
                         continue
                     f.write(chunk)
@@ -1455,7 +1479,7 @@ def download_file(url, target_dir, size_limit_gb=None):
             return _download_file_once(
                 url, target_dir, req_headers, size_limit_gb=size_limit_gb
             )
-        except SizeLimitExceeded:
+        except (SizeLimitExceeded, TimeOutException):
             raise
         except requests.exceptions.HTTPError as e:
             if (
