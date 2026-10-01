@@ -46,8 +46,8 @@ prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 SIZE_CHECK_INTERVAL_SECONDS = 10
 _BYTES_PER_GB = 1024 ** 3
-# Active download Alarm, so nested helpers (e.g. git clone) can cancel it and the
-# download loops can check whether it fired.
+# Active download Alarm started by cli_download_and_extract, so the download loops
+# can check whether it fired.
 _active_download_alarm = None
 
 # Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests' default
@@ -312,6 +312,8 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
     link = link.strip()
     is_rubygems = False
+    # One overall deadline for the whole download: git clone, then HTTP/wget.
+    alarm = _start_download_watchdog(timeout)
 
     try:
         if not link:
@@ -344,7 +346,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             elif (not is_rubygems) and (not success_git):
                 success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link = download_wget(
                     link, target_dir, compressed_only, checkout_to,
-                    size_limit_gb=size_limit_gb, timeout=timeout,
+                    size_limit_gb=size_limit_gb,
                 )
                 if _is_size_limit_block_message(msg_wget):
                     size_limit_blocked = True
@@ -389,6 +391,8 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     except Exception as error:
         success = False
         msg = str(error)
+    finally:
+        _cancel_download_watchdog(alarm)
 
     clarified_version = (
         clarified_from_git
@@ -978,13 +982,15 @@ def run_git_clone_with_size_guard(
 
     stdout = stderr = ""
     try:
-        next_timeout = size_check_after_sec
+        # Wake up by the download deadline at the latest, so a stalled clone is stopped.
+        next_timeout = _download_request_timeout(size_check_after_sec)
         first_check_done = False
         while True:
             try:
                 stdout, stderr = proc.communicate(timeout=next_timeout)
                 break
             except subprocess.TimeoutExpired:
+                _raise_if_download_timed_out()
                 if limit is not None:
                     current = _dir_size_bytes(target_dir)
                     if current >= limit:
@@ -999,7 +1005,10 @@ def run_git_clone_with_size_guard(
                         return _fail_for_size(elapsed, current, kill_proc=True)
                 first_check_done = True
                 # Under limit (or no limit): keep waiting in interval slices
-                next_timeout = size_check_interval_sec
+                next_timeout = _download_request_timeout(size_check_interval_sec)
+    except TimeOutException:
+        _stop_process(proc)
+        raise
     except Exception as e:
         try:
             proc.kill()
@@ -1040,12 +1049,6 @@ def download_git_repository(
     msg = ""
 
     logger.info(f"Download git url :{git_url}, version:{refs_to_checkout}")
-
-    # Avoid hard process exit from parent watchdog while size-guarded clone may run longer
-    try:
-        _cancel_download_watchdog()
-    except Exception:
-        pass
 
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
@@ -1110,11 +1113,8 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
     msg = ""
     success = True
     oss_version = ""
-    alarm = None
 
     try:
-        alarm = _start_download_watchdog()
-
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
         if git_url.startswith("ssh:") and not ssh_key:
@@ -1142,12 +1142,13 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
 
             logger.info(f"git checkout version: {oss_version}")
             refs_to_checkout = oss_version
+    except TimeOutException:
+        # Out of time: let cli_download_and_extract report it without trying HTTP/wget.
+        raise
     except Exception as error:
         success = False
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
-    finally:
-        _cancel_download_watchdog(alarm)
 
     if oss_version:
         clarified_version = decided_clarified or clarified_version_from_oss_version(
@@ -1285,19 +1286,15 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
     return local_path
 
 
-def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=None,
-                  timeout=SIGNAL_TIMEOUT):
+def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=None):
     success = False
     msg = ""
     oss_name = ""
     oss_version = ""
     downloaded_file = ""
     resolved_link = ""
-    alarm = None
 
     try:
-        alarm = _start_download_watchdog(timeout)
-
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
         ret, new_link, oss_name, oss_version, pkg_type = get_downloadable_url(link, checkout_to)
@@ -1388,8 +1385,6 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
         success = False
         msg = str(error)
         logger.warning(f"HTTP/wget - failed: {error}")
-    finally:
-        _cancel_download_watchdog(alarm)
 
     return success, downloaded_file, msg, oss_name, oss_version, resolved_link
 

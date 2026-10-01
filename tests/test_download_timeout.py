@@ -241,3 +241,34 @@ def test_timeout_stops_a_stalled_response(tmp_path, stalling_archive_url, no_sys
     # then: the deadline interrupts the blocked read instead of waiting it out
     assert success is False
     assert elapsed < 10, f"a stalled read should stop near the timeout, took {elapsed:.1f}s"
+
+
+def test_timeout_stops_a_stalled_git_clone(tmp_path, monkeypatch):
+    # given: a "git clone" that would hang for a minute, and a 1 second overall timeout
+    started = []
+    real_popen = subprocess.Popen
+
+    def fake_popen(args, **kwargs):
+        proc = real_popen([sys.executable, "-c", "import time; time.sleep(60)"], **kwargs)
+        started.append(proc)
+        return proc
+
+    def fail(*args, **kwargs):
+        raise AssertionError("HTTP/wget must not be tried after a git timeout")
+
+    monkeypatch.setattr(download, "get_remote_refs", lambda url: {"tags": [], "branches": []})
+    monkeypatch.setattr(download.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(download, "download_wget", fail)
+
+    # when
+    t0 = time.monotonic()
+    success, msg, *_ = cli_download_and_extract(
+        "https://example.com/org/repo.git", str(tmp_path / "target"), str(tmp_path), timeout=1
+    )
+    elapsed = time.monotonic() - t0
+
+    # then: one deadline covers the clone too, and the clone process is stopped
+    assert success is False
+    assert msg == "Download timeout 1s"
+    assert elapsed < 10, f"a stalled clone should stop near the timeout, took {elapsed:.1f}s"
+    assert started and started[0].poll() is not None, "git clone should have been stopped"
