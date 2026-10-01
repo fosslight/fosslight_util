@@ -13,6 +13,7 @@ import shutil
 from git import Git
 import bz2
 import contextlib
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from fosslight_util._get_downloadable_url import get_downloadable_url
@@ -47,10 +48,10 @@ prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 SIZE_CHECK_INTERVAL_SECONDS = 10
 _BYTES_PER_GB = 1024 ** 3
-# Active download Alarm, so the download loops can check whether it fired.
-_active_download_alarm = None
-# True while a download owns the watchdog; see _enter_download_watchdog().
-_download_watchdog_owned = False
+# Each operation has its own watchdog; nested download steps reuse its context.
+_active_download_alarm = ContextVar("active_download_alarm", default=None)
+# Track ownership separately so a disabled watchdog stays disabled in nested steps.
+_download_watchdog_owned = ContextVar("download_watchdog_owned", default=False)
 
 # Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests' default
 # User-Agent, or 200 with a small text/html interstitial. Start with a curl-style UA
@@ -131,47 +132,48 @@ class Alarm(threading.Thread):
 
 def _start_download_watchdog(timeout=SIGNAL_TIMEOUT):
     """Start the download watchdog. Return the Alarm, or None when timeout <= 0 (off)."""
-    global _active_download_alarm
     if timeout <= 0:
         return None
     alarm = Alarm(timeout)
     alarm.start()
-    _active_download_alarm = alarm
+    _active_download_alarm.set(alarm)
     return alarm
 
 
 def _cancel_download_watchdog(alarm=None):
     """Cancel the download watchdog."""
-    global _active_download_alarm
-    target = alarm if alarm is not None else _active_download_alarm
+    target = alarm if alarm is not None else _active_download_alarm.get()
     if target is not None:
         target.cancel()
-    if alarm is None or alarm is _active_download_alarm:
-        _active_download_alarm = None
+    if alarm is None or alarm is _active_download_alarm.get():
+        _active_download_alarm.set(None)
 
 
-def _enter_download_watchdog(timeout):
-    """Start the watchdog for a download, unless a caller's download already owns it.
+def _enter_download_watchdog(timeout, new_operation=False):
+    """Start an operation's watchdog, or reuse it for a nested download step.
 
-    cli_download_and_extract owns it for the whole download, so download_git_clone and
-    download_wget start their own only when called directly. Ownership is tracked apart
-    from the Alarm so that an owner that turned the watchdog off keeps it off.
-    Return True when this call became the owner; pass it to _exit_download_watchdog().
+    cli_download_and_extract always starts a new operation. Direct calls to
+    download_git_clone and download_wget own a watchdog only outside an operation.
+    Return context tokens for the owner, or None for a nested step.
     """
-    global _download_watchdog_owned
-    if _download_watchdog_owned:
-        return False
-    _download_watchdog_owned = True
-    _start_download_watchdog(timeout)
-    return True
+    if _download_watchdog_owned.get() and not new_operation:
+        return None
+    owner = (_download_watchdog_owned.set(True), _active_download_alarm.set(None))
+    try:
+        _start_download_watchdog(timeout)
+    except BaseException:
+        _exit_download_watchdog(owner)
+        raise
+    return owner
 
 
 def _exit_download_watchdog(owner):
-    """Stop the watchdog started by _enter_download_watchdog() when ``owner`` is True."""
-    global _download_watchdog_owned
-    if owner:
+    """Cancel this operation's watchdog and restore the caller's context."""
+    if owner is not None:
         _cancel_download_watchdog()
-        _download_watchdog_owned = False
+        owned_token, alarm_token = owner
+        _active_download_alarm.reset(alarm_token)
+        _download_watchdog_owned.reset(owned_token)
 
 
 class TimeOutException(Exception):
@@ -182,7 +184,7 @@ class TimeOutException(Exception):
 
 def _raise_if_download_timed_out():
     """Raise TimeOutException once the watchdog of the current download has fired."""
-    alarm = _active_download_alarm
+    alarm = _active_download_alarm.get()
     if alarm is not None and alarm.timed_out:
         raise TimeOutException(f"Download timeout {alarm.timeout}s", 1)
 
@@ -194,7 +196,7 @@ def _download_request_timeout(default):
     this a stalled server could keep a connect or read blocked long past the download
     timeout. Returns ``default`` unchanged when no watchdog is running.
     """
-    alarm = _active_download_alarm
+    alarm = _active_download_alarm.get()
     if alarm is None:
         return default
     return max(0.1, min(default, alarm.deadline - time.monotonic()))
@@ -202,7 +204,7 @@ def _download_request_timeout(default):
 
 def _set_download_timeout_callback(callback):
     """Have the running watchdog call ``callback`` when the deadline passes (None clears)."""
-    alarm = _active_download_alarm
+    alarm = _active_download_alarm.get()
     if alarm is not None:
         alarm.on_timeout = callback
 
@@ -365,7 +367,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     link = link.strip()
     is_rubygems = False
     # One overall deadline for the whole download: git clone, then HTTP/wget.
-    owner = _enter_download_watchdog(timeout)
+    owner = _enter_download_watchdog(timeout, new_operation=True)
 
     try:
         if not link:

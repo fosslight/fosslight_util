@@ -9,6 +9,7 @@ import sys
 import tarfile
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -390,7 +391,7 @@ def test_download_wget_called_directly_has_its_own_timeout(tmp_path, stalling_ar
     assert success is False
     assert msg == "Download timeout 1s"
     assert elapsed < 10, f"download_wget should stop near its timeout, took {elapsed:.1f}s"
-    assert download._active_download_alarm is None
+    assert download._active_download_alarm.get() is None
 
 
 def test_download_git_clone_called_directly_has_its_own_timeout(tmp_path, monkeypatch):
@@ -419,7 +420,7 @@ def test_download_git_clone_called_directly_has_its_own_timeout(tmp_path, monkey
     assert msg == "Download timeout 1s"
     assert elapsed < 10, f"download_git_clone should stop near its timeout, took {elapsed:.1f}s"
     assert started and started[0].poll() is not None, "git clone should have been stopped"
-    assert download._active_download_alarm is None
+    assert download._active_download_alarm.get() is None
 
 
 def test_timeout_stops_a_stalled_git_clone(tmp_path, monkeypatch):
@@ -451,3 +452,92 @@ def test_timeout_stops_a_stalled_git_clone(tmp_path, monkeypatch):
     assert msg == "Download timeout 1s"
     assert elapsed < 10, f"a stalled clone should stop near the timeout, took {elapsed:.1f}s"
     assert started and started[0].poll() is not None, "git clone should have been stopped"
+
+
+@pytest.mark.parametrize("timeouts", [(1, 10), (0, 1), (1, 0)])
+def test_concurrent_downloads_have_independent_watchdogs(
+    tmp_path, slow_archive_url, no_system_wget, monkeypatch, timeouts
+):
+    url, _ = slow_archive_url
+    both_started = threading.Barrier(2)
+
+    def git_failed(*args, **kwargs):
+        # Both CLI operations must own their watchdog before either starts HTTP.
+        both_started.wait(timeout=5)
+        return False, "git failed", "", "", ""
+
+    monkeypatch.setattr(download, "download_git_clone", git_failed)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [
+            pool.submit(
+                cli_download_and_extract, url, str(tmp_path / str(i)),
+                str(tmp_path / f"logs-{i}"), timeout=timeout,
+            )
+            for i, timeout in enumerate(timeouts)
+        ]
+        results = [future.result(timeout=15) for future in futures]
+
+    for i, (timeout, (success, msg, *_)) in enumerate(zip(timeouts, results)):
+        if timeout == 1:
+            assert success is False
+            assert msg == "Download timeout 1s"
+        else:
+            assert success is True, msg
+            assert (tmp_path / str(i) / "pkg" / "data.bin").is_file()
+
+
+def test_nested_cli_operation_restores_callers_watchdog(tmp_path, monkeypatch):
+    alarms = []
+
+    def git_download(link, *args, **kwargs):
+        alarm = download._active_download_alarm.get()
+        alarms.append(alarm)
+        if link.endswith("outer.git"):
+            success, msg, *_ = cli_download_and_extract(
+                "https://example.com/inner.git", str(tmp_path / "inner"),
+                str(tmp_path), timeout=0,
+            )
+            assert success, msg
+            assert download._active_download_alarm.get() is alarm
+            assert not alarm._cancelled.is_set()
+        else:
+            assert alarm is None
+            assert download._enter_download_watchdog(1) is None
+        return True, "", "", "", ""
+
+    monkeypatch.setattr(download, "download_git_clone", git_download)
+    success, msg, *_ = cli_download_and_extract(
+        "https://example.com/outer.git", str(tmp_path / "outer"),
+        str(tmp_path), timeout=10,
+    )
+    assert success, msg
+    assert len(alarms) == 2
+    assert alarms[0]._cancelled.is_set()
+    assert download._active_download_alarm.get() is None
+    assert download._download_watchdog_owned.get() is False
+
+
+def test_finishing_one_download_does_not_cancel_another(
+    tmp_path, trickling_archive_url, no_system_wget, monkeypatch
+):
+    both_started = threading.Barrier(2)
+
+    def git_failed(*args, **kwargs):
+        both_started.wait(timeout=5)
+        return False, "git failed", "", "", ""
+
+    monkeypatch.setattr(download, "download_git_clone", git_failed)
+    started = time.monotonic()
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [
+            pool.submit(
+                cli_download_and_extract, trickling_archive_url, str(tmp_path / str(timeout)),
+                str(tmp_path / f"logs-{timeout}"), timeout=timeout,
+            )
+            for timeout in (1, 2)
+        ]
+        for timeout, future in zip((1, 2), futures):
+            success, msg, *_ = future.result(timeout=10)
+            assert success is False
+            assert msg == f"Download timeout {timeout}s"
+    assert time.monotonic() - started < 10
