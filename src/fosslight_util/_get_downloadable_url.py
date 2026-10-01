@@ -37,6 +37,8 @@ MAVEN_REPOSITORY_BASES = (
 MAVEN_SOURCE_CLASSIFIERS = ("sources", "source", "src")
 # (connect, read) — keep probes snappy; dead hosts must not stall the CLI.
 MAVEN_HTTP_TIMEOUT = (2, 2)
+# Upper bound for the lookups below, so a stalled server cannot hold up a download.
+_HTTP_TIMEOUT = 10
 # groupPath prefix → try these hosts before the default popularity order.
 _MAVEN_GROUP_REPO_HINTS = (
     ("io/confluent", ("https://packages.confluent.io/maven",)),
@@ -597,7 +599,7 @@ def get_latest_package_version(link, pkg_type, oss_name):
 
     try:
         if pkg_type in ['npm', 'npm2']:
-            npm_response = requests.get(f"https://registry.npmjs.org/{oss_name}")
+            npm_response = requests.get(f"https://registry.npmjs.org/{oss_name}", timeout=_HTTP_TIMEOUT)
             if npm_response.status_code == 200:
                 find_version = npm_response.json().get("dist-tags", {}).get("latest")
         elif pkg_type == 'pypi':
@@ -664,11 +666,11 @@ def get_latest_package_version(link, pkg_type, oss_name):
                                 cand = versions[-1]
                         find_version = cand.get('versionKey', {}).get('version', '')
         elif pkg_type == 'pub':
-            pub_response = requests.get(f'https://pub.dev/api/packages/{oss_name}')
+            pub_response = requests.get(f'https://pub.dev/api/packages/{oss_name}', timeout=_HTTP_TIMEOUT)
             if pub_response.status_code == 200:
                 find_version = pub_response.json().get('latest').get('version')
         elif pkg_type == 'go':
-            go_response = requests.get(f'https://proxy.golang.org/{oss_name}/@latest')
+            go_response = requests.get(f'https://proxy.golang.org/{oss_name}/@latest', timeout=_HTTP_TIMEOUT)
             if go_response.status_code == 200:
                 find_version = go_response.json().get('Version')
                 if find_version.startswith('v'):
@@ -784,7 +786,7 @@ def get_download_location_for_cargo(link):
             oss_version = dn_loc_re[0][1]
 
             new_link = f'{host}/{oss_name}/{oss_version}/download'
-            res = urlopen(new_link)
+            res = urlopen(new_link, timeout=_HTTP_TIMEOUT)
             if res.getcode() == 200:
                 ret = True
             else:
@@ -812,7 +814,7 @@ def get_download_location_for_go(link):
 
             new_link = f'{host}/{oss_name}/@v/{oss_version}.zip'
         try:
-            res = urlopen(new_link)
+            res = urlopen(new_link, timeout=_HTTP_TIMEOUT)
             if res.getcode() == 200:
                 ret = True
             else:
@@ -829,7 +831,7 @@ def get_download_location_for_go(link):
 def get_available_wheel_urls(name, version):
     try:
         api_url = f'https://pypi.org/pypi/{name}/{version}/json'
-        response = requests.get(api_url)
+        response = requests.get(api_url, timeout=_HTTP_TIMEOUT)
         if response.status_code == 200:
             data = response.json()
             wheel_urls = []
@@ -863,7 +865,7 @@ def get_download_location_for_pypi(link):
         # 1. Source distribution 시도
         new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
         try:
-            res = urlopen(new_link)
+            res = urlopen(new_link, timeout=_HTTP_TIMEOUT)
             if res.getcode() == 200:
                 ret = True
                 return ret, new_link
@@ -871,7 +873,7 @@ def get_download_location_for_pypi(link):
             oss_name = re.sub(r"[-]+", "_", oss_name)
             new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
             try:
-                res = urlopen(new_link)
+                res = urlopen(new_link, timeout=_HTTP_TIMEOUT)
                 if res.getcode() == 200:
                     ret = True
                     return ret, new_link
@@ -886,7 +888,7 @@ def get_download_location_for_pypi(link):
             for wheel_url in wheel_urls:
                 if 'py3-none-any' in wheel_url or 'py2.py3-none-any' in wheel_url:
                     try:
-                        res = urlopen(wheel_url)
+                        res = urlopen(wheel_url, timeout=_HTTP_TIMEOUT)
                         if res.getcode() == 200:
                             ret = True
                             new_link = wheel_url
@@ -898,7 +900,7 @@ def get_download_location_for_pypi(link):
             # Pure Python wheel이 없으면 첫 번째 wheel 시도
             if wheel_urls:
                 try:
-                    res = urlopen(wheel_urls[0])
+                    res = urlopen(wheel_urls[0], timeout=_HTTP_TIMEOUT)
                     if res.getcode() == 200:
                         ret = True
                         new_link = wheel_urls[0]
@@ -1107,7 +1109,7 @@ def get_download_location_for_maven(link):
         else:
             raise Exception("not valid url for maven")
 
-        html = urlopen(dn_loc).read().decode('utf8')
+        html = urlopen(dn_loc, timeout=_HTTP_TIMEOUT).read().decode('utf8')
         bs_obj = BeautifulSoup(html, 'html.parser')
 
         file_name = dn_loc.split('/')[-2] + '-' + dn_loc.split('/')[-1] + '-sources.jar'

@@ -70,6 +70,7 @@ _HELP_MESSAGE_DOWNLOAD = """
     -d <log_dir>          Directory to save the log file
     -c <branch/tag>       Checkout to branch, tag, or version after download
     -l <GB>               Max download size in GB (omit for unlimited)
+    --timeout <sec>       Overall download timeout including git clone (default: 600, 0 for unlimited)
     -z                    Unzip only compressed file
     -o                    Generate summary output file
     -h                    Show this help message

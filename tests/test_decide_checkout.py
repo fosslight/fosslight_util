@@ -104,10 +104,6 @@ def test_download_git_clone_android_libhwbinder_c_15_0(tmp_path, monkeypatch):
         "fosslight_util.download.get_remote_refs",
         lambda _url: {"tags": tags, "branches": ["main"]},
     )
-    monkeypatch.setattr("fosslight_util.download._start_download_watchdog", lambda: None)
-    monkeypatch.setattr(
-        "fosslight_util.download._cancel_download_watchdog", lambda alarm=None: None
-    )
 
     def fake_download_git_repository(refs_to_checkout, git_url, target_dir, *args, **kwargs):
         Path(target_dir).mkdir(parents=True, exist_ok=True)
@@ -133,10 +129,6 @@ def test_download_git_clone_android_libhwbinder_c_15_0(tmp_path, monkeypatch):
 def test_download_git_clone_normalizes_git_protocol_on_windows(tmp_path, monkeypatch):
     observed_urls = []
     monkeypatch.setattr("fosslight_util.download.platform.system", lambda: "Windows")
-    monkeypatch.setattr("fosslight_util.download._start_download_watchdog", lambda: None)
-    monkeypatch.setattr(
-        "fosslight_util.download._cancel_download_watchdog", lambda alarm=None: None
-    )
     monkeypatch.setattr(
         "fosslight_util.download._resolve_refs_to_checkout",
         lambda *args, **kwargs: ("", ""),
