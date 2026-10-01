@@ -151,4 +151,4 @@ def move_log_file(prev_log_path, final_log_path):
         logger.addHandler(fallback)
         raise
 
-    logger.info("Moved log file to final path")
+    logger.debug("Moved log file to final path")
