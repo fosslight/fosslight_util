@@ -24,6 +24,7 @@ import threading
 import platform
 import subprocess
 import re
+import socket
 from typing import List, Optional, Tuple
 import urllib.parse
 import json
@@ -100,6 +101,8 @@ class Alarm(threading.Thread):
         threading.Thread.__init__(self)
         self.timeout = timeout
         self.deadline = time.monotonic() + timeout
+        # Called from this thread when the time runs out, to wake a blocked read.
+        self.on_timeout = None
         self._cancelled = threading.Event()
         self._timed_out = threading.Event()
         self.daemon = True
@@ -114,6 +117,9 @@ class Alarm(threading.Thread):
             return
         self._timed_out.set()
         logger.error("download timeout! (%d sec)", self.timeout)
+        callback = self.on_timeout
+        if callback is not None:
+            callback()
 
     def cancel(self):
         """Stop the watchdog so a successful download is not killed later."""
@@ -165,6 +171,25 @@ def _download_request_timeout(default):
     if alarm is None:
         return default
     return max(0.1, min(default, alarm.deadline - time.monotonic()))
+
+
+def _set_download_timeout_callback(callback):
+    """Have the running watchdog call ``callback`` when the deadline passes (None clears)."""
+    alarm = _active_download_alarm
+    if alarm is not None:
+        alarm.on_timeout = callback
+
+
+def _shutdown_response_socket(response):
+    """Wake a read blocked on ``response`` by shutting its socket down (best effort).
+
+    A response that keeps sending less than a chunk never lets iter_content() return,
+    and closing the response does not wake the read; shutting the socket down does.
+    """
+    try:
+        response.raw._fp.fp.raw._sock.shutdown(socket.SHUT_RDWR)
+    except Exception:
+        pass
 
 
 def is_downloadable(url):
@@ -1425,6 +1450,9 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
             timeout=_download_request_timeout(SIGNAL_TIMEOUT),
             headers=request_headers,
         ) as r:
+            _set_download_timeout_callback(lambda: _shutdown_response_socket(r))
+            # The deadline may have passed before the callback was set.
+            _raise_if_download_timed_out()
             r.raise_for_status()
             # GET headers may also expose Content-Length
             _raise_if_content_length_over_limit(
@@ -1475,6 +1503,11 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
                         raise
     except SizeLimitExceeded:
         raise
+    finally:
+        _set_download_timeout_callback(None)
+    # A socket shut down by the watchdog can end the read early without an error, so
+    # do not accept the truncated file.
+    _raise_if_download_timed_out()
 
     # After download: final file size check
     if local_path and os.path.exists(local_path):

@@ -101,6 +101,40 @@ def stalling_archive_url():
 
 
 @pytest.fixture
+def trickling_archive_url():
+    """Serve a .tar.gz in pieces too small and too frequent for a chunk or a read timeout."""
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path != "/pkg.tar.gz":
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/gzip")
+            self.send_header("Content-Length", str(_BLOCK * 2))
+            self.end_headers()
+            try:
+                for _ in range(_BLOCK * 2 // 100):
+                    self.wfile.write(b"x" * 100)
+                    self.wfile.flush()
+                    time.sleep(_BLOCK_INTERVAL_SEC)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass
+
+        def do_HEAD(self):
+            self.send_error(404)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}/pkg.tar.gz"
+    finally:
+        server.shutdown()
+
+
+@pytest.fixture
 def no_system_wget(monkeypatch):
     """Fail the test if the download is started over with system wget."""
     def fail(*args, **kwargs):
@@ -241,6 +275,23 @@ def test_timeout_stops_a_stalled_response(tmp_path, stalling_archive_url, no_sys
     # then: the deadline interrupts the blocked read instead of waiting it out
     assert success is False
     assert elapsed < 10, f"a stalled read should stop near the timeout, took {elapsed:.1f}s"
+
+
+def test_timeout_stops_a_trickling_response(tmp_path, trickling_archive_url, no_system_wget):
+    # given: 100 bytes every 0.4 seconds, so an 8192 byte chunk takes about 33 seconds
+    target = tmp_path / "target"
+
+    # when
+    started = time.monotonic()
+    success, msg, *_ = cli_download_and_extract(
+        trickling_archive_url, str(target), str(tmp_path), timeout=1
+    )
+    elapsed = time.monotonic() - started
+
+    # then: the deadline wakes the read that is waiting for a full chunk
+    assert success is False
+    assert msg == "Download timeout 1s"
+    assert elapsed < 10, f"a trickling read should stop near the timeout, took {elapsed:.1f}s"
 
 
 def test_timeout_stops_a_stalled_git_clone(tmp_path, monkeypatch):
