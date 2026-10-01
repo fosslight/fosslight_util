@@ -1322,7 +1322,10 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
     try:
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
+        # The git step may have used up the time; the lookup below may use up the rest.
+        _raise_if_download_timed_out()
         ret, new_link, oss_name, oss_version, pkg_type = get_downloadable_url(link, checkout_to)
+        _raise_if_download_timed_out()
         if ret and new_link:
             link = new_link
         resolved_link = link

@@ -294,6 +294,32 @@ def test_timeout_stops_a_trickling_response(tmp_path, trickling_archive_url, no_
     assert elapsed < 10, f"a trickling read should stop near the timeout, took {elapsed:.1f}s"
 
 
+def test_timeout_stops_after_a_slow_package_lookup(tmp_path, monkeypatch, no_system_wget):
+    # given: git fails, then the package lookup returns only after the 1 second deadline
+    def git_failed(*args, **kwargs):
+        return False, "git failed", "", "", ""
+
+    def slow_lookup(link, checkout_to):
+        time.sleep(1.5)
+        return True, link, "pkg", "1.0", "pypi"
+
+    # download_wget swallows errors from download_file, so record the call instead.
+    http_calls = []
+    monkeypatch.setattr(download, "download_git_clone", git_failed)
+    monkeypatch.setattr(download, "get_downloadable_url", slow_lookup)
+    monkeypatch.setattr(download, "download_file", lambda *a, **k: http_calls.append(a))
+
+    # when
+    success, msg, *_ = cli_download_and_extract(
+        "https://example.com/pkg.tar.gz", str(tmp_path / "target"), str(tmp_path), timeout=1
+    )
+
+    # then
+    assert success is False
+    assert msg == "Download timeout 1s"
+    assert not http_calls, "the HTTP download must not start after the deadline"
+
+
 def test_timeout_stops_a_stalled_git_clone(tmp_path, monkeypatch):
     # given: a "git clone" that would hang for a minute, and a 1 second overall timeout
     started = []
