@@ -175,8 +175,11 @@ def test_timeout_stops_download_and_returns_failure(tmp_path, slow_archive_url, 
     assert 0 < partial.stat().st_size < total_size
 
 
-def test_timeout_off_lets_a_slow_download_finish(tmp_path, slow_archive_url, no_system_wget):
-    # given: the same slow archive, with the overall timeout turned off
+def test_timeout_off_lets_a_slow_download_finish(tmp_path, slow_archive_url, no_system_wget,
+                                                  monkeypatch):
+    # given: the same slow archive, with the overall timeout turned off. The default
+    # timeout is shortened so a download step starting a watchdog of its own would fail.
+    monkeypatch.setattr(download, "SIGNAL_TIMEOUT", 1)
     url, _ = slow_archive_url
     target = tmp_path / "target"
 
@@ -369,6 +372,54 @@ def test_timeout_rejects_a_gem_that_finished_after_the_deadline(tmp_path, monkey
     # then: the late result is not reported as a success
     assert success is False
     assert msg == "Download timeout 1s"
+
+
+def test_download_wget_called_directly_has_its_own_timeout(tmp_path, stalling_archive_url,
+                                                          no_system_wget, monkeypatch):
+    # given: no cli_download_and_extract around it, and a 1 second default timeout
+    monkeypatch.setattr(download, "SIGNAL_TIMEOUT", 1)
+
+    # when
+    started = time.monotonic()
+    success, _, msg, *_ = download.download_wget(
+        stalling_archive_url, str(tmp_path / "target"), False, ""
+    )
+    elapsed = time.monotonic() - started
+
+    # then: a failure result, as before, not an exception
+    assert success is False
+    assert msg == "Download timeout 1s"
+    assert elapsed < 10, f"download_wget should stop near its timeout, took {elapsed:.1f}s"
+    assert download._active_download_alarm is None
+
+
+def test_download_git_clone_called_directly_has_its_own_timeout(tmp_path, monkeypatch):
+    # given: a "git clone" that would hang for a minute, and a 1 second default timeout
+    started = []
+    real_popen = subprocess.Popen
+
+    def fake_popen(args, **kwargs):
+        proc = real_popen([sys.executable, "-c", "import time; time.sleep(60)"], **kwargs)
+        started.append(proc)
+        return proc
+
+    monkeypatch.setattr(download, "SIGNAL_TIMEOUT", 1)
+    monkeypatch.setattr(download, "get_remote_refs", lambda url: {"tags": [], "branches": []})
+    monkeypatch.setattr(download.subprocess, "Popen", fake_popen)
+
+    # when
+    t0 = time.monotonic()
+    success, msg, *_ = download.download_git_clone(
+        "https://example.com/org/repo.git", str(tmp_path / "target")
+    )
+    elapsed = time.monotonic() - t0
+
+    # then: a failure result, and the clone process is stopped
+    assert success is False
+    assert msg == "Download timeout 1s"
+    assert elapsed < 10, f"download_git_clone should stop near its timeout, took {elapsed:.1f}s"
+    assert started and started[0].poll() is not None, "git clone should have been stopped"
+    assert download._active_download_alarm is None
 
 
 def test_timeout_stops_a_stalled_git_clone(tmp_path, monkeypatch):

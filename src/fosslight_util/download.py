@@ -47,9 +47,10 @@ prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 SIZE_CHECK_INTERVAL_SECONDS = 10
 _BYTES_PER_GB = 1024 ** 3
-# Active download Alarm started by cli_download_and_extract, so the download loops
-# can check whether it fired.
+# Active download Alarm, so the download loops can check whether it fired.
 _active_download_alarm = None
+# True while a download owns the watchdog; see _enter_download_watchdog().
+_download_watchdog_owned = False
 
 # Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests' default
 # User-Agent, or 200 with a small text/html interstitial. Start with a curl-style UA
@@ -147,6 +148,30 @@ def _cancel_download_watchdog(alarm=None):
         target.cancel()
     if alarm is None or alarm is _active_download_alarm:
         _active_download_alarm = None
+
+
+def _enter_download_watchdog(timeout):
+    """Start the watchdog for a download, unless a caller's download already owns it.
+
+    cli_download_and_extract owns it for the whole download, so download_git_clone and
+    download_wget start their own only when called directly. Ownership is tracked apart
+    from the Alarm so that an owner that turned the watchdog off keeps it off.
+    Return True when this call became the owner; pass it to _exit_download_watchdog().
+    """
+    global _download_watchdog_owned
+    if _download_watchdog_owned:
+        return False
+    _download_watchdog_owned = True
+    _start_download_watchdog(timeout)
+    return True
+
+
+def _exit_download_watchdog(owner):
+    """Stop the watchdog started by _enter_download_watchdog() when ``owner`` is True."""
+    global _download_watchdog_owned
+    if owner:
+        _cancel_download_watchdog()
+        _download_watchdog_owned = False
 
 
 class TimeOutException(Exception):
@@ -340,7 +365,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     link = link.strip()
     is_rubygems = False
     # One overall deadline for the whole download: git clone, then HTTP/wget.
-    alarm = _start_download_watchdog(timeout)
+    owner = _enter_download_watchdog(timeout)
 
     try:
         if not link:
@@ -422,7 +447,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         success = False
         msg = str(error)
     finally:
-        _cancel_download_watchdog(alarm)
+        _exit_download_watchdog(owner)
 
     clarified_version = (
         clarified_from_git
@@ -1143,6 +1168,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
     msg = ""
     success = True
     oss_version = ""
+    owner = _enter_download_watchdog(SIGNAL_TIMEOUT)
 
     try:
         Path(target_dir).mkdir(parents=True, exist_ok=True)
@@ -1172,13 +1198,18 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
 
             logger.info(f"git checkout version: {oss_version}")
             refs_to_checkout = oss_version
-    except TimeOutException:
-        # Out of time: let cli_download_and_extract report it without trying HTTP/wget.
-        raise
+    except TimeOutException as error:
+        if not owner:
+            # Out of time: let cli_download_and_extract report it without trying HTTP/wget.
+            raise
+        success = False
+        msg = str(error)
     except Exception as error:
         success = False
         logger.warning(f"git clone - failed: {error}")
         msg = str(error)
+    finally:
+        _exit_download_watchdog(owner)
 
     if oss_version:
         clarified_version = decided_clarified or clarified_version_from_oss_version(
@@ -1323,6 +1354,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
     oss_version = ""
     downloaded_file = ""
     resolved_link = ""
+    owner = _enter_download_watchdog(SIGNAL_TIMEOUT)
 
     try:
         Path(target_dir).mkdir(parents=True, exist_ok=True)
@@ -1410,14 +1442,19 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
         success = False
         msg = str(error)
         logger.warning(f"HTTP/wget - size limit: {error}")
-    except TimeOutException:
-        # Leave the partial download in place and let cli_download_and_extract report
-        # the timeout as the result, without trying other download methods.
-        raise
+    except TimeOutException as error:
+        # Leave the partial download in place. Inside cli_download_and_extract, let it
+        # report the timeout without trying other download methods.
+        if not owner:
+            raise
+        success = False
+        msg = str(error)
     except Exception as error:
         success = False
         msg = str(error)
         logger.warning(f"HTTP/wget - failed: {error}")
+    finally:
+        _exit_download_watchdog(owner)
 
     return success, downloaded_file, msg, oss_name, oss_version, resolved_link
 
