@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.2.15 (01/10/2026)
+## Changes
+## 🐛 Hotfixes
+
+- fix(download): return a failure on download timeout instead of ending the process @bjk7119 (#317)
+
+## 🔧 Maintenance
+
+- chore(log): lower routine messages to debug @soimkim (#316)
+- fix(oss_item): preserve copyright statement order @soimkim (#315)
+
+---
+
 ## v2.2.14 (17/09/2026)
 ## Changes
 ## 🚀 Features
@@ -266,11 +279,3 @@
 ## 🐛 Hotfixes
 
 - Keep get_downloadable_url version and parse Maven x.y.z.qualifier as x.y.z @soimkim (#269)
-
----
-
-## v2.1.50 (22/04/2026)
-## Changes
-## 🐛 Hotfixes
-
-- Avoid overwriting get_downloadable_url version with archive filename @soimkim (#268)
