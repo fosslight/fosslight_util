@@ -109,7 +109,9 @@ class Alarm(threading.Thread):
 
     @property
     def timed_out(self):
-        return self._timed_out.is_set()
+        # Also true once the deadline is reached but before run() sets the flag: a wait
+        # bounded by _download_request_timeout() can return in that short window.
+        return self._timed_out.is_set() or time.monotonic() >= self.deadline
 
     def run(self):
         # Wait until timeout or cancel(); do not use bare time.sleep.
@@ -395,7 +397,10 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                             pass
             # Download from rubygems.org
             elif is_rubygems and shutil.which("gem"):
+                _raise_if_download_timed_out()
                 success = gem_download(link, target_dir, checkout_to)
+                # Do not accept a gem that finished, or was stopped, after the deadline.
+                _raise_if_download_timed_out()
                 if success:
                     downloaded_link = link
         if size_limit_blocked:
@@ -1859,14 +1864,21 @@ def gem_download(link, target_dir, checkout_to):
             fetch_cmd = ['gem', 'fetch', gem_name, '-v', gem_ver]
         else:
             fetch_cmd = ['gem', 'fetch', gem_name]
-        fetch_result = subprocess.check_output(fetch_cmd, universal_newlines=True)
+        # On timeout check_output kills gem; the caller reports the expired deadline.
+        fetch_result = subprocess.check_output(
+            fetch_cmd, universal_newlines=True,
+            timeout=_download_request_timeout(SIGNAL_TIMEOUT),
+        )
         fetch_result = fetch_result.replace('\n', '').split(' ')[-1]
         downloaded_gem = f"{fetch_result}.gem"
         if not os.path.isfile(downloaded_gem):
             success = False
         else:
             # gem unpack
-            subprocess.check_output(['gem', 'unpack', downloaded_gem], universal_newlines=True)
+            subprocess.check_output(
+                ['gem', 'unpack', downloaded_gem], universal_newlines=True,
+                timeout=_download_request_timeout(SIGNAL_TIMEOUT),
+            )
             # move unpacked file to target directory
             shutil.move(fetch_result, target_dir)
     except Exception as error:

@@ -320,6 +320,57 @@ def test_timeout_stops_after_a_slow_package_lookup(tmp_path, monkeypatch, no_sys
     assert not http_calls, "the HTTP download must not start after the deadline"
 
 
+_GEM_LINK = "https://rubygems.org/gems/json/versions/2.6.2"
+
+
+def _git_failed(*args, **kwargs):
+    return False, "git failed", "", "", ""
+
+
+def test_timeout_stops_a_stalled_gem_fetch(tmp_path, monkeypatch):
+    # given: a "gem fetch" that would hang for a minute, and a 1 second overall timeout
+    real_check_output = subprocess.check_output
+
+    def fake_check_output(cmd, **kwargs):
+        return real_check_output([sys.executable, "-c", "import time; time.sleep(60)"], **kwargs)
+
+    monkeypatch.setattr(download, "download_git_clone", _git_failed)
+    monkeypatch.setattr(download.shutil, "which", lambda name: "gem")
+    monkeypatch.setattr(download.subprocess, "check_output", fake_check_output)
+
+    # when
+    started = time.monotonic()
+    success, msg, *_ = cli_download_and_extract(
+        _GEM_LINK, str(tmp_path / "target"), str(tmp_path), timeout=1
+    )
+    elapsed = time.monotonic() - started
+
+    # then
+    assert success is False
+    assert msg == "Download timeout 1s"
+    assert elapsed < 10, f"a stalled gem fetch should stop near the timeout, took {elapsed:.1f}s"
+
+
+def test_timeout_rejects_a_gem_that_finished_after_the_deadline(tmp_path, monkeypatch):
+    # given: a gem download that succeeds only after the 1 second deadline
+    def slow_gem_download(link, target_dir, checkout_to):
+        time.sleep(1.5)
+        return True
+
+    monkeypatch.setattr(download, "download_git_clone", _git_failed)
+    monkeypatch.setattr(download.shutil, "which", lambda name: "gem")
+    monkeypatch.setattr(download, "gem_download", slow_gem_download)
+
+    # when
+    success, msg, *_ = cli_download_and_extract(
+        _GEM_LINK, str(tmp_path / "target"), str(tmp_path), timeout=1
+    )
+
+    # then: the late result is not reported as a success
+    assert success is False
+    assert msg == "Download timeout 1s"
+
+
 def test_timeout_stops_a_stalled_git_clone(tmp_path, monkeypatch):
     # given: a "git clone" that would hang for a minute, and a 1 second overall timeout
     started = []
