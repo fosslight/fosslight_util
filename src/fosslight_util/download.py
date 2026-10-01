@@ -47,6 +47,10 @@ compression_extension = {
 prefix_refs = ["refs/remotes/origin/", "refs/tags/"]
 SIGNAL_TIMEOUT = 600
 SIZE_CHECK_INTERVAL_SECONDS = 10
+# First mid-clone size check. Must stay below SIGNAL_TIMEOUT: the watchdog starts before
+# the clone, so an equal budget would always fire first and the size checks below would
+# never run.
+SIZE_CHECK_AFTER_SECONDS = 60
 _BYTES_PER_GB = 1024 ** 3
 # Each operation has its own watchdog; nested download steps reuse its context.
 _active_download_alarm = ContextVar("active_download_alarm", default=None)
@@ -994,7 +998,7 @@ def run_git_clone_with_size_guard(
     env: dict,
     target_dir: str,
     size_limit_gb: Optional[float] = None,
-    size_check_after_sec: int = SIGNAL_TIMEOUT,
+    size_check_after_sec: int = SIZE_CHECK_AFTER_SECONDS,
     size_check_interval_sec: int = SIZE_CHECK_INTERVAL_SECONDS,
 ) -> Tuple[bool, str]:
     """Run git clone via Popen with delayed, periodic, and post-clone size checks.
@@ -1938,6 +1942,8 @@ def main():
     parser.add_argument('-o', '--output', help='Generate output file', action='store_true', dest='output', default=False)
     parser.add_argument('-l', '--size-limit', help='Max download size in GB (omit for unlimited)',
                         type=float, dest='size_limit', default=None)
+    parser.add_argument('--timeout', help='Overall download timeout in seconds (0 for unlimited)',
+                        type=int, dest='timeout', default=SIGNAL_TIMEOUT)
 
     src_link = ""
     target_dir = os.getcwd()
@@ -1974,7 +1980,7 @@ def main():
     else:
         cli_download_and_extract(src_link, target_dir, log_dir, checkout_to,
                                  compressed_only, "", "", "", False,
-                                 output, size_limit_gb=size_limit_gb)
+                                 output, size_limit_gb=size_limit_gb, timeout=args.timeout)
 
 
 if __name__ == '__main__':
