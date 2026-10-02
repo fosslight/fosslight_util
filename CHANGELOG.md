@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.16 (02/10/2026)
+## Changes
+## 🐛 Hotfixes
+
+- fix(encoding): read child process output and resource files as UTF-8 @bjk7119 (#318)
+
+---
+
 ## v2.2.15 (01/10/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -271,11 +279,3 @@
 ## 🔧 Maintenance
 
 - Emit major-only clarified_version for android.googlesource URLs @soimkim (#272)
-
----
-
-## v2.1.51 (22/04/2026)
-## Changes
-## 🐛 Hotfixes
-
-- Keep get_downloadable_url version and parse Maven x.y.z.qualifier as x.y.z @soimkim (#269)
