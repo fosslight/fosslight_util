@@ -27,7 +27,7 @@ def get_license_from_nick():
 
     file_withpath = os.path.join(base_dir, licenses_file)
     try:
-        with open(file_withpath, 'r') as f:
+        with open(file_withpath, 'r', encoding='utf-8') as f:
             licenses = json.load(f)
     except Exception as ex:
         print(f"Error to get license from json file : {ex}")
@@ -49,7 +49,7 @@ def get_spdx_licenses_json() -> Tuple[bool, str, str]:
 
     file_withpath = os.path.join(base_dir, licenses_file)
     try:
-        with open(file_withpath, 'r') as f:
+        with open(file_withpath, 'r', encoding='utf-8') as f:
             licenses = json.load(f)
     except Exception as e:
         success = False

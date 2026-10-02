@@ -514,7 +514,7 @@ def get_remote_refs(git_url: str):
         cp = subprocess.run(
             ["git", "-c", "credential.helper=", "-c", "credential.helper=!",
              "ls-remote", "--tags", "--heads", git_url],
-            env=env, capture_output=True, text=True, timeout=30,
+            env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
             stdin=subprocess.DEVNULL)
         if cp.returncode == 0:
             for line in cp.stdout.splitlines():
@@ -1017,7 +1017,9 @@ def run_git_clone_with_size_guard(
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            # git writes UTF-8. Without an explicit encoding a non-UTF-8 locale (cp949 on
+            # Korean Windows) fails on a Hangul path and git's output is lost.
+            text=True, encoding="utf-8", errors="replace",
             stdin=subprocess.DEVNULL,
         )
     except Exception as e:
@@ -1292,7 +1294,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             stdin=subprocess.DEVNULL,
         )
     except Exception as error:
@@ -1648,7 +1650,7 @@ def extract_rpm_payload(source_file: str, dest_path: str) -> bool:
                     stdin=p1.stdout,
                     cwd=dest_path,
                     capture_output=True,
-                    text=True,
+                    text=True, encoding="utf-8", errors="replace",
                     timeout=SIGNAL_TIMEOUT,
                 )
             finally:
@@ -1688,7 +1690,7 @@ def extract_rpm_payload(source_file: str, dest_path: str) -> bool:
             r = subprocess.run(
                 args,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=SIGNAL_TIMEOUT,
                 check=False,
             )
@@ -1909,7 +1911,7 @@ def gem_download(link, target_dir, checkout_to):
             fetch_cmd = ['gem', 'fetch', gem_name]
         # On timeout check_output kills gem; the caller reports the expired deadline.
         fetch_result = subprocess.check_output(
-            fetch_cmd, universal_newlines=True,
+            fetch_cmd, universal_newlines=True, encoding="utf-8", errors="replace",
             timeout=_download_request_timeout(SIGNAL_TIMEOUT),
         )
         fetch_result = fetch_result.replace('\n', '').split(' ')[-1]
@@ -1919,7 +1921,7 @@ def gem_download(link, target_dir, checkout_to):
         else:
             # gem unpack
             subprocess.check_output(
-                ['gem', 'unpack', downloaded_gem], universal_newlines=True,
+                ['gem', 'unpack', downloaded_gem], universal_newlines=True, encoding="utf-8", errors="replace",
                 timeout=_download_request_timeout(SIGNAL_TIMEOUT),
             )
             # move unpacked file to target directory
