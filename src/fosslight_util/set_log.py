@@ -115,6 +115,7 @@ def init_log(log_file: str, create_file: bool = True, stream_log_level: int = lo
 
 def move_log_file(prev_log_path, final_log_path):
     logger = logging.getLogger(constant.LOGGER_NAME)
+    os.makedirs(os.path.dirname(final_log_path) or ".", exist_ok=True)
     target_handler = None
 
     prev_abs = os.path.abspath(prev_log_path)
@@ -126,7 +127,6 @@ def move_log_file(prev_log_path, final_log_path):
             target_handler = handler
             break
 
-    os.makedirs(os.path.dirname(final_log_path) or ".", exist_ok=True)
     try:
         shutil.move(prev_log_path, final_log_path)
         new_handler = logging.FileHandler(final_log_path, mode='a', encoding="utf-8")
