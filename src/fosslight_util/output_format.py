@@ -188,7 +188,8 @@ def write_output_file(output_file_without_ext: str, file_extension: str, scan_it
         elif format == 'yaml':
             success, msg, _ = write_yaml(result_file, scan_item, False)
         elif format.startswith('spdx'):
-            success, msg, _ = write_spdx(output_file_without_ext, file_extension, scan_item, spdx_version)
+            success, msg, _ = write_spdx(output_file_without_ext, file_extension, scan_item, spdx_version,
+                                         scanner_covers=scanner_covers)
         elif format.startswith('cyclonedx'):
             success, msg, result_file = write_cyclonedx(
                 output_file_without_ext,
