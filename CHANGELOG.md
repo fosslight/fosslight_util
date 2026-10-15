@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.17 (15/10/2026)
+## Changes
+## 🔧 Maintenance
+
+- fix(log): preserve the active handler when destination setup fails @shin4141 (#319)
+
+---
+
 ## v2.2.16 (02/10/2026)
 ## Changes
 ## 🐛 Hotfixes
@@ -263,19 +271,3 @@
 ## 🔧 Maintenance
 
 - Hide URL in 'Not a downloadable link' error log @soimkim (#274)
-
----
-
-## v2.1.52 (27/04/2026)
-## Changes
-## 🚀 Features
-
-- Resolve Debian search URL to stable source tarball @soimkim (#270)
-
-## 🐛 Hotfixes
-
-- Improve HTTP mirror and direct archive handling @soimkim (#271)
-
-## 🔧 Maintenance
-
-- Emit major-only clarified_version for android.googlesource URLs @soimkim (#272)
