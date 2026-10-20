@@ -11,7 +11,7 @@ import os
 import re
 import uuid
 from collections import defaultdict
-from importlib.metadata import version as package_version
+from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 from datetime import datetime, timezone
 from fosslight_util.spdx_licenses import get_spdx_licenses_json, get_license_from_nick
@@ -134,6 +134,9 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
                         )
                         if is_dependency:
                             licenses = registry.licenses(oss_item.license, getattr(oss_item, 'license_texts', None))
+                            licenses = [
+                                value for value in licenses if not isinstance(value, (SpdxNone, SpdxNoAssertion))
+                            ] or licenses
                             package.license_declared = (
                                 spdx_licensing.parse(' AND '.join(f'({value})' for value in licenses)) if len(licenses) > 1
                                 else licenses[0] if licenses else SpdxNone()
@@ -307,7 +310,11 @@ def _creation_info(scan_item, scanner_covers):
         if name and identity not in seen:
             creators.append(Actor(ActorType.TOOL, f'{name} - {match.group(2)}'))
             seen.add(identity)
-    creators.append(Actor(ActorType.TOOL, f"spdx-tools - {package_version('spdx-tools')}"))
+    try:
+        spdx_tools_version = package_version('spdx-tools')
+    except PackageNotFoundError:
+        spdx_tools_version = 'unknown'
+    creators.append(Actor(ActorType.TOOL, f'spdx-tools - {spdx_tools_version}'))
     return CreationInfo(
         spdx_version='SPDX-2.3', spdx_id='SPDXRef-DOCUMENT', name=document_name, data_license='CC0-1.0',
         document_namespace=f'http://opensource.lge.com/spdxdocs/{scanner_name}-{uuid.uuid4()}',
@@ -336,7 +343,7 @@ def _file_info(file_item, input_path, scanner_name, identifier, checksums):
     if not _SHA1_PATTERN.fullmatch(checksum):
         logger.info(f'Failed to get SHA-1, skip File: {name}')
         return None
-    tlsh = getattr(file_item, 'tlsh', '')
+    tlsh = str(getattr(file_item, 'tlsh', '') or '').strip()
     comment = f'fosslight:tlsh={tlsh}' if scanner_name == FOSSLIGHT_BINARY and _TLSH_PATTERN.fullmatch(tlsh) else None
     return File(
         name=f'./{relative_path}', spdx_id=identifier,

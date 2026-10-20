@@ -1,8 +1,12 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Copyright (c) 2026 LG Electronics Inc.
+# SPDX-License-Identifier: Apache-2.0
 import hashlib
 import json
 import re
 import xml.etree.ElementTree as ElementTree
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID
@@ -100,6 +104,19 @@ def test_creators_use_executed_covers_and_deduplicate_by_name_and_version(tmp_pa
     }
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", document["creationInfo"]["created"])
     assert "licenseListVersion" not in document["creationInfo"]
+
+
+def test_missing_spdx_tools_metadata_does_not_prevent_output(tmp_path, monkeypatch):
+    def missing_version(distribution):
+        raise PackageNotFoundError(distribution)
+
+    monkeypatch.setattr(spdx_writer, "package_version", missing_version)
+    document = _write_json(tmp_path, _scan_item(tmp_path))
+
+    assert set(document["creationInfo"]["creators"]) == {
+        "Tool: FOSSLIGHT_Source - 1.2.3",
+        "Tool: spdx-tools - unknown",
+    }
 
 
 def test_file_is_shared_by_packages_and_supplies_their_full_license_set(tmp_path):
@@ -363,6 +380,25 @@ def test_dependency_license_expression_preserves_or_within_and(tmp_path):
     assert "hasExtractedLicensingInfos" not in document
 
 
+@pytest.mark.parametrize("licenses, expected", [
+    (["MIT", "NONE"], "MIT"),
+    (["MIT", "NOASSERTION"], "MIT"),
+    (["MIT", "NONE", "NOASSERTION"], "MIT"),
+    (["MIT OR Apache-2.0", "BSD-3-Clause", "NONE", "NOASSERTION"], "(MIT OR Apache-2.0) AND BSD-3-Clause"),
+    (["GPL-2.0-only WITH Classpath-exception-2.0", "NONE"], "GPL-2.0-only WITH Classpath-exception-2.0"),
+    (["Custom License", "NOASSERTION"], "LicenseRef-Custom-License"),
+    (["NONE"], "NONE"),
+    (["NOASSERTION"], "NOASSERTION"),
+])
+def test_dependency_license_declaration_preserves_real_expressions_and_standalone_special_values(tmp_path, licenses, expected):
+    scan_item = _scan_item(tmp_path, FOSSLIGHT_DEPENDENCY)
+    scan_item.append_file_items([_dependency("dependency", licenses=licenses)])
+
+    document = _write_json(tmp_path, scan_item)
+
+    assert spdx_licensing.is_equivalent(document["packages"][1]["licenseDeclared"], expected)
+
+
 @pytest.mark.parametrize("license_value", ["NONE", "NOASSERTION"])
 def test_explicit_file_license_sentinels_are_preserved(tmp_path, license_value):
     scan_item = _scan_item(tmp_path)
@@ -484,8 +520,19 @@ def test_unidentifiable_file_paths_do_not_remove_packages(tmp_path, name):
     assert document["packages"][1]["licenseInfoFromFiles"] == ["NONE"]
 
 
-@pytest.mark.parametrize("tlsh", ["T1" + "A" * 70, "A" * 70, "", "0", "TNULL", "T1INVALID"])
-def test_binary_tlsh_is_separate_from_sha1_and_only_valid_values_are_written(tmp_path, tlsh):
+@pytest.mark.parametrize("tlsh, expected_tlsh", [
+    ("T1" + "A" * 70, "T1" + "A" * 70),
+    ("A" * 70, "A" * 70),
+    (" \tT1" + "A" * 70 + "\n", "T1" + "A" * 70),
+    (" " + "A" * 70 + " ", "A" * 70),
+    ("", None),
+    (" \t\n", None),
+    (None, None),
+    ("0", None),
+    ("TNULL", None),
+    ("T1INVALID", None),
+])
+def test_binary_tlsh_is_separate_from_sha1_and_only_valid_values_are_written(tmp_path, tlsh, expected_tlsh):
     scan_item = _scan_item(tmp_path, FOSSLIGHT_BINARY)
     binary = _file("app.bin", [OssItem("binary", "", "MIT")])
     binary.tlsh = tlsh
@@ -495,10 +542,11 @@ def test_binary_tlsh_is_separate_from_sha1_and_only_valid_values_are_written(tmp
     file_info = document["files"][0]
     assert file_info["fileTypes"] == ["BINARY"]
     assert file_info["checksums"] == [{"algorithm": "SHA1", "checksumValue": "a" * 40}]
-    if tlsh in {"T1" + "A" * 70, "A" * 70}:
-        assert file_info["comment"] == f"fosslight:tlsh={tlsh}"
+    if expected_tlsh is not None:
+        assert file_info["comment"] == f"fosslight:tlsh={expected_tlsh}"
     else:
         assert "comment" not in file_info
+    assert binary.tlsh == tlsh
 
 
 @pytest.mark.parametrize("name", ["-", " padded.c "])
