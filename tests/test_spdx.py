@@ -151,6 +151,28 @@ def test_file_is_shared_by_packages_and_supplies_their_full_license_set(tmp_path
     assert len(_relationships(document, "DESCRIBES")) == 4
 
 
+@pytest.mark.parametrize("extension", [".json", ".yaml", ".xml", ".tag"])
+@pytest.mark.parametrize("homepage, expected", [
+    ("-", None),
+    ("", None),
+    (None, None),
+    ("https://example.com/project", "https://example.com/project"),
+])
+def test_package_homepage_preserves_urls_and_omits_missing_values(tmp_path, extension, homepage, expected):
+    scan_item = _scan_item(tmp_path)
+    oss_item = OssItem("package", "", "MIT")
+    oss_item.homepage = homepage
+    scan_item.append_file_items([_file("example.c", [oss_item])])
+
+    success, error, result_file = spdx_writer.write_spdx(str(tmp_path / "homepage"), extension, scan_item)
+
+    assert success, error
+    document = parse_file(result_file)
+    assert validate_full_spdx_document(document) == []
+    assert document.packages[1].homepage == expected
+    assert oss_item.homepage == homepage
+
+
 def test_dependency_roots_and_duplicate_purls_keep_all_targets(tmp_path):
     scan_item = _scan_item(tmp_path, FOSSLIGHT_DEPENDENCY)
     target_purl = "pkg:npm/target@1.0"

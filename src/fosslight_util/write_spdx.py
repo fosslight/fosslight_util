@@ -122,6 +122,7 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
                         download_location = '' if oss_item.download_location == '-' else oss_item.download_location
                         version = '' if oss_item.version == '-' else oss_item.version
                         copyright_text = '' if oss_item.copyright == '-' else oss_item.copyright
+                        homepage = '' if oss_item.homepage == '-' else oss_item.homepage
                         if not is_dependency and not name and not download_location:
                             continue
                         if download_location in ('NONE', 'NOASSERTION', ''):
@@ -129,7 +130,7 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
                         package = Package(
                             name=name or 'NOASSERTION', spdx_id=f'SPDXRef-Package{len(document.packages)}',
                             download_location=download_location, version=version or None,
-                            homepage=oss_item.homepage or None, copyright_text=copyright_text or None,
+                            homepage=homepage or None, copyright_text=copyright_text or None,
                             files_analyzed=not is_dependency
                         )
                         if is_dependency:
