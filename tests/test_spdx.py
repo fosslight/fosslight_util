@@ -19,7 +19,9 @@ from spdx_tools.spdx.parser.parse_anything import parse_file
 from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
 
 from fosslight_util import write_spdx as spdx_writer
-from fosslight_util.constant import FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER, FOSSLIGHT_SOURCE
+from fosslight_util.constant import (
+    FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_OCI, FOSSLIGHT_OCI_BINARY, FOSSLIGHT_SCANNER, FOSSLIGHT_SOURCE,
+)
 from fosslight_util.oss_item import FileItem, OssItem, ScannerItem
 from fosslight_util.output_format import write_output_file
 
@@ -119,6 +121,23 @@ def test_missing_spdx_tools_metadata_does_not_prevent_output(tmp_path, monkeypat
     }
 
 
+@pytest.mark.parametrize("scanner_name, tool_name", [
+    (FOSSLIGHT_OCI, "FOSSLIGHT_OCI"),
+    (FOSSLIGHT_OCI_BINARY, "FOSSLIGHT_OCI_Binary"),
+])
+def test_empty_oci_scan_preserves_executed_creator_without_duplicates(tmp_path, scanner_name, tool_name):
+    scan_item = _scan_item(tmp_path, scanner_name)
+
+    document = _write_json(tmp_path, scan_item, [scan_item.cover, scan_item.cover])
+
+    assert document["creationInfo"]["creators"] == [
+        f"Tool: {tool_name} - 1.2.3",
+        f"Tool: spdx-tools - {version('spdx-tools')}",
+    ]
+    assert len(document["packages"]) == 1
+    assert not document.get("files")
+
+
 def test_file_is_shared_by_packages_and_supplies_their_full_license_set(tmp_path):
     scan_item = _scan_item(tmp_path)
     named_oss = OssItem("first", "-", "MIT")
@@ -210,8 +229,9 @@ def test_dependency_roots_and_duplicate_purls_keep_all_targets(tmp_path):
     }
 
 
-def test_direct_dependency_does_not_require_purl_or_name(tmp_path):
-    scan_item = _scan_item(tmp_path, FOSSLIGHT_DEPENDENCY)
+@pytest.mark.parametrize("scanner_name", [FOSSLIGHT_DEPENDENCY, FOSSLIGHT_OCI])
+def test_direct_dependency_does_not_require_purl_or_name(tmp_path, scanner_name):
+    scan_item = _scan_item(tmp_path, scanner_name)
     scan_item.append_file_items([
         _dependency("-", "", ["invalid"], "direct"),
         _dependency("unclassified"),
@@ -225,6 +245,73 @@ def test_direct_dependency_does_not_require_purl_or_name(tmp_path):
     assert direct["licenseDeclared"] == "NONE"
     assert "externalRefs" not in direct
     assert _relationships(document, "DEPENDS_ON") == {("SPDXRef-ROOT-PACKAGE", direct["SPDXID"])}
+
+
+@pytest.mark.parametrize("extension", [".json", ".yaml", ".xml", ".tag"])
+@pytest.mark.parametrize("scanner_name", [FOSSLIGHT_OCI, FOSSLIGHT_OCI_BINARY])
+def test_oci_results_preserve_package_and_file_semantics(tmp_path, extension, scanner_name):
+    scan_item = _scan_item(tmp_path, FOSSLIGHT_OCI)
+    if scanner_name == FOSSLIGHT_OCI:
+        items = [
+            _dependency("root", "pkg:generic/image@1", ["pkg:generic/parent@1"], "root package"),
+            _dependency("parent", "pkg:generic/parent@1", ["pkg:generic/child@1"], "direct", "MIT"),
+            _dependency("child", "pkg:generic/child@1", [], "transitive", "Apache-2.0"),
+        ]
+    else:
+        binary = _file("usr/bin/example", [OssItem("binary", "1", "MIT")])
+        binary.tlsh = "T1" + "A" * 70
+        items = [binary]
+    scan_item.append_file_items(items, scanner_name)
+
+    success, error, result_file = spdx_writer.write_spdx(str(tmp_path / "oci"), extension, scan_item)
+
+    assert success, error
+    document = parse_file(result_file)
+    assert validate_full_spdx_document(document) == []
+    assert {creator.name for creator in document.creation_info.creators} == {
+        "FOSSLIGHT_OCI - 1.2.3", f"spdx-tools - {version('spdx-tools')}",
+    }
+    root = document.packages[0]
+    assert root.spdx_id == "SPDXRef-ROOT-PACKAGE"
+    relationships = {
+        (relationship.spdx_element_id, relationship.relationship_type, relationship.related_spdx_element_id)
+        for relationship in document.relationships
+    }
+    if scanner_name == FOSSLIGHT_OCI:
+        assert len(document.packages) == 3
+        assert not document.files
+        parent, child = document.packages[1:]
+        assert [package.name for package in document.packages] == ["project", "parent", "child"]
+        for package, license_value, purl in (
+            (parent, "MIT", "pkg:generic/parent@1"),
+            (child, "Apache-2.0", "pkg:generic/child@1"),
+        ):
+            assert package.files_analyzed is False
+            assert str(package.license_declared) == license_value
+            assert not package.license_info_from_files
+            assert [reference.locator for reference in package.external_references] == [purl]
+        assert {
+            relation for relation in relationships if relation[1] == RelationshipType.DEPENDS_ON
+        } == {
+            (root.spdx_id, RelationshipType.DEPENDS_ON, parent.spdx_id),
+            (parent.spdx_id, RelationshipType.DEPENDS_ON, child.spdx_id),
+        }
+    else:
+        assert len(document.packages) == 2
+        assert len(document.files) == 1
+        package = document.packages[1]
+        file_info = document.files[0]
+        assert package.name == "binary"
+        assert package.files_analyzed is True
+        assert package.license_declared is None
+        assert {str(value) for value in package.license_info_from_files} == {"MIT"}
+        assert file_info.name == "./usr/bin/example"
+        assert [file_type.name for file_type in file_info.file_types] == ["BINARY"]
+        assert file_info.checksums[0].value == "a" * 40
+        assert file_info.comment == "fosslight:tlsh=" + "T1" + "A" * 70
+        assert (package.spdx_id, RelationshipType.CONTAINS, file_info.spdx_id) in relationships
+    assert scan_item.file_items[scanner_name] == items
+    assert scan_item.cover.tool_name == f"{FOSSLIGHT_OCI} v1.2.3"
 
 
 def test_invalid_checksum_omits_file_but_preserves_package(tmp_path):
@@ -435,7 +522,8 @@ def test_explicit_file_license_sentinels_are_preserved(tmp_path, license_value):
 @pytest.mark.parametrize("format_name, extension", [
     ("spdx-json", ".json"), ("spdx-yaml", ".yaml"), ("spdx-xml", ".xml"), ("spdx-tag", ".tag"),
 ])
-def test_all_formats_round_trip_the_same_mixed_scan(tmp_path, format_name, extension):
+@pytest.mark.parametrize("include_oci", [False, True])
+def test_all_formats_round_trip_the_same_mixed_scan(tmp_path, format_name, extension, include_oci):
     scan_item = _scan_item(tmp_path, FOSSLIGHT_SCANNER)
     custom_oss = OssItem("custom", "", "Custom License")
     custom_oss.license_texts["Custom License"] = "Custom detected text."
@@ -449,6 +537,12 @@ def test_all_formats_round_trip_the_same_mixed_scan(tmp_path, format_name, exten
         SimpleNamespace(tool_name=f"{scanner_name} v1.2.3")
         for scanner_name in (FOSSLIGHT_SOURCE, FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY)
     ]]
+    if include_oci:
+        scan_item.append_file_items([_dependency("oci-dependency", purl, [], "direct", "MIT")], FOSSLIGHT_OCI)
+        oci_binary = _file("oci/app.bin", [OssItem("oci-binary", "", "ISC")])
+        oci_binary.tlsh = binary.tlsh
+        scan_item.append_file_items([oci_binary], FOSSLIGHT_OCI_BINARY)
+        covers.append(SimpleNamespace(tool_name=f"{FOSSLIGHT_OCI} v1.2.3"))
 
     success, error, result_file = write_output_file(
         str(tmp_path / "mixed"), extension, scan_item, format=format_name, scanner_covers=covers
@@ -459,12 +553,24 @@ def test_all_formats_round_trip_the_same_mixed_scan(tmp_path, format_name, exten
     assert validate_full_spdx_document(parsed) == []
     assert parsed.creation_info.spdx_version == "SPDX-2.3"
     assert parsed.creation_info.name == "project"
-    assert len(parsed.creation_info.creators) == 5
-    assert len(parsed.packages) == 4
-    assert len(parsed.files) == 2
+    assert len(parsed.creation_info.creators) == (6 if include_oci else 5)
+    assert len(parsed.packages) == (6 if include_oci else 4)
+    assert len(parsed.files) == (3 if include_oci else 2)
     assert len(parsed.extracted_licensing_info) == 1
     assert parsed.files[1].comment == f"fosslight:tlsh={binary.tlsh}"
     assert {str(value) for value in parsed.packages[1].license_info_from_files} == {"LicenseRef-Custom-License"}
+    if include_oci:
+        assert {creator.name for creator in parsed.creation_info.creators} == {
+            "FOSSLIGHT_SCANNER - 1.2.3", "FOSSLIGHT_Source - 1.2.3", "FOSSLIGHT_Binary - 1.2.3",
+            "FOSSLIGHT_Dependency - 1.2.3", "FOSSLIGHT_OCI - 1.2.3", f"spdx-tools - {version('spdx-tools')}",
+        }
+        assert parsed.packages[4].files_analyzed is False
+        assert str(parsed.packages[4].license_declared) == "MIT"
+        assert parsed.files[2].file_types == parsed.files[1].file_types
+        assert parsed.files[2].comment == parsed.files[1].comment
+        assert set(scan_item.file_items) == {
+            FOSSLIGHT_SOURCE, FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_OCI, FOSSLIGHT_OCI_BINARY,
+        }
     if extension in (".json", ".yaml"):
         text = Path(result_file).read_text(encoding="utf-8")
         data = json.loads(text) if extension == ".json" else yaml.safe_load(text)
@@ -475,7 +581,7 @@ def test_all_formats_round_trip_the_same_mixed_scan(tmp_path, format_name, exten
         assert "licenseListVersion" not in data["creationInfo"]
     elif extension == ".xml":
         root = ElementTree.parse(result_file).getroot()
-        assert [element.text for element in root.iter("referenceCategory")] == ["PACKAGE-MANAGER"]
+        assert [element.text for element in root.iter("referenceCategory")] == ["PACKAGE-MANAGER"] * (2 if include_oci else 1)
         assert not list(root.iter("licenseConcluded"))
     else:
         text = Path(result_file).read_text(encoding="utf-8")

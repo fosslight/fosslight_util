@@ -16,7 +16,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from fosslight_util.spdx_licenses import get_spdx_licenses_json, get_license_from_nick
 from fosslight_util.constant import (LOGGER_NAME, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
-                                     FOSSLIGHT_BINARY, FOSSLIGHT_SOURCE)
+                                     FOSSLIGHT_BINARY, FOSSLIGHT_SOURCE, FOSSLIGHT_OCI, FOSSLIGHT_OCI_BINARY)
 from fosslight_util.oss_item import get_checksum_sha1
 
 logger = logging.getLogger(LOGGER_NAME)
@@ -86,9 +86,13 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
         checksums = {}
         registry = _LicenseRegistry()
         for scanner_name, file_items in scan_item.file_items.items():
-            if scanner_name not in (FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SOURCE, FOSSLIGHT_BINARY):
+            scanner_type = {
+                FOSSLIGHT_OCI: FOSSLIGHT_DEPENDENCY,
+                FOSSLIGHT_OCI_BINARY: FOSSLIGHT_BINARY,
+            }.get(scanner_name, scanner_name)
+            if scanner_type not in (FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SOURCE, FOSSLIGHT_BINARY):
                 continue
-            is_dependency = scanner_name == FOSSLIGHT_DEPENDENCY
+            is_dependency = scanner_type == FOSSLIGHT_DEPENDENCY
             for file_item in file_items:
                 if file_item.exclude:
                     continue
@@ -96,7 +100,7 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
                 if file_item.oss_items and not oss_items:
                     continue
                 file_info = None if is_dependency else _file_info(
-                    file_item, scan_item.cover.input_path, scanner_name, f'SPDXRef-File{len(document.files) + 1}', checksums
+                    file_item, scan_item.cover.input_path, scanner_type, f'SPDXRef-File{len(document.files) + 1}', checksums
                 )
                 if file_info:
                     for oss_item in oss_items:
@@ -202,6 +206,8 @@ _SCANNER_TOOL_NAMES = {
     FOSSLIGHT_DEPENDENCY: 'FOSSLIGHT_Dependency',
     FOSSLIGHT_SOURCE: 'FOSSLIGHT_Source',
     FOSSLIGHT_BINARY: 'FOSSLIGHT_Binary',
+    FOSSLIGHT_OCI: 'FOSSLIGHT_OCI',
+    FOSSLIGHT_OCI_BINARY: 'FOSSLIGHT_OCI_Binary',
 }
 _TOOL_PATTERN = re.compile(r'^([A-Za-z0-9_-]+)\s+v([^\s(]+)')
 _SHA1_PATTERN = re.compile(r'^[0-9a-fA-F]{40}$')
