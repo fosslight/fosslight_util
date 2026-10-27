@@ -175,6 +175,7 @@ def test_file_is_shared_by_packages_and_supplies_their_full_license_set(tmp_path
     ("-", None),
     ("", None),
     (None, None),
+    ("Unknown", None),
     ("https://example.com/project", "https://example.com/project"),
 ])
 def test_package_homepage_preserves_urls_and_omits_missing_values(tmp_path, extension, homepage, expected):
@@ -190,6 +191,27 @@ def test_package_homepage_preserves_urls_and_omits_missing_values(tmp_path, exte
     assert validate_full_spdx_document(document) == []
     assert document.packages[1].homepage == expected
     assert oss_item.homepage == homepage
+
+
+def test_non_url_package_locations_do_not_drop_the_document(tmp_path):
+    scan_item = _scan_item(tmp_path, FOSSLIGHT_DEPENDENCY)
+    unknown = _dependency("unknown-pkg", classification="direct", licenses="MIT")
+    unknown.oss_items[0].download_location = "Unknown"
+    unknown.oss_items[0].homepage = "not a url"
+    valid = _dependency("valid-pkg", "pkg:npm/valid@1", classification="direct", licenses="Apache-2.0")
+    valid.oss_items[0].download_location = "https://example.com/valid"
+    valid.oss_items[0].homepage = "https://example.com/valid"
+    scan_item.append_file_items([unknown, valid])
+
+    document = _write_json(tmp_path, scan_item)
+
+    packages = {package["name"]: package for package in document["packages"]}
+    assert packages["unknown-pkg"]["downloadLocation"] == "NOASSERTION"
+    assert "homepage" not in packages["unknown-pkg"]
+    assert packages["valid-pkg"]["downloadLocation"] == "https://example.com/valid"
+    assert packages["valid-pkg"]["homepage"] == "https://example.com/valid"
+    assert unknown.oss_items[0].download_location == "Unknown"
+    assert unknown.oss_items[0].homepage == "not a url"
 
 
 def test_dependency_roots_and_duplicate_purls_keep_all_targets(tmp_path):

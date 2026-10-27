@@ -46,6 +46,7 @@ try:
         SpdxNone
     )
     from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
+    from spdx_tools.spdx.validation.uri_validators import validate_download_location, validate_url
     from spdx_tools.spdx.writer.json import json_writer
     from spdx_tools.spdx.writer.write_anything import write_file
     from spdx_tools.spdx.writer.xml import xml_writer
@@ -123,18 +124,16 @@ def write_spdx(output_file_without_ext, output_extension, scan_item, spdx_versio
                         package = root
                     else:
                         name = '' if oss_item.name == '-' else oss_item.name
-                        download_location = '' if oss_item.download_location == '-' else oss_item.download_location
+                        raw_download_location = '' if oss_item.download_location in ('-', None) else oss_item.download_location
                         version = '' if oss_item.version == '-' else oss_item.version
                         copyright_text = '' if oss_item.copyright == '-' else oss_item.copyright
-                        homepage = '' if oss_item.homepage == '-' else oss_item.homepage
-                        if not is_dependency and not name and not download_location:
+                        if not is_dependency and not name and not raw_download_location:
                             continue
-                        if download_location in ('NONE', 'NOASSERTION', ''):
-                            download_location = SpdxNone() if download_location == 'NONE' else SpdxNoAssertion()
                         package = Package(
                             name=name or 'NOASSERTION', spdx_id=f'SPDXRef-Package{len(document.packages)}',
-                            download_location=download_location, version=version or None,
-                            homepage=homepage or None, copyright_text=copyright_text or None,
+                            download_location=_spdx_download_location(oss_item.download_location),
+                            version=version or None, homepage=_spdx_homepage(oss_item.homepage),
+                            copyright_text=copyright_text or None,
                             files_analyzed=not is_dependency
                         )
                         if is_dependency:
@@ -357,6 +356,22 @@ def _file_info(file_item, input_path, scanner_name, identifier, checksums):
         checksums=[Checksum(ChecksumAlgorithm.SHA1, checksum.lower())],
         file_types=[FileType.BINARY if scanner_name == FOSSLIGHT_BINARY else FileType.SOURCE], comment=comment
     )
+
+
+def _spdx_download_location(value):
+    if value == '-' or value is None:
+        value = ''
+    if value in ('NONE', 'NOASSERTION', ''):
+        return SpdxNone() if value == 'NONE' else SpdxNoAssertion()
+    if validate_download_location(value):
+        return SpdxNoAssertion()
+    return value
+
+
+def _spdx_homepage(value):
+    if value == '-' or not value or validate_url(value):
+        return None
+    return value
 
 
 def _normalized_purl(value):
