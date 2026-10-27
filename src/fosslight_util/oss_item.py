@@ -23,6 +23,7 @@ class OssItem:
         self.version = version
         self._license = []
         self.license = license
+        self.license_texts: Dict[str, str] = {}
         self.download_location = dl_url
         self.exclude = False
         self.comment = ""

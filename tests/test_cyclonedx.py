@@ -358,7 +358,7 @@ def test_cyclonedx_serialization_failure_is_reported(monkeypatch, scan_item):
 
 @pytest.mark.parametrize("system", ["Windows", "Darwin"])
 def test_cyclonedx_is_supported_on_all_platforms(monkeypatch, scan_item, system):
-    monkeypatch.setattr("fosslight_util.output_format.platform.system", lambda: system)
+    monkeypatch.setattr("platform.system", lambda: system)
     output_file_without_ext = os.path.join(constants.TEST_RESULT_DIR, system, "cyclonedx")
 
     success, err_msg, result_file = write_output_file(
@@ -369,15 +369,44 @@ def test_cyclonedx_is_supported_on_all_platforms(monkeypatch, scan_item, system)
 
 
 @pytest.mark.parametrize("system", ["Windows", "Darwin"])
-def test_spdx_platform_restriction_is_unchanged(monkeypatch, scan_item, system):
-    monkeypatch.setattr("fosslight_util.output_format.platform.system", lambda: system)
+@pytest.mark.parametrize("format_name, extension", [
+    ("spdx-json", ".json"),
+    ("spdx-xml", ".xml"),
+    ("spdx-tag", ".tag"),
+])
+def test_spdx_formats_are_supported_on_all_platforms(tmp_path, monkeypatch, scan_item, system, format_name, extension):
+    monkeypatch.setattr("platform.system", lambda: system)
+    success, err_msg, result_file = write_output_file(
+        os.path.join(str(tmp_path), format_name),
+        extension,
+        scan_item,
+        format=format_name,
+    )
+
+    assert success is True, err_msg
+    assert os.path.isfile(result_file)
+    if extension == ".json":
+        with open(result_file, encoding="utf-8") as spdx_file:
+            assert json.load(spdx_file)["spdxVersion"] == "SPDX-2.3"
+    elif extension == ".xml":
+        assert ElementTree.parse(result_file).getroot().tag == "Document"
+    else:
+        with open(result_file, encoding="utf-8") as spdx_file:
+            assert "SPDXVersion: SPDX-2.3" in spdx_file.read()
+
+
+def test_spdx_import_failure_is_reported(monkeypatch, tmp_path, scan_item):
+    monkeypatch.setattr(
+        "fosslight_util.write_spdx._spdx_import_error",
+        ImportError("spdx-tools is unavailable"),
+    )
 
     success, err_msg, _ = write_output_file(
-        os.path.join(constants.TEST_RESULT_DIR, system, "spdx"),
+        os.path.join(str(tmp_path), "spdx"),
         ".json",
         scan_item,
         format="spdx-json",
     )
 
     assert success is False
-    assert err_msg == f"{system} not support spdx format."
+    assert "spdx-tools is unavailable" in err_msg
