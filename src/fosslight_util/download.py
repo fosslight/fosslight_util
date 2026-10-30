@@ -350,20 +350,6 @@ def parse_src_link(src_link):
     return src_info
 
 
-def _clear_download_target(target_dir):
-    """Remove files left by a failed attempt so the next download starts empty."""
-    if not target_dir or not os.path.isdir(target_dir):
-        return
-    for child in Path(target_dir).iterdir():
-        if child.is_dir():
-            shutil.rmtree(child, ignore_errors=True)
-        else:
-            try:
-                child.unlink()
-            except OSError:
-                pass
-
-
 def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
                              compressed_only: bool = False, ssh_key: str = "",
                              id: str = "", git_token: str = "",
@@ -421,7 +407,6 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                         "Link version download failed; retry with checkout version "
                         f"{attempt_checkout}. {link_version_failure}"
                     )
-                    _clear_download_target(target_dir)
                     success = True
                     msg = ""
                     msg_wget = ""

@@ -162,14 +162,19 @@ def test_cli_retries_checkout_after_link_version_fails(tmp_path, monkeypatch):
         "init_log",
         lambda *args, **kwargs: (logging.getLogger("fosslight_download_test"), None),
     )
+    target = tmp_path / "out"
+    target.mkdir()
+    kept = target / "kept.txt"
+    kept.write_text("keep")
 
     success, msg, oss_name, oss_version, _clarified = download_module.cli_download_and_extract(
         GO_LINK,
-        str(tmp_path / "out"),
+        str(target),
         str(tmp_path / "log"),
         checkout_to="0.77.0",
         called_cli=False,
     )
+    assert kept.read_text() == "keep"
 
     assert success is True
     assert msg == ""
