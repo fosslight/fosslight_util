@@ -16,7 +16,10 @@ import contextlib
 from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
-from fosslight_util._get_downloadable_url import get_downloadable_url
+from fosslight_util._get_downloadable_url import (
+    download_version_attempts,
+    get_downloadable_url,
+)
 from fosslight_util.help import print_help_msg_download
 import fosslight_util.constant as constant
 from fosslight_util.set_log import init_log
@@ -370,6 +373,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
     link = link.strip()
     is_rubygems = False
+    link_version_failure = ""
     # One overall deadline for the whole download: git clone, then HTTP/wget.
     owner = _enter_download_watchdog(timeout, new_operation=True)
 
@@ -389,51 +393,76 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             tag = ''.join(src_info.get("tag",  "")).split('=')[-1]
             branch = ''.join(src_info.get("branch", "")).split('=')[-1]
             is_rubygems = src_info.get("rubygems", False)
+            attempts = download_version_attempts(link, checkout_to)
 
-            # General download: git clone → requests → system wget
-            success_git, msg, oss_name, oss_version, clarified_from_git = download_git_clone(
-                link, target_dir, checkout_to, tag, branch,
-                ssh_key, id, git_token, called_cli, size_limit_gb=size_limit_gb)
-            link = change_ssh_link_to_https(link)
-            if success_git:
-                downloaded_link = link
-                success = True
-            size_limit_blocked = _is_size_limit_block_message(msg)
-            if size_limit_blocked:
-                success = False
-            elif (not is_rubygems) and (not success_git):
-                success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link = download_wget(
-                    link, target_dir, compressed_only, checkout_to,
-                    size_limit_gb=size_limit_gb,
-                )
-                if _is_size_limit_block_message(msg_wget):
-                    size_limit_blocked = True
-                    success = False
-                    msg = msg_wget
-                elif success and downloaded_file:
-                    success = extract_compressed_file(
-                        downloaded_file, target_dir, True, compressed_only
+            for attempt_index, (attempt_link, attempt_checkout, allow_latest) in enumerate(attempts):
+                if attempt_index:
+                    parts = []
+                    if msg:
+                        parts.append(f"git fail: {msg}")
+                    if msg_wget:
+                        parts.append(f"wget fail: {msg_wget}")
+                    link_version_failure = ", ".join(parts)
+                    logger.info(
+                        "Link version download failed; retry with checkout version "
+                        f"{attempt_checkout}. {link_version_failure}"
                     )
-                    if success:
-                        downloaded_link = resolved_link
-                    else:
-                        # Extract failed (e.g. non-archive when compressed_only): fail
-                        msg_wget = (
-                            f"Failed to extract downloaded file: {downloaded_file}"
-                        )
-                        try:
-                            if os.path.isfile(downloaded_file):
-                                os.remove(downloaded_file)
-                        except OSError:
-                            pass
-            # Download from rubygems.org
-            elif is_rubygems and shutil.which("gem"):
-                _raise_if_download_timed_out()
-                success = gem_download(link, target_dir, checkout_to)
-                # Do not accept a gem that finished, or was stopped, after the deadline.
-                _raise_if_download_timed_out()
-                if success:
+                    success = True
+                    msg = ""
+                    msg_wget = ""
+                    oss_name = ""
+                    oss_version = ""
+                    clarified_from_git = ""
+                    downloaded_link = ""
+                    size_limit_blocked = False
+
+                # General download: git clone → requests → system wget
+                success_git, msg, oss_name, oss_version, clarified_from_git = download_git_clone(
+                    attempt_link, target_dir, attempt_checkout, tag, branch,
+                    ssh_key, id, git_token, called_cli, size_limit_gb=size_limit_gb)
+                link = change_ssh_link_to_https(attempt_link)
+                if success_git:
                     downloaded_link = link
+                    success = True
+                size_limit_blocked = _is_size_limit_block_message(msg)
+                if size_limit_blocked:
+                    success = False
+                elif (not is_rubygems) and (not success_git):
+                    success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link = download_wget(
+                        link, target_dir, compressed_only, attempt_checkout,
+                        size_limit_gb=size_limit_gb,
+                        allow_latest=allow_latest,
+                    )
+                    if _is_size_limit_block_message(msg_wget):
+                        size_limit_blocked = True
+                        success = False
+                        msg = msg_wget
+                    elif success and downloaded_file:
+                        success = extract_compressed_file(
+                            downloaded_file, target_dir, True, compressed_only
+                        )
+                        if success:
+                            downloaded_link = resolved_link
+                        else:
+                            # Extract failed (e.g. non-archive when compressed_only): fail
+                            msg_wget = (
+                                f"Failed to extract downloaded file: {downloaded_file}"
+                            )
+                            try:
+                                if os.path.isfile(downloaded_file):
+                                    os.remove(downloaded_file)
+                            except OSError:
+                                pass
+                # Download from rubygems.org
+                elif is_rubygems and shutil.which("gem"):
+                    _raise_if_download_timed_out()
+                    success = gem_download(link, target_dir, attempt_checkout)
+                    # Do not accept a gem that finished, or was stopped, after the deadline.
+                    _raise_if_download_timed_out()
+                    if success:
+                        downloaded_link = link
+                if success or size_limit_blocked:
+                    break
         if size_limit_blocked:
             # Keep a clear size-limit message for callers/UI (do not wrap as git/wget fail)
             pass
@@ -448,6 +477,8 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                 msg = f'{msg}, wget fail: {msg_wget}'
         elif msg_wget:
             msg = f'wget fail: {msg_wget}'
+        if link_version_failure and not success and not size_limit_blocked and msg:
+            msg = f"link version failed ({link_version_failure}); {msg}"
 
     except Exception as error:
         success = False
@@ -1355,7 +1386,8 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
     return local_path
 
 
-def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=None):
+def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=None,
+                  allow_latest=True):
     success = False
     msg = ""
     oss_name = ""
@@ -1369,7 +1401,9 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
 
         # The git step may have used up the time; the lookup below may use up the rest.
         _raise_if_download_timed_out()
-        ret, new_link, oss_name, oss_version, pkg_type = get_downloadable_url(link, checkout_to)
+        ret, new_link, oss_name, oss_version, pkg_type = get_downloadable_url(
+            link, checkout_to, allow_latest=allow_latest
+        )
         _raise_if_download_timed_out()
         if ret and new_link:
             link = new_link
