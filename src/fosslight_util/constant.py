@@ -52,7 +52,7 @@ PKG_PATTERN = {
     "npm2": r'https?:\/\/www\.npmjs\.com\/package\/(\@[^\/]+\/[^\/]+)(?:\/v\/)?([^\/]*)',
     "pub": r'https?:\/\/pub\.dev\/packages\/([^\/]+)(?:\/versions\/)?([^\/]*)',
     "cocoapods": r'https?:\/\/cocoapods\.org\/pods\/([^\/]+)',
-    "go": r'https?:\/\/pkg.go.dev\/([^\@]+)\@?v?([^\/]*)',
+    "go": r'https?:\/\/pkg.go.dev\/([^\@]+)(?:@([^\/]*))?',
     "cargo": r'https?:\/\/crates\.io\/crates\/([^\/]+)\/?([^\/]*)',
     "packagist": r'https?:\/\/packagist\.org\/packages\/([^\/]+\/[^\/#?]+)(?:\/([^\/#?]+))?(?:\#v?([^\/#?]*))?',
 }

@@ -366,8 +366,6 @@ def version_exists(pkg_type, origin_name, version):
                 versions = r.json().get('versions', [])
                 return any(v.get('version') == version for v in versions if isinstance(v, dict))
         elif pkg_type == 'go':
-            if not version.startswith('v'):
-                version = f'v{version}'
             r = requests.get(f'https://proxy.golang.org/{origin_name}/@v/list', timeout=5)
             if r.status_code == 200:
                 listed = r.text.splitlines()
@@ -448,7 +446,7 @@ def extract_name_version_from_link(link, checkout_version):
                         if origin_name.endswith('/'):
                             origin_name = origin_name[:-1]
                         oss_name = f"go:{origin_name}"
-                        oss_version = match.group(2)
+                        oss_version = match.group(2) or ""
                     elif key == "cargo":
                         oss_name = f"cargo:{origin_name}"
                         oss_version = match.group(2)
@@ -471,9 +469,19 @@ def extract_name_version_from_link(link, checkout_version):
             if oss_version:
                 try:
                     if not version_exists(pkg_type, origin_name, oss_version):
-                        if oss_version.startswith('v') and version_exists(pkg_type, origin_name, oss_version[1:]):
-                            logger.info(f'Version {oss_version} not found; using without leading v: {oss_version[1:]}')
-                            oss_version = oss_version[1:]
+                        alternate_version = (
+                            oss_version[1:] if oss_version.startswith('v') else f'v{oss_version}'
+                        )
+                        if alternate_version and version_exists(pkg_type, origin_name, alternate_version):
+                            if oss_version.startswith('v'):
+                                logger.info(
+                                    f'Version {oss_version} not found; using without leading v: {alternate_version}'
+                                )
+                            else:
+                                logger.info(
+                                    f'Version {oss_version} not found; using with leading v: {alternate_version}'
+                                )
+                            oss_version = alternate_version
                         else:
                             logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
                             need_latest = True
@@ -811,6 +819,8 @@ def get_download_location_for_go(link):
             if oss_name.endswith('/'):
                 oss_name = oss_name[:-1]
             oss_version = dn_loc_re[0][1]
+            if oss_version and not oss_version.startswith('v'):
+                oss_version = f'v{oss_version}'
 
             new_link = f'{host}/{oss_name}/@v/{oss_version}.zip'
         try:
