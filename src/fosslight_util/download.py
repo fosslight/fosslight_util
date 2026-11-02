@@ -58,8 +58,10 @@ _active_download_alarm = ContextVar("active_download_alarm", default=None)
 _download_watchdog_owned = ContextVar("download_watchdog_owned", default=False)
 
 # Some mirrors (e.g. mirrors.ustc.edu.cn) return 403 for python-requests' default
-# User-Agent, or 200 with a small text/html interstitial. Start with a curl-style UA
-# (widely accepted for file downloads), then browser, then default requests as fallback.
+# User-Agent, or 200 with a small text/html interstitial. Others (e.g.
+# maven.egovframe.go.kr) return 400 Request Blocked for a non-browser User-Agent.
+# Start with a curl-style UA (widely accepted for file downloads), then browser,
+# then default requests as fallback.
 _HTTP_BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -93,6 +95,15 @@ def _download_http_header_attempts():
         {"User-Agent": _HTTP_BROWSER_USER_AGENT},
         None,
     ]
+
+
+def _status_retries_with_user_agent(status_code) -> bool:
+    """True when another User-Agent may pass a client block.
+
+    403 is the usual block. Some hosts return 400 Request Blocked for a
+    non-browser User-Agent instead of 403.
+    """
+    return status_code in (400, 403)
 
 
 class Alarm(threading.Thread):
@@ -226,7 +237,7 @@ def _shutdown_response_socket(response):
 
 
 def is_downloadable(url):
-    """Probe URL; retry with alternate User-Agents on 403 or HTML body for archive URLs."""
+    """Probe URL; retry with alternate User-Agents on 400/403 or HTML for archives."""
     attempts = _download_http_header_attempts()
     last_i = len(attempts) - 1
     for i, headers in enumerate(attempts):
@@ -234,7 +245,7 @@ def is_downloadable(url):
             with requests.get(
                 url, stream=True, allow_redirects=True, timeout=10, headers=headers
             ) as r:
-                if r.status_code == 403 and i < last_i:
+                if _status_retries_with_user_agent(r.status_code) and i < last_i:
                     continue
                 if r.status_code >= 400:
                     return False
@@ -1263,7 +1274,10 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
     # Before download: best-effort Content-Length check
     try:
         head = requests.head(
-            url, timeout=_download_request_timeout(10), allow_redirects=True
+            url,
+            timeout=_download_request_timeout(10),
+            allow_redirects=True,
+            headers={"User-Agent": _HTTP_BROWSER_USER_AGENT, "Accept": "*/*"},
         )
         if head.status_code < 400:
             _raise_if_content_length_over_limit(
@@ -1288,6 +1302,8 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
                 "--tries=20",
                 "--timeout=60",
                 "--waitretry=5",
+                "--user-agent",
+                _HTTP_BROWSER_USER_AGENT,
                 "-c",
                 "-P", str(target_dir),
                 url,
@@ -1574,7 +1590,7 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
 
 
 def download_file(url, target_dir, size_limit_gb=None):
-    """Download via HTTP(S); retry on 403 or HTML interstitial for archive URLs."""
+    """Download via HTTP(S); retry on 400/403 or HTML interstitial for archives."""
     attempts = _download_http_header_attempts()
     last_i = len(attempts) - 1
     for i, req_headers in enumerate(attempts):
@@ -1585,13 +1601,11 @@ def download_file(url, target_dir, size_limit_gb=None):
         except (SizeLimitExceeded, TimeOutException):
             raise
         except requests.exceptions.HTTPError as e:
-            if (
-                e.response is not None
-                and e.response.status_code == 403
-                and i < last_i
-            ):
+            status_code = e.response.status_code if e.response is not None else None
+            if _status_retries_with_user_agent(status_code) and i < last_i:
                 logger.info(
-                    "download_file: HTTP 403; retrying with alternate User-Agent"
+                    "download_file: HTTP %s; retrying with alternate User-Agent",
+                    status_code,
                 )
                 continue
             logger.warning(f"download_file - failed: {e}")
