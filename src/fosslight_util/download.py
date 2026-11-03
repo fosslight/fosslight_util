@@ -347,6 +347,31 @@ def parse_src_link(src_link):
     return src_info
 
 
+def rewrite_alpha_gnu_mirror(url: str) -> str:
+    """Map alpha.gnu.org to a public mirror of the alpha pretest tree.
+
+    Stable ftpmirror.gnu.org does not carry alpha pretests, and some networks
+    cannot open a connection to alpha.gnu.org.
+    https://alpha.gnu.org/gnu/autoconf/autoconf-2.72e.tar.gz becomes
+    https://ftp.mirrorservice.org/sites/alpha.gnu.org/gnu/autoconf/autoconf-2.72e.tar.gz.
+    """
+    raw = (url or "").strip()
+    parsed = urllib.parse.urlparse(raw)
+    if (parsed.hostname or "").lower() != "alpha.gnu.org":
+        return raw
+    if parsed.scheme not in ("http", "https"):
+        return raw
+    path = parsed.path or ""
+    return urllib.parse.urlunparse((
+        "https",
+        "ftp.mirrorservice.org",
+        "/sites/alpha.gnu.org" + path,
+        "",
+        parsed.query,
+        "",
+    ))
+
+
 def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
                              compressed_only: bool = False, ssh_key: str = "",
                              id: str = "", git_token: str = "",
@@ -369,6 +394,13 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
         datetime.now().strftime('%Y%m%d_%H-%M-%S')+".txt"
     logger, log_item = init_log(os.path.join(log_dir, log_file_name))
     link = link.strip()
+    mirrored = rewrite_alpha_gnu_mirror(link)
+    if mirrored != link:
+        logger.info(
+            "alpha.gnu.org is blocked on some networks; downloading from mirror: %s",
+            mirrored,
+        )
+        link = mirrored
     is_rubygems = False
     # One overall deadline for the whole download: git clone, then HTTP/wget.
     owner = _enter_download_watchdog(timeout, new_operation=True)
