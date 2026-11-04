@@ -18,11 +18,13 @@ def _make_tree(tmp_path):
 def test_trailing_slash_keeps_wildcard_in_directory_name(tmp_path):
     _make_tree(tmp_path)
     assert excluding_files(["build*/"], str(tmp_path)) == ["build_out/a.c"]
+    assert excluding_files(["build*//"], str(tmp_path)) == ["build_out/a.c"]
     assert excluding_files(["build*/*"], str(tmp_path)) == ["build_out/a.c"]
 
 
 def test_trailing_slash_and_star_on_plain_directory(tmp_path):
     _make_tree(tmp_path)
     assert excluding_files(["sample/"], str(tmp_path)) == ["sample/b.c"]
+    assert excluding_files(["sample//"], str(tmp_path)) == ["sample/b.c"]
     assert excluding_files(["sample/*"], str(tmp_path)) == ["sample/b.c"]
     assert excluding_files(["sample"], str(tmp_path)) == ["sample/b.c"]
