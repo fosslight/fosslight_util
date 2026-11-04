@@ -8,6 +8,7 @@ import os
 import logging
 import re
 from pathlib import Path
+from urllib.parse import quote, unquote
 from fosslight_util.constant import (FOSSLIGHT_BINARY, FOSSLIGHT_DEPENDENCY, FOSSLIGHT_SCANNER,
                                      FOSSLIGHT_SOURCE, LOGGER_NAME)
 import traceback
@@ -66,6 +67,62 @@ except Exception as error:
     logger.info(f'Failed to import cyclonedx-python-lib: {error}')
 
 
+class _DependencyPurl(PackageURL if _cyclonedx_import_error is None else object):
+    """Serialize parsed fields with PURL encoding, without folding npm case."""
+
+    def to_string(self, encode=True):
+        # PURL specification 5.4: ':' is allowed only in qualifier values; other
+        # components must percent-encode it and other separators used as data.
+        def encode_component(value, allow_colon=False):
+            if not encode:
+                return value
+            safe = '.-_~:' if allow_colon else '.-_~'
+            return quote(str(value), safe=safe)
+
+        parts = ['pkg:', self.type, '/']
+        if self.namespace:
+            parts.extend(('/'.join(encode_component(segment) for segment in self.namespace.split('/')), '/'))
+        parts.append(encode_component(self.name))
+        if self.version:
+            parts.extend(('@', encode_component(self.version)))
+        if self.qualifiers:
+            parts.extend(('?', '&'.join(
+                f'{key}={encode_component(value, allow_colon=True)}'
+                for key, value in sorted(self.qualifiers.items()) if value)))
+        if self.subpath:
+            parts.extend(('#', '/'.join(encode_component(segment) for segment in self.subpath.split('/'))))
+        return ''.join(parts)
+
+
+def _parse_dependency_purl(value):
+    parsed = PackageURL.from_string(value)
+    if parsed.type == 'npm':
+        package_path = value.split('?', 1)[0].split('#', 1)[0]
+        package_path = package_path.split(':', 1)[1].strip().lstrip('/').rstrip('/').split('/', 1)[1]
+        # Remove the version before splitting the namespace/name. Its decoded
+        # or unencoded value may contain slashes (e.g., link:../local-lib). A raw
+        # '@' after the first character is the version delimiter (this also covers
+        # an empty version, e.g. 'name@'). A leading '@' is the npm scope marker
+        # (e.g. '@scope/name') and must be kept.
+        version_idx = package_path.find('@', 1)
+        if version_idx != -1:
+            package_path = package_path[:version_idx].rstrip('/')
+        namespace = unquote(package_path.rsplit('/', 1)[0]) if '/' in package_path else None
+        name = unquote(package_path.rsplit('/', 1)[-1])
+        parsed = PackageURL(
+            type=parsed.type, namespace=namespace, name=name,
+            version=parsed.version, qualifiers=parsed.qualifiers, subpath=parsed.subpath,
+            normalize_purl=False,
+        )
+    # Normalize the output, not the source spelling. Parsed fields also allow
+    # dependency lookup to match equivalent encoded and unencoded references.
+    return _DependencyPurl(
+        type=parsed.type, namespace=parsed.namespace, name=parsed.name,
+        version=parsed.version, qualifiers=parsed.qualifiers, subpath=parsed.subpath,
+        normalize_purl=False,
+    )
+
+
 def write_cyclonedx(output_file_without_ext, output_extension, scan_item, scanner_covers=None):
     success = True
     error_msg = ''
@@ -119,7 +176,7 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item, scanne
                         if oss_item.copyright != '':
                             comp.copyright = oss_item.copyright
                         if scanner_name == FOSSLIGHT_DEPENDENCY and file_item.purl:
-                            comp.purl = PackageURL.from_string(file_item.purl)
+                            comp.purl = _parse_dependency_purl(file_item.purl)
                         if scanner_name != FOSSLIGHT_DEPENDENCY:
                             if file_item.checksum != '0':
                                 comp.hashes = [HashType(alg=HashAlgorithm.SHA_1, content=file_item.checksum)]
@@ -164,11 +221,11 @@ def write_cyclonedx(output_file_without_ext, output_extension, scan_item, scanne
 
             if len(bom.components) > 0:
                 for comp_purl in relation_tree:
-                    comp = bom.get_component_by_purl(PackageURL.from_string(comp_purl))
+                    comp = bom.get_component_by_purl(_parse_dependency_purl(comp_purl))
                     if comp:
                         dep_comp_list = []
                         for dep_comp_purl in relation_tree[comp_purl]:
-                            dep_comp = bom.get_component_by_purl(PackageURL.from_string(dep_comp_purl))
+                            dep_comp = bom.get_component_by_purl(_parse_dependency_purl(dep_comp_purl))
                             if dep_comp:
                                 dep_comp_list.append(dep_comp)
                         bom.register_dependency(comp, dep_comp_list)
