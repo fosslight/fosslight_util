@@ -430,12 +430,55 @@ def _gitiles_checkout_ref(revision) -> str:
     return revision[0] if revision else ""
 
 
-def _gitiles_ref_kind(revision) -> str:
-    """Return how a parsed Gitiles revision should be checked out.
+_GITILES_VERSION_SEGMENT = re.compile(
+    r"^(?:v\.?\s*)?\d+(?:\.\d+)*$",
+    re.IGNORECASE,
+)
 
-    ``tag`` and ``commit`` are fetched by that ref. ``branch`` and ``name``
-    use ``git clone --branch`` and do not fall back to the default branch.
+
+def gitiles_link_version(url: str) -> str:
+    """Return the version segment in a Chromium Gitiles path.
+
+    The version is the first ``+`` path segment that is a number or dotted
+    number, with an optional leading ``v``. ``refs/heads/releases/114/...``
+    yields ``114``. A path with no such segment yields ``""``.
     """
+    raw = (url or "").strip().split(";", 1)[0]
+    parsed = urllib.parse.urlparse(raw)
+    segments = [
+        urllib.parse.unquote(segment)
+        for segment in (parsed.path or "").split("/")
+        if segment
+    ]
+    try:
+        plus_at = segments.index("+")
+    except ValueError:
+        return ""
+    for segment in segments[plus_at + 1:]:
+        if _GITILES_VERSION_SEGMENT.match(segment):
+            return segment
+    return ""
+
+
+def _gitiles_clone_attempts(link_version: str, checkout_to: str):
+    """Checkout order for a Gitiles clone: link version, ``-c``, default branch.
+
+    The first two attempts do not fall back to the default branch. The last
+    attempt clones that branch and leaves the version empty.
+    """
+    attempts = []
+    version = (link_version or "").strip()
+    requested = (checkout_to or "").strip()
+    if version:
+        attempts.append((version, False))
+    if requested and requested != version:
+        attempts.append((requested, False))
+    attempts.append(("", True))
+    return attempts
+
+
+def _gitiles_ref_kind(revision) -> str:
+    """Classify a parsed Gitiles revision as tag, branch, commit, or name."""
     if (
         len(revision) >= 3
         and revision[0] == "refs"
@@ -501,81 +544,6 @@ def parse_chromium_gitiles_path(url: str):
     return repo_url, archive_url, checkout_ref, _gitiles_ref_kind(revision)
 
 
-def _git_batch_env() -> dict:
-    """Environment that keeps git from prompting for credentials."""
-    env = os.environ.copy()
-    env["GIT_TERMINAL_PROMPT"] = "0"
-    if platform.system() == "Windows":
-        env["GIT_ASKPASS"] = "echo"
-    else:
-        env["GIT_ASKPASS"] = "/bin/echo"
-    env["GIT_CREDENTIAL_HELPER"] = ""
-    if "GIT_CONFIG_COUNT" not in env:
-        env["GIT_CONFIG_COUNT"] = "1"
-        env["GIT_CONFIG_KEY_0"] = "credential.helper"
-        env["GIT_CONFIG_VALUE_0"] = ""
-    if "GIT_SSH_COMMAND" not in env:
-        env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o StrictHostKeyChecking=no"
-    return env
-
-
-def _checkout_gitiles_pinned_ref(
-    repo_url: str,
-    target_dir: str,
-    checkout_ref: str,
-    ref_kind: str,
-    size_limit_gb: Optional[float] = None,
-) -> Tuple[bool, str]:
-    """Fetch a Gitiles tag or commit without ``git clone --branch``.
-
-    ``git clone --branch`` prefers ``refs/heads`` and does not accept a raw
-    commit. This fetches the named tag or the commit and checks out FETCH_HEAD.
-    """
-    Path(target_dir).mkdir(parents=True, exist_ok=True)
-    if any(Path(target_dir).iterdir()):
-        return False, "Target directory is not empty."
-    env = _git_batch_env()
-    init = subprocess.run(
-        ["git", "init"],
-        cwd=target_dir,
-        env=env,
-        capture_output=True,
-        text=True, encoding="utf-8", errors="replace",
-    )
-    if init.returncode != 0:
-        return False, (init.stderr or "git init failed").strip()
-    remote = subprocess.run(
-        ["git", "remote", "add", "origin", repo_url],
-        cwd=target_dir,
-        env=env,
-        capture_output=True,
-        text=True, encoding="utf-8", errors="replace",
-    )
-    if remote.returncode != 0:
-        return False, (remote.stderr or "git remote add failed").strip()
-    if ref_kind == "tag":
-        fetch_cmd = [
-            "git", "fetch", "--depth", "1", "origin", "tag", checkout_ref, "--no-tags",
-        ]
-    else:
-        fetch_cmd = ["git", "fetch", "--depth", "1", "origin", checkout_ref]
-    ok, err = run_git_clone_with_size_guard(
-        fetch_cmd, env, target_dir, size_limit_gb=size_limit_gb, cwd=target_dir,
-    )
-    if not ok:
-        return False, err
-    checkout = subprocess.run(
-        ["git", "checkout", "--detach", "FETCH_HEAD"],
-        cwd=target_dir,
-        env=env,
-        capture_output=True,
-        text=True, encoding="utf-8", errors="replace",
-    )
-    if checkout.returncode != 0:
-        return False, (checkout.stderr or "git checkout failed").strip()
-    return True, ""
-
-
 def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
                              compressed_only: bool = False, ssh_key: str = "",
                              id: str = "", git_token: str = "",
@@ -623,7 +591,7 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
 
             gitiles = parse_chromium_gitiles_path(link.split(";", 1)[0])
             if gitiles and not is_rubygems:
-                repo_url, archive_url, checkout_ref, ref_kind = gitiles
+                repo_url, archive_url, checkout_ref, _ref_kind = gitiles
                 existing_entries = _download_dir_entries(target_dir)
                 logger.info(
                     "Chromium Gitiles path; downloading subdirectory archive: %s",
@@ -669,43 +637,36 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                         "cloning repository: %s",
                         repo_url,
                     )
-                    _remove_new_download_entries(target_dir, existing_entries)
-                    if _download_dir_entries(target_dir):
-                        success = False
-                        msg = (
-                            "Target directory is not empty; "
-                            "repository clone was not started."
+                    link_version = gitiles_link_version(link.split(";", 1)[0])
+                    clone_attempts = _gitiles_clone_attempts(link_version, checkout_to)
+                    for ref, allow_default in clone_attempts:
+                        _remove_new_download_entries(target_dir, existing_entries)
+                        if _download_dir_entries(target_dir):
+                            success = False
+                            msg = (
+                                "Target directory is not empty; "
+                                "repository clone was not started."
+                            )
+                            break
+                        (
+                            success_git, msg, oss_name, oss_version, clarified_from_git
+                        ) = download_git_clone(
+                            repo_url, target_dir, ref, "", "",
+                            ssh_key, id, git_token, called_cli,
+                            size_limit_gb=size_limit_gb,
+                            allow_default_branch_fallback=allow_default,
                         )
-                    else:
-                        ref = checkout_ref or checkout_to
-                        if ref_kind in ("tag", "commit"):
-                            success_git, msg = _checkout_gitiles_pinned_ref(
-                                repo_url, target_dir, ref, ref_kind,
-                                size_limit_gb=size_limit_gb,
-                            )
-                            oss_name = ""
-                            oss_version = ""
-                            clarified_from_git = ""
-                        else:
-                            (
-                                success_git, msg, oss_name, oss_version, clarified_from_git
-                            ) = download_git_clone(
-                                repo_url, target_dir, ref, "", "",
-                                ssh_key, id, git_token, called_cli,
-                                size_limit_gb=size_limit_gb,
-                                allow_default_branch_fallback=False,
-                            )
+                        if _is_size_limit_block_message(msg):
+                            size_limit_blocked = True
+                            success = False
+                            break
                         if success_git:
                             downloaded_link = change_ssh_link_to_https(repo_url)
                             success = True
-                            oss_version = checkout_ref
-                            clarified_from_git = ""
                             msg = ""
                             msg_wget = ""
-                        else:
-                            success = False
-                            if _is_size_limit_block_message(msg):
-                                size_limit_blocked = True
+                            break
+                        success = False
             else:
                 for attempt_index, (attempt_link, attempt_checkout, allow_latest) in enumerate(attempts):
                     if attempt_index:
@@ -1343,7 +1304,6 @@ def run_git_clone_with_size_guard(
     size_limit_gb: Optional[float] = None,
     size_check_after_sec: int = SIZE_CHECK_AFTER_SECONDS,
     size_check_interval_sec: int = SIZE_CHECK_INTERVAL_SECONDS,
-    cwd: Optional[str] = None,
 ) -> Tuple[bool, str]:
     """Run git clone via Popen with delayed, periodic, and post-clone size checks.
 
@@ -1359,7 +1319,6 @@ def run_git_clone_with_size_guard(
         proc = subprocess.Popen(
             cmd,
             env=env,
-            cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             # git writes UTF-8. Without an explicit encoding a non-UTF-8 locale (cp949 on

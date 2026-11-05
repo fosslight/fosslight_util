@@ -6,8 +6,10 @@ import logging
 import os
 
 from fosslight_util.download import (
+    _gitiles_clone_attempts,
     cli_download_and_extract,
     download_wget,
+    gitiles_link_version,
     parse_chromium_gitiles_path,
 )
 
@@ -115,11 +117,29 @@ def test_archive_success_does_not_clone(tmp_path, monkeypatch):
     assert result["clarified_version"] == "114.0.5735.358"
 
 
-def test_archive_failure_fetches_the_tag(tmp_path, monkeypatch):
+def test_link_version_is_the_numeric_segment():
+    releases = (
+        "https://chromium.googlesource.com/chromium/src/"
+        "+/refs/heads/releases/114/third_party/boringssl/"
+    )
+    assert gitiles_link_version(releases) == "114"
+    assert gitiles_link_version(_BORINGSSL) == "114.0.5735.358"
+    assert gitiles_link_version(
+        "https://chromium.googlesource.com/chromium/src/"
+        "+/refs/heads/main/third_party/boringssl/"
+    ) == ""
+    assert _gitiles_clone_attempts("114", "9.9") == [
+        ("114", False),
+        ("9.9", False),
+        ("", True),
+    ]
+    assert _gitiles_clone_attempts("", "") == [("", True)]
+
+
+def test_archive_failure_checks_out_link_version(tmp_path, monkeypatch):
     from fosslight_util import download as download_module
 
     _silence_log(monkeypatch, download_module)
-    pinned = {}
     cloned = []
 
     monkeypatch.setattr(
@@ -128,18 +148,17 @@ def test_archive_failure_fetches_the_tag(tmp_path, monkeypatch):
         lambda *_args, **_kwargs: (False, "", "archive failed", "", "", ""),
     )
 
-    def fake_pin(repo_url, _target_dir, checkout_ref, ref_kind, size_limit_gb=None):
-        pinned["url"] = repo_url
-        pinned["ref"] = checkout_ref
-        pinned["kind"] = ref_kind
-        return True, ""
+    def fake_clone(git_url, _target_dir, checkout_to, tag, branch, *_args, **kwargs):
+        cloned.append({
+            "url": git_url,
+            "ref": checkout_to,
+            "tag": tag,
+            "branch": branch,
+            "fallback": kwargs.get("allow_default_branch_fallback"),
+        })
+        return True, "", "src", "114.0.5735.358", "114.0.5735.358"
 
-    monkeypatch.setattr(download_module, "_checkout_gitiles_pinned_ref", fake_pin)
-    monkeypatch.setattr(
-        download_module,
-        "download_git_clone",
-        lambda *_args, **_kwargs: cloned.append(_args) or (True, "", "", "", ""),
-    )
+    monkeypatch.setattr(download_module, "download_git_clone", fake_clone)
 
     log_dir = tmp_path / "log"
     log_dir.mkdir()
@@ -148,8 +167,13 @@ def test_archive_failure_fetches_the_tag(tmp_path, monkeypatch):
     )
 
     assert success is True, msg
-    assert pinned == {"url": _REPO, "ref": "114.0.5735.358", "kind": "tag"}
-    assert cloned == []
+    assert cloned == [{
+        "url": _REPO,
+        "ref": "114.0.5735.358",
+        "tag": "",
+        "branch": "",
+        "fallback": False,
+    }]
     assert oss_version == "114.0.5735.358"
     assert clarified_version == "114.0.5735.358"
     with open(log_dir / "fosslight_download_output.json", encoding="utf-8") as output_file:
@@ -172,14 +196,14 @@ def test_parses_commit_and_branch_kinds():
     assert parse_chromium_gitiles_path(branch_url)[2:] == ("main", "branch")
 
 
-def test_branch_fallback_does_not_use_default_branch(tmp_path, monkeypatch):
+def test_releases_path_checks_out_114_then_checkout_then_default(tmp_path, monkeypatch):
     from fosslight_util import download as download_module
 
     _silence_log(monkeypatch, download_module)
-    seen = {}
-    branch_url = (
+    calls = []
+    releases = (
         "https://chromium.googlesource.com/chromium/src/"
-        "+/refs/heads/main/third_party/boringssl/;tag=other"
+        "+/refs/heads/releases/114/third_party/boringssl/;tag=other"
     )
     monkeypatch.setattr(
         download_module,
@@ -187,30 +211,65 @@ def test_branch_fallback_does_not_use_default_branch(tmp_path, monkeypatch):
         lambda *_args, **_kwargs: (False, "", "archive failed", "", "", ""),
     )
 
-    def fake_clone(git_url, _target_dir, checkout_to, tag, branch, *_args, **kwargs):
-        seen["url"] = git_url
-        seen["ref"] = checkout_to
-        seen["tag"] = tag
-        seen["branch"] = branch
-        seen["fallback"] = kwargs.get("allow_default_branch_fallback")
-        return True, "", "src", "resolved-by-git", "resolved-by-git"
+    def fake_clone(_git_url, _target_dir, checkout_to, tag, branch, *_args, **kwargs):
+        calls.append((checkout_to, tag, branch, kwargs.get("allow_default_branch_fallback")))
+        if checkout_to == "9.9":
+            return True, "", "src", "9.9", "9.9"
+        return False, f"miss {checkout_to}", "", "", ""
 
     monkeypatch.setattr(download_module, "download_git_clone", fake_clone)
     log_dir = tmp_path / "log"
     log_dir.mkdir()
-    success, msg, _, oss_version, _clarified = cli_download_and_extract(
-        branch_url, str(tmp_path / "out"), str(log_dir), output=True,
+    success, msg, _, oss_version, clarified = cli_download_and_extract(
+        releases, str(tmp_path / "out"), str(log_dir), checkout_to="9.9", output=True,
     )
 
     assert success is True, msg
-    assert seen == {
-        "url": _REPO,
-        "ref": "main",
-        "tag": "",
-        "branch": "",
-        "fallback": False,
-    }
-    assert oss_version == "main"
+    assert calls == [
+        ("114", "", "", False),
+        ("9.9", "", "", False),
+    ]
+    assert oss_version == "9.9"
+    assert clarified == "9.9"
+
+
+def test_default_branch_leaves_version_blank(tmp_path, monkeypatch):
+    from fosslight_util import download as download_module
+
+    _silence_log(monkeypatch, download_module)
+    calls = []
+    releases = (
+        "https://chromium.googlesource.com/chromium/src/"
+        "+/refs/heads/releases/114/third_party/boringssl/"
+    )
+    monkeypatch.setattr(
+        download_module,
+        "download_wget",
+        lambda *_args, **_kwargs: (False, "", "archive failed", "", "", ""),
+    )
+
+    def fake_clone(_git_url, _target_dir, checkout_to, *_args, **kwargs):
+        calls.append((checkout_to, kwargs.get("allow_default_branch_fallback")))
+        if checkout_to == "":
+            return True, "", "src", "", ""
+        return False, "miss", "", "", ""
+
+    monkeypatch.setattr(download_module, "download_git_clone", fake_clone)
+    log_dir = tmp_path / "log"
+    log_dir.mkdir()
+    success, msg, _, oss_version, clarified = cli_download_and_extract(
+        releases, str(tmp_path / "out"), str(log_dir), output=True,
+    )
+
+    assert success is True, msg
+    assert calls == [("114", False), ("", True)]
+    assert oss_version == ""
+    assert clarified == ""
+    with open(log_dir / "fosslight_download_output.json", encoding="utf-8") as output_file:
+        result = json.load(output_file)
+    assert result["link"] == _REPO
+    assert result["oss_version"] == ""
+    assert result["clarified_version"] == ""
 
 
 def test_fallback_keeps_preexisting_files(tmp_path, monkeypatch):
@@ -225,8 +284,8 @@ def test_fallback_keeps_preexisting_files(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(
         download_module,
-        "_checkout_gitiles_pinned_ref",
-        lambda *_args, **_kwargs: called.append("pin") or (True, ""),
+        "download_git_clone",
+        lambda *_args, **_kwargs: called.append("clone") or (True, "", "", "", ""),
     )
     out = tmp_path / "out"
     out.mkdir()
