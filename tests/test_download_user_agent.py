@@ -54,9 +54,10 @@ def test_download_file_retries_http_400_with_browser_user_agent(tmp_path, monkey
     monkeypatch.setattr(download.requests, "head", fake_head)
     monkeypatch.setattr(download.requests, "get", fake_get)
 
-    path = download.download_file(_JAR_URL, str(tmp_path))
+    path, final_url = download.download_file(_JAR_URL, str(tmp_path))
 
     assert path is not None
+    assert final_url == _JAR_URL
     with open(path, "rb") as downloaded:
         assert downloaded.read() == b"PK\x03\x04jar"
     assert seen == [
@@ -81,7 +82,7 @@ def test_download_file_does_not_retry_http_404(tmp_path, monkeypatch):
     monkeypatch.setattr(download.requests, "head", fake_head)
     monkeypatch.setattr(download.requests, "get", fake_get)
 
-    assert download.download_file(_JAR_URL, str(tmp_path)) is None
+    assert download.download_file(_JAR_URL, str(tmp_path)) == (None, "")
     assert seen == ["head", "get"]
 
 
@@ -132,9 +133,10 @@ def test_system_wget_sends_browser_user_agent(tmp_path, monkeypatch):
     monkeypatch.setattr(download.requests, "head", fake_head)
     monkeypatch.setattr(download.subprocess, "Popen", fake_popen)
 
-    path = download._download_with_system_wget(_JAR_URL, str(tmp_path))
+    path, final_url = download._download_with_system_wget(_JAR_URL, str(tmp_path))
 
     assert path.endswith("org.egovframe.rte.fdl.cmmn-4.1.0.jar")
+    assert final_url == _JAR_URL
     cmd = captured["cmd"]
     agent_index = cmd.index("--user-agent")
     assert cmd[agent_index + 1] == download._HTTP_BROWSER_USER_AGENT
