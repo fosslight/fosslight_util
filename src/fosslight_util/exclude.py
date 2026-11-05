@@ -33,8 +33,10 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
     normalized_patterns = []
     for pattern in patterns:
         pattern = pattern.replace('\\', '/')
-        if pattern.endswith('/') or pattern.endswith('/*'):
-            pattern = pattern.rstrip('/*')
+        # Strip a trailing '/*', then any trailing '/', so wildcards in the name survive
+        if pattern.endswith('/*'):
+            pattern = pattern[:-2]
+        pattern = pattern.rstrip('/')
         normalized_patterns.append(pattern)
 
     # Traverse directories
