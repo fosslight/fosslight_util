@@ -303,7 +303,7 @@ def test_timeout_stops_after_a_slow_package_lookup(tmp_path, monkeypatch, no_sys
     def git_failed(*args, **kwargs):
         return False, "git failed", "", "", ""
 
-    def slow_lookup(link, checkout_to):
+    def slow_lookup(link, checkout_to, allow_latest=True):
         time.sleep(1.5)
         return True, link, "pkg", "1.0", "pypi"
 

@@ -1,4 +1,4 @@
-# 1. Update changelog
+# 1. Bump the package version
 # 2. Upload a Python Package using Twine
 
 name: Release fosslight_util
@@ -8,7 +8,7 @@ on:
     types: [published]
 
 jobs:
-  update-changelog:
+  bump-version:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
@@ -32,18 +32,12 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "fosslight-dev@lge.com"
         sed -i "s/^version = \".*\"/version = \"$new_version\"/" pyproject.toml
-    - name: Update changelog with gren
-      env:
-        GREN_GITHUB_TOKEN: ${{ secrets.TOKEN }}
-      run: |
-        npm install github-release-notes@0.17.3
-        node_modules/.bin/gren changelog --override
     - name: Commit files
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "fosslight-dev@lge.com"
-        git add CHANGELOG.md pyproject.toml
-        git commit -m "Update ChangeLog"
+        git add pyproject.toml
+        git commit -m "chore: bump package version"
     - name: Push changes
       uses: ad-m/github-push-action@v1.3.0
       with:
@@ -52,7 +46,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: update-changelog
+    needs: bump-version
     steps:
     - uses: actions/checkout@v7
       with:

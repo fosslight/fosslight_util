@@ -368,7 +368,8 @@ def version_exists(pkg_type, origin_name, version):
         elif pkg_type == 'go':
             if not version.startswith('v'):
                 version = f'v{version}'
-            r = requests.get(f'https://proxy.golang.org/{origin_name}/@v/list', timeout=5)
+            module_path = _go_proxy_escape(origin_name)
+            r = requests.get(f'https://proxy.golang.org/{module_path}/@v/list', timeout=5)
             if r.status_code == 200:
                 listed = r.text.splitlines()
                 return version in listed
@@ -381,7 +382,99 @@ def version_exists(pkg_type, origin_name, version):
     return False
 
 
-def extract_name_version_from_link(link, checkout_version):
+def _go_proxy_escape(module_path):
+    """Encode a Go module path for proxy.golang.org.
+
+    Each uppercase letter becomes an exclamation mark plus its lowercase form,
+    so DataDog is requested as !data!dog.
+    """
+    escaped = []
+    for char in module_path or "":
+        if char.isupper():
+            escaped.append("!")
+            escaped.append(char.lower())
+        else:
+            escaped.append(char)
+    return "".join(escaped)
+
+
+def split_pkg_link_version(link):
+    """Return (url without version, version) for a recognized package URL.
+
+    The version is empty when the URL has no version component.
+    """
+    text = (link or "").strip()
+    if not text:
+        return text, ""
+    for key, value in constant.PKG_PATTERN.items():
+        if key in ("maven_repo1", "maven_google", "cocoapods", "pypi2"):
+            continue
+        match = re.match(value, text)
+        if not match:
+            continue
+        if key == "go":
+            name = match.group(1)
+            if name.endswith("/"):
+                name = name[:-1]
+            version = (match.group(2) or "").strip()
+            if not version:
+                return text, ""
+            return f"https://pkg.go.dev/{name}", version
+        if key == "pypi":
+            version = (match.group(2) or "").strip()
+            if not version:
+                return text, ""
+            return f"https://pypi.org/project/{match.group(1)}", version
+        if key == "maven":
+            version = (match.group(3) or "").strip()
+            if not version:
+                return text, ""
+            return (
+                f"https://mvnrepository.com/artifact/{match.group(1)}/{match.group(2)}",
+                version,
+            )
+        if key in ("npm", "npm2"):
+            version = (match.group(2) or "").strip()
+            if not version:
+                return text, ""
+            return f"https://www.npmjs.com/package/{match.group(1)}", version
+        if key == "pub":
+            version = (match.group(2) or "").strip()
+            if not version:
+                return text, ""
+            return f"https://pub.dev/packages/{match.group(1)}", version
+        if key == "cargo":
+            version = (match.group(2) or "").strip()
+            if not version:
+                return text, ""
+            return f"https://crates.io/crates/{match.group(1)}", version
+        if key == "packagist":
+            version = (match.group(2) or match.group(3) or "").strip()
+            if not version:
+                return text, ""
+            return f"https://packagist.org/packages/{match.group(1)}", version
+    return text, ""
+
+
+def download_version_attempts(link, checkout_to):
+    """Plan download attempts as (link, checkout_to, allow_latest).
+
+    A package URL that already has a version is tried as-is, without replacing
+    a missing version by the latest release. When that attempt fails and
+    checkout_to is set, the version is removed from the URL and checkout_to is
+    used. That second attempt may fall back to the latest version.
+    """
+    bare_link, embedded_version = split_pkg_link_version(link)
+    checkout_text = (checkout_to or "").strip()
+    if embedded_version and checkout_text:
+        return [
+            (link, "", False),
+            (bare_link, checkout_text, True),
+        ]
+    return [(link, checkout_to, True)]
+
+
+def extract_name_version_from_link(link, checkout_version, allow_latest=True):
     oss_name = ""
     oss_version = ""
     matched = False
@@ -474,13 +567,24 @@ def extract_name_version_from_link(link, checkout_version):
                         if oss_version.startswith('v') and version_exists(pkg_type, origin_name, oss_version[1:]):
                             logger.info(f'Version {oss_version} not found; using without leading v: {oss_version[1:]}')
                             oss_version = oss_version[1:]
-                        else:
+                        elif allow_latest:
                             logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
                             need_latest = True
+                        else:
+                            logger.info(
+                                f'Version {oss_version} not found for {oss_name}; '
+                                'not replacing it with latest on this attempt'
+                            )
                 except Exception as e:
-                    logger.info(f'Version validation failed ({oss_name}:{oss_version}) {e}; will attempt latest fallback')
-                    need_latest = True
-            else:
+                    if allow_latest:
+                        logger.info(f'Version validation failed ({oss_name}:{oss_version}) {e}; will attempt latest fallback')
+                        need_latest = True
+                    else:
+                        logger.info(
+                            f'Version validation failed ({oss_name}:{oss_version}) {e}; '
+                            'not replacing it with latest on this attempt'
+                        )
+            elif allow_latest:
                 need_latest = True
         if need_latest:
             latest_ver = get_latest_package_version(link, pkg_type, origin_name)
@@ -670,7 +774,10 @@ def get_latest_package_version(link, pkg_type, oss_name):
             if pub_response.status_code == 200:
                 find_version = pub_response.json().get('latest').get('version')
         elif pkg_type == 'go':
-            go_response = requests.get(f'https://proxy.golang.org/{oss_name}/@latest', timeout=_HTTP_TIMEOUT)
+            module_path = _go_proxy_escape(oss_name)
+            go_response = requests.get(
+                f'https://proxy.golang.org/{module_path}/@latest', timeout=_HTTP_TIMEOUT
+            )
             if go_response.status_code == 200:
                 find_version = go_response.json().get('Version')
                 if find_version.startswith('v'):
@@ -685,7 +792,7 @@ def get_latest_package_version(link, pkg_type, oss_name):
     return find_version
 
 
-def get_downloadable_url(link, checkout_version):
+def get_downloadable_url(link, checkout_version, allow_latest=True):
 
     ret = False
     result_link = link
@@ -697,7 +804,9 @@ def get_downloadable_url(link, checkout_version):
         if resolved:
             return True, resolved, "", debian_version, "deb"
 
-    oss_name, oss_version, new_link, pkg_type = extract_name_version_from_link(link, checkout_version)
+    oss_name, oss_version, new_link, pkg_type = extract_name_version_from_link(
+        link, checkout_version, allow_latest=allow_latest
+    )
     new_link = new_link.replace('http://', '')
     new_link = new_link.replace('https://', '')
 
@@ -811,8 +920,10 @@ def get_download_location_for_go(link):
             if oss_name.endswith('/'):
                 oss_name = oss_name[:-1]
             oss_version = dn_loc_re[0][1]
+            if oss_version and not oss_version.startswith('v'):
+                oss_version = f'v{oss_version}'
 
-            new_link = f'{host}/{oss_name}/@v/{oss_version}.zip'
+            new_link = f'{host}/{_go_proxy_escape(oss_name)}/@v/{oss_version}.zip'
         try:
             res = urlopen(new_link, timeout=_HTTP_TIMEOUT)
             if res.getcode() == 200:
