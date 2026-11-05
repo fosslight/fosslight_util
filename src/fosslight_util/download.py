@@ -518,6 +518,8 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                     if archive_ok:
                         downloaded_link = resolved_link
                         success = True
+                        oss_version = checkout_ref
+                        clarified_from_git = ""
                         msg = ""
                         msg_wget = ""
                     else:
@@ -547,6 +549,8 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                     if success_git:
                         downloaded_link = change_ssh_link_to_https(repo_url)
                         success = True
+                        oss_version = checkout_ref
+                        clarified_from_git = ""
                         msg = ""
                         msg_wget = ""
                     else:

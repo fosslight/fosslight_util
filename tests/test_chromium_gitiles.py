@@ -91,15 +91,19 @@ def test_archive_success_does_not_clone(tmp_path, monkeypatch):
 
     log_dir = tmp_path / "log"
     log_dir.mkdir()
-    success, msg, _, _, _ = cli_download_and_extract(
+    success, msg, _, oss_version, clarified_version = cli_download_and_extract(
         _BORINGSSL, str(tmp_path / "out"), str(log_dir), output=True,
     )
 
     assert success is True, msg
     assert cloned == []
+    assert oss_version == "114.0.5735.358"
+    assert clarified_version == "114.0.5735.358"
     with open(log_dir / "fosslight_download_output.json", encoding="utf-8") as output_file:
         result = json.load(output_file)
     assert result["link"] == "https://cdn.example/boringssl.tar.gz"
+    assert result["oss_version"] == "114.0.5735.358"
+    assert result["clarified_version"] == "114.0.5735.358"
 
 
 def test_archive_failure_clones_repository(tmp_path, monkeypatch):
@@ -117,21 +121,25 @@ def test_archive_failure_clones_repository(tmp_path, monkeypatch):
     def fake_clone(git_url, _target_dir, checkout_to, *_args, **_kwargs):
         cloned["url"] = git_url
         cloned["ref"] = checkout_to
-        return True, "", "src", checkout_to, checkout_to
+        return True, "", "src", "resolved-by-git", "resolved-by-git"
 
     monkeypatch.setattr(download_module, "download_git_clone", fake_clone)
 
     log_dir = tmp_path / "log"
     log_dir.mkdir()
-    success, msg, _, _, _ = cli_download_and_extract(
+    success, msg, _, oss_version, clarified_version = cli_download_and_extract(
         _BORINGSSL, str(tmp_path / "out"), str(log_dir), output=True,
     )
 
     assert success is True, msg
     assert cloned == {"url": _REPO, "ref": "114.0.5735.358"}
+    assert oss_version == "114.0.5735.358"
+    assert clarified_version == "114.0.5735.358"
     with open(log_dir / "fosslight_download_output.json", encoding="utf-8") as output_file:
         result = json.load(output_file)
     assert result["link"] == _REPO
+    assert result["oss_version"] == "114.0.5735.358"
+    assert result["clarified_version"] == "114.0.5735.358"
 
 
 def test_download_wget_keeps_redirected_url(tmp_path, monkeypatch):
