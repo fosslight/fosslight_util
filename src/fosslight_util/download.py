@@ -361,6 +361,189 @@ def parse_src_link(src_link):
     return src_info
 
 
+_WGET_FINAL_URL = re.compile(r"URL:(https?://\S+)")
+
+
+def _final_url_from_wget_stderr(stderr: str) -> str:
+    """Return the last URL wget printed, which is the file it saved."""
+    found = _WGET_FINAL_URL.findall(stderr or "")
+    return found[-1] if found else ""
+
+
+def _download_dir_entries(path: str) -> set:
+    """Return absolute paths of the directory's immediate children."""
+    if not path or not os.path.isdir(path):
+        return set()
+    found = set()
+    for child in Path(path).iterdir():
+        found.add(os.path.abspath(str(child)))
+    return found
+
+
+def _remove_new_download_entries(path: str, keep: set) -> None:
+    """Remove children created by this download and leave ``keep`` in place."""
+    if not path or not os.path.isdir(path):
+        return
+    for child in Path(path).iterdir():
+        if os.path.abspath(str(child)) in keep:
+            continue
+        try:
+            if child.is_symlink() or child.is_file():
+                child.unlink()
+            else:
+                shutil.rmtree(child)
+        except OSError as error:
+            logger.warning(f"Failed to clear download directory {child}: {error}")
+
+
+def _split_gitiles_revision(rest):
+    """Split the path after Gitiles '+' into revision segments and a subdirectory.
+
+    ``refs/tags/<name>`` and ``refs/heads/<name>`` use one segment for the ref
+    name. ``refs/remotes/<remote>/<name>`` uses those three segments. Any other
+    revision is the first segment (tag, branch, HEAD, or object id).
+    """
+    if not rest or rest[0] != "refs":
+        if not rest:
+            return [], []
+        return rest[:1], rest[1:]
+    if len(rest) >= 2 and rest[1] in ("tags", "heads"):
+        if len(rest) < 3:
+            return [], []
+        return rest[:3], rest[3:]
+    if len(rest) >= 2 and rest[1] == "remotes":
+        if len(rest) < 4:
+            return [], []
+        return rest[:4], rest[4:]
+    return [], []
+
+
+def _gitiles_checkout_ref(revision) -> str:
+    if (
+        len(revision) >= 3
+        and revision[0] == "refs"
+        and revision[1] in ("tags", "heads")
+    ):
+        return revision[2]
+    if len(revision) >= 4 and revision[0] == "refs" and revision[1] == "remotes":
+        return revision[3]
+    return revision[0] if revision else ""
+
+
+_GITILES_VERSION_SEGMENT = re.compile(
+    r"^(?:v\.?\s*)?\d+(?:\.\d+)*$",
+    re.IGNORECASE,
+)
+
+
+def gitiles_link_version(url: str) -> str:
+    """Return the version segment in a Chromium Gitiles path.
+
+    The version is the first ``+`` path segment that is a number or dotted
+    number, with an optional leading ``v``. ``refs/heads/releases/114/...``
+    yields ``114``. A path with no such segment yields ``""``.
+    """
+    raw = (url or "").strip().split(";", 1)[0]
+    parsed = urllib.parse.urlparse(raw)
+    segments = [
+        urllib.parse.unquote(segment)
+        for segment in (parsed.path or "").split("/")
+        if segment
+    ]
+    try:
+        plus_at = segments.index("+")
+    except ValueError:
+        return ""
+    for segment in segments[plus_at + 1:]:
+        if _GITILES_VERSION_SEGMENT.match(segment):
+            return segment
+    return ""
+
+
+def _gitiles_clone_attempts(link_version: str, checkout_to: str):
+    """Checkout order for a Gitiles clone: link version, ``-c``, default branch.
+
+    The first two attempts do not fall back to the default branch. The last
+    attempt clones that branch and leaves the version empty.
+    """
+    attempts = []
+    version = (link_version or "").strip()
+    requested = (checkout_to or "").strip()
+    if version:
+        attempts.append((version, False))
+    if requested and requested != version:
+        attempts.append((requested, False))
+    attempts.append(("", True))
+    return attempts
+
+
+def _gitiles_ref_kind(revision) -> str:
+    """Classify a parsed Gitiles revision as tag, branch, commit, or name."""
+    if (
+        len(revision) >= 3
+        and revision[0] == "refs"
+        and revision[1] == "tags"
+    ):
+        return "tag"
+    if (
+        len(revision) >= 3
+        and revision[0] == "refs"
+        and revision[1] == "heads"
+    ):
+        return "branch"
+    if revision and re.fullmatch(r"[0-9a-fA-F]{7,40}", revision[0]):
+        return "commit"
+    return "name"
+
+
+def parse_chromium_gitiles_path(url: str):
+    """Parse a Chromium Gitiles path URL.
+
+    Returns ``(repo_url, archive_url, checkout_ref, ref_kind)`` when the URL is
+    ``https://chromium.googlesource.com/{repo}/+/{revision}/{subdirectory}``.
+    ``archive_url`` is the subdirectory ``+archive`` tarball. ``ref_kind`` is
+    ``tag``, ``branch``, ``commit``, or ``name``. Other URLs, including a
+    revision with no subdirectory, return ``None``.
+    """
+    raw = (url or "").strip()
+    parsed = urllib.parse.urlparse(raw)
+    if parsed.scheme != "https":
+        return None
+    if (parsed.hostname or "").lower() != "chromium.googlesource.com":
+        return None
+    segments = [
+        urllib.parse.unquote(segment)
+        for segment in (parsed.path or "").split("/")
+        if segment
+    ]
+    try:
+        plus_at = segments.index("+")
+    except ValueError:
+        return None
+    if plus_at == 0:
+        return None
+    repo_segments = segments[:plus_at]
+    if repo_segments[-1].endswith(".git"):
+        repo_segments[-1] = repo_segments[-1][:-len(".git")]
+        if not repo_segments[-1]:
+            return None
+    revision, subpath = _split_gitiles_revision(segments[plus_at + 1:])
+    if not revision or not subpath:
+        return None
+
+    def _quote_path(parts):
+        return "/".join(urllib.parse.quote(part, safe="+") for part in parts)
+
+    repo_url = "https://chromium.googlesource.com/" + _quote_path(repo_segments)
+    archive_url = (
+        "https://chromium.googlesource.com/"
+        + _quote_path(repo_segments + ["+archive"] + revision + subpath)
+        + ".tar.gz"
+    )
+    checkout_ref = _gitiles_checkout_ref(revision)
+    return repo_url, archive_url, checkout_ref, _gitiles_ref_kind(revision)
+
+
 def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
                              compressed_only: bool = False, ssh_key: str = "",
                              id: str = "", git_token: str = "",
@@ -406,74 +589,153 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
             attempts = download_version_attempts(link, checkout_to)
 
-            for attempt_index, (attempt_link, attempt_checkout, allow_latest) in enumerate(attempts):
-                if attempt_index:
-                    parts = []
-                    if msg:
-                        parts.append(f"git fail: {msg}")
-                    if msg_wget:
-                        parts.append(f"wget fail: {msg_wget}")
-                    link_version_failure = ", ".join(parts)
-                    logger.info(
-                        "Link version download failed; retry with checkout version "
-                        f"{attempt_checkout}. {link_version_failure}"
-                    )
-                    success = True
-                    msg = ""
-                    msg_wget = ""
-                    oss_name = ""
-                    oss_version = ""
-                    clarified_from_git = ""
-                    downloaded_link = ""
-                    size_limit_blocked = False
-
-                # General download: git clone → requests → system wget
-                success_git, msg, oss_name, oss_version, clarified_from_git = download_git_clone(
-                    attempt_link, target_dir, attempt_checkout, tag, branch,
-                    ssh_key, id, git_token, called_cli, size_limit_gb=size_limit_gb)
-                link = change_ssh_link_to_https(attempt_link)
-                if success_git:
-                    downloaded_link = link
-                    success = True
-                size_limit_blocked = _is_size_limit_block_message(msg)
-                if size_limit_blocked:
+            gitiles = parse_chromium_gitiles_path(link.split(";", 1)[0])
+            if gitiles and not is_rubygems:
+                repo_url, archive_url, checkout_ref, _ref_kind = gitiles
+                existing_entries = _download_dir_entries(target_dir)
+                logger.info(
+                    "Chromium Gitiles path; downloading subdirectory archive: %s",
+                    archive_url,
+                )
+                (
+                    success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link
+                ) = download_wget(
+                    archive_url, target_dir, compressed_only, checkout_to,
+                    size_limit_gb=size_limit_gb,
+                    allow_latest=False,
+                )
+                archive_ok = False
+                if _is_size_limit_block_message(msg_wget):
+                    size_limit_blocked = True
                     success = False
-                elif (not is_rubygems) and (not success_git):
-                    success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link = download_wget(
-                        link, target_dir, compressed_only, attempt_checkout,
-                        size_limit_gb=size_limit_gb,
-                        allow_latest=allow_latest,
+                    msg = msg_wget
+                elif success and downloaded_file:
+                    archive_ok = extract_compressed_file(
+                        downloaded_file, target_dir, True, True
                     )
-                    if _is_size_limit_block_message(msg_wget):
-                        size_limit_blocked = True
-                        success = False
-                        msg = msg_wget
-                    elif success and downloaded_file:
-                        success = extract_compressed_file(
-                            downloaded_file, target_dir, True, compressed_only
+                    _raise_if_download_timed_out()
+                    if archive_ok:
+                        downloaded_link = resolved_link
+                        success = True
+                        oss_version = checkout_ref
+                        clarified_from_git = ""
+                        msg = ""
+                        msg_wget = ""
+                    else:
+                        msg_wget = (
+                            f"Failed to extract downloaded file: {downloaded_file}"
                         )
-                        if success:
-                            downloaded_link = resolved_link
-                        else:
-                            # Extract failed (e.g. non-archive when compressed_only): fail
-                            msg_wget = (
-                                f"Failed to extract downloaded file: {downloaded_file}"
+                        success = False
+                        try:
+                            if os.path.isfile(downloaded_file):
+                                os.remove(downloaded_file)
+                        except OSError:
+                            pass
+                if not archive_ok and not size_limit_blocked:
+                    logger.info(
+                        "Chromium Gitiles subdirectory archive failed; "
+                        "cloning repository: %s",
+                        repo_url,
+                    )
+                    link_version = gitiles_link_version(link.split(";", 1)[0])
+                    clone_attempts = _gitiles_clone_attempts(link_version, checkout_to)
+                    for ref, allow_default in clone_attempts:
+                        _remove_new_download_entries(target_dir, existing_entries)
+                        if _download_dir_entries(target_dir):
+                            success = False
+                            msg = (
+                                "Target directory is not empty; "
+                                "repository clone was not started."
                             )
-                            try:
-                                if os.path.isfile(downloaded_file):
-                                    os.remove(downloaded_file)
-                            except OSError:
-                                pass
-                # Download from rubygems.org
-                elif is_rubygems and shutil.which("gem"):
-                    _raise_if_download_timed_out()
-                    success = gem_download(link, target_dir, attempt_checkout)
-                    # Do not accept a gem that finished, or was stopped, after the deadline.
-                    _raise_if_download_timed_out()
-                    if success:
+                            break
+                        (
+                            success_git, msg, oss_name, oss_version, clarified_from_git
+                        ) = download_git_clone(
+                            repo_url, target_dir, ref, "", "",
+                            ssh_key, id, git_token, called_cli,
+                            size_limit_gb=size_limit_gb,
+                            allow_default_branch_fallback=allow_default,
+                        )
+                        if _is_size_limit_block_message(msg):
+                            size_limit_blocked = True
+                            success = False
+                            break
+                        if success_git:
+                            downloaded_link = change_ssh_link_to_https(repo_url)
+                            success = True
+                            msg = ""
+                            msg_wget = ""
+                            break
+                        success = False
+            else:
+                for attempt_index, (attempt_link, attempt_checkout, allow_latest) in enumerate(attempts):
+                    if attempt_index:
+                        parts = []
+                        if msg:
+                            parts.append(f"git fail: {msg}")
+                        if msg_wget:
+                            parts.append(f"wget fail: {msg_wget}")
+                        link_version_failure = ", ".join(parts)
+                        logger.info(
+                            "Link version download failed; retry with checkout version "
+                            f"{attempt_checkout}. {link_version_failure}"
+                        )
+                        success = True
+                        msg = ""
+                        msg_wget = ""
+                        oss_name = ""
+                        oss_version = ""
+                        clarified_from_git = ""
+                        downloaded_link = ""
+                        size_limit_blocked = False
+
+                    # General download: git clone → requests → system wget
+                    success_git, msg, oss_name, oss_version, clarified_from_git = download_git_clone(
+                        attempt_link, target_dir, attempt_checkout, tag, branch,
+                        ssh_key, id, git_token, called_cli, size_limit_gb=size_limit_gb)
+                    link = change_ssh_link_to_https(attempt_link)
+                    if success_git:
                         downloaded_link = link
-                if success or size_limit_blocked:
-                    break
+                        success = True
+                    size_limit_blocked = _is_size_limit_block_message(msg)
+                    if size_limit_blocked:
+                        success = False
+                    elif (not is_rubygems) and (not success_git):
+                        success, downloaded_file, msg_wget, oss_name, oss_version, resolved_link = download_wget(
+                            link, target_dir, compressed_only, attempt_checkout,
+                            size_limit_gb=size_limit_gb,
+                            allow_latest=allow_latest,
+                        )
+                        if _is_size_limit_block_message(msg_wget):
+                            size_limit_blocked = True
+                            success = False
+                            msg = msg_wget
+                        elif success and downloaded_file:
+                            success = extract_compressed_file(
+                                downloaded_file, target_dir, True, compressed_only
+                            )
+                            if success:
+                                downloaded_link = resolved_link
+                            else:
+                                # Extract failed (e.g. non-archive when compressed_only): fail
+                                msg_wget = (
+                                    f"Failed to extract downloaded file: {downloaded_file}"
+                                )
+                                try:
+                                    if os.path.isfile(downloaded_file):
+                                        os.remove(downloaded_file)
+                                except OSError:
+                                    pass
+                    # Download from rubygems.org
+                    elif is_rubygems and shutil.which("gem"):
+                        _raise_if_download_timed_out()
+                        success = gem_download(link, target_dir, attempt_checkout)
+                        # Do not accept a gem that finished, or was stopped, after the deadline.
+                        _raise_if_download_timed_out()
+                        if success:
+                            downloaded_link = link
+                    if success or size_limit_blocked:
+                        break
         if size_limit_blocked:
             # Keep a clear size-limit message for callers/UI (do not wrap as git/wget fail)
             pass
@@ -1148,6 +1410,7 @@ def download_git_repository(
     size_limit_gb: Optional[float] = None,
     credential_id: str = "",
     git_token: str = "",
+    allow_default_branch_fallback: bool = True,
 ):
     success = False
     oss_version = ""
@@ -1184,7 +1447,7 @@ def download_git_repository(
 
     msg = err
     # If branch/tag clone failed, fall back to default-branch shallow clone
-    if refs_to_checkout:
+    if refs_to_checkout and allow_default_branch_fallback:
         logger.info(
             f"Shallow clone with ref '{refs_to_checkout}' failed; "
             "retrying default branch shallow clone."
@@ -1209,7 +1472,8 @@ def download_git_repository(
 
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                        ssh_key="", id="", git_token="", called_cli=True,
-                       size_limit_gb: Optional[float] = None):
+                       size_limit_gb: Optional[float] = None,
+                       allow_default_branch_fallback: bool = True):
     git_url = _normalize_git_url_for_clone(git_url)
     oss_name = get_github_ossname(git_url)
     refs_to_checkout, decided_clarified = _resolve_refs_to_checkout(
@@ -1235,6 +1499,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                         refs_to_checkout, git_url, target_dir, tag, called_cli,
                         size_limit_gb=size_limit_gb,
                         credential_id=id, git_token=git_token,
+                        allow_default_branch_fallback=allow_default_branch_fallback,
                     )
             else:
                 git_url = _git_url_with_http_credentials(git_url, credential_id=id, git_token=git_token)
@@ -1242,6 +1507,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                     refs_to_checkout, git_url, target_dir, tag, called_cli,
                     size_limit_gb=size_limit_gb,
                     credential_id=id, git_token=git_token,
+                    allow_default_branch_fallback=allow_default_branch_fallback,
                 )
             if repo_msg and not success:
                 msg = repo_msg
@@ -1294,11 +1560,13 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
 
     precheck Content-Length, poll directory size while wget runs, then
     enforce final file size. Raises SizeLimitExceeded on overflow.
-    Returns local file path on success, or None on failure.
+    Returns ``(local_path, final_url)``. ``final_url`` is the URL wget logged
+    while saving the file, or the request URL when wget printed none.
+    On failure, returns ``(None, "")``.
     """
     if not shutil.which("wget"):
         logger.warning("system wget not found; skip wget fallback")
-        return None
+        return None, ""
 
     Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -1346,7 +1614,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
         )
     except Exception as error:
         logger.warning(f"system wget - failed to start: {error}")
-        return None
+        return None, ""
 
     limit = _size_limit_bytes(size_limit_gb)
     while proc.poll() is None:
@@ -1378,7 +1646,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
         logger.warning(
             f"system wget failed (rc={proc.returncode}): {(stderr or '').strip()}"
         )
-        return None
+        return None, ""
 
     try:
         candidates = [
@@ -1386,11 +1654,11 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
             if p.is_file() and not p.is_symlink()
         ]
     except OSError:
-        return None
+        return None, ""
     new_files = [p for p in candidates if p.resolve() not in before]
     pick_from = new_files or candidates
     if not pick_from:
-        return None
+        return None, ""
     local_path = str(max(pick_from, key=lambda p: p.stat().st_size))
 
     try:
@@ -1399,7 +1667,8 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
         )
     except SizeLimitExceeded:
         raise
-    return local_path
+    saved_url = _final_url_from_wget_stderr(stderr) or url
+    return local_path, saved_url
 
 
 def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=None,
@@ -1410,6 +1679,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
     oss_version = ""
     downloaded_file = ""
     resolved_link = ""
+    final_url = ""
     owner = _enter_download_watchdog(SIGNAL_TIMEOUT)
 
     try:
@@ -1459,7 +1729,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
         # 2차: requests HTTP download
         logger.info(f"HTTP(requests) download: {link}")
         try:
-            downloaded_file = download_file(
+            downloaded_file, final_url = download_file(
                 link, target_dir, size_limit_gb=size_limit_gb
             )
         except (SizeLimitExceeded, TimeOutException):
@@ -1469,6 +1739,7 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
                 f"requests download failed: {error}; trying system wget"
             )
             downloaded_file = None
+            final_url = ""
 
         # Out of time: do not start the download over with wget.
         _raise_if_download_timed_out()
@@ -1476,10 +1747,12 @@ def download_wget(link, target_dir, compressed_only, checkout_to, size_limit_gb=
         # 3차: system wget fallback (former scancode fetch_http wget path)
         if not downloaded_file:
             logger.info(f"system wget fallback: {link}")
-            downloaded_file = _download_with_system_wget(
+            downloaded_file, final_url = _download_with_system_wget(
                 link, target_dir, size_limit_gb=size_limit_gb
             )
 
+        if final_url:
+            resolved_link = final_url
         if downloaded_file:
             _reject_empty_or_html_download(downloaded_file, link)
             success = True
@@ -1545,6 +1818,7 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
         head_headers = {}
 
     local_path = None
+    fetched_url = final_url
     try:
         with requests.get(
             final_url,
@@ -1553,6 +1827,7 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
             timeout=_download_request_timeout(SIGNAL_TIMEOUT),
             headers=request_headers,
         ) as r:
+            fetched_url = r.url or final_url
             _set_download_timeout_callback(lambda: _shutdown_response_socket(r))
             # The deadline may have passed before the callback was set.
             _raise_if_download_timed_out()
@@ -1620,11 +1895,15 @@ def _download_file_once(url, target_dir, request_headers=None, size_limit_gb=Non
             )
         except SizeLimitExceeded:
             raise
-    return local_path
+    return local_path, (fetched_url or url)
 
 
 def download_file(url, target_dir, size_limit_gb=None):
-    """Download via HTTP(S); retry on 400/403 or HTML interstitial for archives."""
+    """Download via HTTP(S); retry on 400/403 or HTML interstitial for archives.
+
+    Returns ``(local_path, final_url)``. ``final_url`` is the URL after redirects.
+    On failure, returns ``(None, "")``.
+    """
     attempts = _download_http_header_attempts()
     last_i = len(attempts) - 1
     for i, req_headers in enumerate(attempts):
@@ -1643,7 +1922,7 @@ def download_file(url, target_dir, size_limit_gb=None):
                 )
                 continue
             logger.warning(f"download_file - failed: {e}")
-            return None
+            return None, ""
         except _HtmlWhenBinaryExpected:
             if i < last_i:
                 logger.info(
@@ -1654,7 +1933,7 @@ def download_file(url, target_dir, size_limit_gb=None):
             logger.warning(
                 "download_file: archive URL still returned HTML after retries"
             )
-            return None
+            return None, ""
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             if i < last_i:
                 logger.info(
@@ -1664,12 +1943,12 @@ def download_file(url, target_dir, size_limit_gb=None):
                 )
                 continue
             logger.warning(f"download_file - failed: {e}")
-            return None
+            return None, ""
         except Exception as e:
             logger.warning(f"download_file - failed: {e}")
-            return None
+            return None, ""
     logger.warning("download_file: failed after User-Agent retries")
-    return None
+    return None, ""
 
 
 def extract_rpm_payload(source_file: str, dest_path: str) -> bool:
