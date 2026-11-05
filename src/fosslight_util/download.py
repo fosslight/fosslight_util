@@ -370,11 +370,23 @@ def _final_url_from_wget_stderr(stderr: str) -> str:
     return found[-1] if found else ""
 
 
-def _empty_download_dir(path: str) -> None:
-    """Remove files left by a failed download so git clone can use the directory."""
+def _download_dir_entries(path: str) -> set:
+    """Return absolute paths of the directory's immediate children."""
+    if not path or not os.path.isdir(path):
+        return set()
+    found = set()
+    for child in Path(path).iterdir():
+        found.add(os.path.abspath(str(child)))
+    return found
+
+
+def _remove_new_download_entries(path: str, keep: set) -> None:
+    """Remove children created by this download and leave ``keep`` in place."""
     if not path or not os.path.isdir(path):
         return
     for child in Path(path).iterdir():
+        if os.path.abspath(str(child)) in keep:
+            continue
         try:
             if child.is_symlink() or child.is_file():
                 child.unlink()
@@ -418,13 +430,37 @@ def _gitiles_checkout_ref(revision) -> str:
     return revision[0] if revision else ""
 
 
+def _gitiles_ref_kind(revision) -> str:
+    """Return how a parsed Gitiles revision should be checked out.
+
+    ``tag`` and ``commit`` are fetched by that ref. ``branch`` and ``name``
+    use ``git clone --branch`` and do not fall back to the default branch.
+    """
+    if (
+        len(revision) >= 3
+        and revision[0] == "refs"
+        and revision[1] == "tags"
+    ):
+        return "tag"
+    if (
+        len(revision) >= 3
+        and revision[0] == "refs"
+        and revision[1] == "heads"
+    ):
+        return "branch"
+    if revision and re.fullmatch(r"[0-9a-fA-F]{7,40}", revision[0]):
+        return "commit"
+    return "name"
+
+
 def parse_chromium_gitiles_path(url: str):
     """Parse a Chromium Gitiles path URL.
 
-    Returns ``(repo_url, archive_url, checkout_ref)`` when the URL is
+    Returns ``(repo_url, archive_url, checkout_ref, ref_kind)`` when the URL is
     ``https://chromium.googlesource.com/{repo}/+/{revision}/{subdirectory}``.
-    ``archive_url`` is the subdirectory ``+archive`` tarball. Other URLs,
-    including a revision with no subdirectory, return ``None``.
+    ``archive_url`` is the subdirectory ``+archive`` tarball. ``ref_kind`` is
+    ``tag``, ``branch``, ``commit``, or ``name``. Other URLs, including a
+    revision with no subdirectory, return ``None``.
     """
     raw = (url or "").strip()
     parsed = urllib.parse.urlparse(raw)
@@ -461,7 +497,83 @@ def parse_chromium_gitiles_path(url: str):
         + _quote_path(repo_segments + ["+archive"] + revision + subpath)
         + ".tar.gz"
     )
-    return repo_url, archive_url, _gitiles_checkout_ref(revision)
+    checkout_ref = _gitiles_checkout_ref(revision)
+    return repo_url, archive_url, checkout_ref, _gitiles_ref_kind(revision)
+
+
+def _git_batch_env() -> dict:
+    """Environment that keeps git from prompting for credentials."""
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    if platform.system() == "Windows":
+        env["GIT_ASKPASS"] = "echo"
+    else:
+        env["GIT_ASKPASS"] = "/bin/echo"
+    env["GIT_CREDENTIAL_HELPER"] = ""
+    if "GIT_CONFIG_COUNT" not in env:
+        env["GIT_CONFIG_COUNT"] = "1"
+        env["GIT_CONFIG_KEY_0"] = "credential.helper"
+        env["GIT_CONFIG_VALUE_0"] = ""
+    if "GIT_SSH_COMMAND" not in env:
+        env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes -o StrictHostKeyChecking=no"
+    return env
+
+
+def _checkout_gitiles_pinned_ref(
+    repo_url: str,
+    target_dir: str,
+    checkout_ref: str,
+    ref_kind: str,
+    size_limit_gb: Optional[float] = None,
+) -> Tuple[bool, str]:
+    """Fetch a Gitiles tag or commit without ``git clone --branch``.
+
+    ``git clone --branch`` prefers ``refs/heads`` and does not accept a raw
+    commit. This fetches the named tag or the commit and checks out FETCH_HEAD.
+    """
+    Path(target_dir).mkdir(parents=True, exist_ok=True)
+    if any(Path(target_dir).iterdir()):
+        return False, "Target directory is not empty."
+    env = _git_batch_env()
+    init = subprocess.run(
+        ["git", "init"],
+        cwd=target_dir,
+        env=env,
+        capture_output=True,
+        text=True, encoding="utf-8", errors="replace",
+    )
+    if init.returncode != 0:
+        return False, (init.stderr or "git init failed").strip()
+    remote = subprocess.run(
+        ["git", "remote", "add", "origin", repo_url],
+        cwd=target_dir,
+        env=env,
+        capture_output=True,
+        text=True, encoding="utf-8", errors="replace",
+    )
+    if remote.returncode != 0:
+        return False, (remote.stderr or "git remote add failed").strip()
+    if ref_kind == "tag":
+        fetch_cmd = [
+            "git", "fetch", "--depth", "1", "origin", "tag", checkout_ref, "--no-tags",
+        ]
+    else:
+        fetch_cmd = ["git", "fetch", "--depth", "1", "origin", checkout_ref]
+    ok, err = run_git_clone_with_size_guard(
+        fetch_cmd, env, target_dir, size_limit_gb=size_limit_gb, cwd=target_dir,
+    )
+    if not ok:
+        return False, err
+    checkout = subprocess.run(
+        ["git", "checkout", "--detach", "FETCH_HEAD"],
+        cwd=target_dir,
+        env=env,
+        capture_output=True,
+        text=True, encoding="utf-8", errors="replace",
+    )
+    if checkout.returncode != 0:
+        return False, (checkout.stderr or "git checkout failed").strip()
+    return True, ""
 
 
 def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_to: str = "",
@@ -509,9 +621,10 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
             is_rubygems = src_info.get("rubygems", False)
             attempts = download_version_attempts(link, checkout_to)
 
-            gitiles = parse_chromium_gitiles_path(link)
+            gitiles = parse_chromium_gitiles_path(link.split(";", 1)[0])
             if gitiles and not is_rubygems:
-                repo_url, archive_url, checkout_ref = gitiles
+                repo_url, archive_url, checkout_ref, ref_kind = gitiles
+                existing_entries = _download_dir_entries(target_dir)
                 logger.info(
                     "Chromium Gitiles path; downloading subdirectory archive: %s",
                     archive_url,
@@ -530,8 +643,9 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                     msg = msg_wget
                 elif success and downloaded_file:
                     archive_ok = extract_compressed_file(
-                        downloaded_file, target_dir, True, compressed_only
+                        downloaded_file, target_dir, True, True
                     )
+                    _raise_if_download_timed_out()
                     if archive_ok:
                         downloaded_link = resolved_link
                         success = True
@@ -555,23 +669,43 @@ def cli_download_and_extract(link: str, target_dir: str, log_dir: str, checkout_
                         "cloning repository: %s",
                         repo_url,
                     )
-                    _empty_download_dir(target_dir)
-                    ref = checkout_ref or checkout_to
-                    (
-                        success_git, msg, oss_name, oss_version, clarified_from_git
-                    ) = download_git_clone(
-                        repo_url, target_dir, ref, tag, branch,
-                        ssh_key, id, git_token, called_cli, size_limit_gb=size_limit_gb,
-                    )
-                    if success_git:
-                        downloaded_link = change_ssh_link_to_https(repo_url)
-                        success = True
-                        oss_version = checkout_ref
-                        clarified_from_git = ""
-                        msg = ""
-                        msg_wget = ""
-                    else:
+                    _remove_new_download_entries(target_dir, existing_entries)
+                    if _download_dir_entries(target_dir):
                         success = False
+                        msg = (
+                            "Target directory is not empty; "
+                            "repository clone was not started."
+                        )
+                    else:
+                        ref = checkout_ref or checkout_to
+                        if ref_kind in ("tag", "commit"):
+                            success_git, msg = _checkout_gitiles_pinned_ref(
+                                repo_url, target_dir, ref, ref_kind,
+                                size_limit_gb=size_limit_gb,
+                            )
+                            oss_name = ""
+                            oss_version = ""
+                            clarified_from_git = ""
+                        else:
+                            (
+                                success_git, msg, oss_name, oss_version, clarified_from_git
+                            ) = download_git_clone(
+                                repo_url, target_dir, ref, "", "",
+                                ssh_key, id, git_token, called_cli,
+                                size_limit_gb=size_limit_gb,
+                                allow_default_branch_fallback=False,
+                            )
+                        if success_git:
+                            downloaded_link = change_ssh_link_to_https(repo_url)
+                            success = True
+                            oss_version = checkout_ref
+                            clarified_from_git = ""
+                            msg = ""
+                            msg_wget = ""
+                        else:
+                            success = False
+                            if _is_size_limit_block_message(msg):
+                                size_limit_blocked = True
             else:
                 for attempt_index, (attempt_link, attempt_checkout, allow_latest) in enumerate(attempts):
                     if attempt_index:
@@ -1209,6 +1343,7 @@ def run_git_clone_with_size_guard(
     size_limit_gb: Optional[float] = None,
     size_check_after_sec: int = SIZE_CHECK_AFTER_SECONDS,
     size_check_interval_sec: int = SIZE_CHECK_INTERVAL_SECONDS,
+    cwd: Optional[str] = None,
 ) -> Tuple[bool, str]:
     """Run git clone via Popen with delayed, periodic, and post-clone size checks.
 
@@ -1224,6 +1359,7 @@ def run_git_clone_with_size_guard(
         proc = subprocess.Popen(
             cmd,
             env=env,
+            cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             # git writes UTF-8. Without an explicit encoding a non-UTF-8 locale (cp949 on
@@ -1315,6 +1451,7 @@ def download_git_repository(
     size_limit_gb: Optional[float] = None,
     credential_id: str = "",
     git_token: str = "",
+    allow_default_branch_fallback: bool = True,
 ):
     success = False
     oss_version = ""
@@ -1351,7 +1488,7 @@ def download_git_repository(
 
     msg = err
     # If branch/tag clone failed, fall back to default-branch shallow clone
-    if refs_to_checkout:
+    if refs_to_checkout and allow_default_branch_fallback:
         logger.info(
             f"Shallow clone with ref '{refs_to_checkout}' failed; "
             "retrying default branch shallow clone."
@@ -1376,7 +1513,8 @@ def download_git_repository(
 
 def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                        ssh_key="", id="", git_token="", called_cli=True,
-                       size_limit_gb: Optional[float] = None):
+                       size_limit_gb: Optional[float] = None,
+                       allow_default_branch_fallback: bool = True):
     git_url = _normalize_git_url_for_clone(git_url)
     oss_name = get_github_ossname(git_url)
     refs_to_checkout, decided_clarified = _resolve_refs_to_checkout(
@@ -1402,6 +1540,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                         refs_to_checkout, git_url, target_dir, tag, called_cli,
                         size_limit_gb=size_limit_gb,
                         credential_id=id, git_token=git_token,
+                        allow_default_branch_fallback=allow_default_branch_fallback,
                     )
             else:
                 git_url = _git_url_with_http_credentials(git_url, credential_id=id, git_token=git_token)
@@ -1409,6 +1548,7 @@ def download_git_clone(git_url, target_dir, checkout_to="", tag="", branch="",
                     refs_to_checkout, git_url, target_dir, tag, called_cli,
                     size_limit_gb=size_limit_gb,
                     credential_id=id, git_token=git_token,
+                    allow_default_branch_fallback=allow_default_branch_fallback,
                 )
             if repo_msg and not success:
                 msg = repo_msg
@@ -1461,7 +1601,8 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
 
     precheck Content-Length, poll directory size while wget runs, then
     enforce final file size. Raises SizeLimitExceeded on overflow.
-    Returns ``(local_path, final_url)``. ``final_url`` is the URL after redirects.
+    Returns ``(local_path, final_url)``. ``final_url`` is the URL wget logged
+    while saving the file, or the request URL when wget printed none.
     On failure, returns ``(None, "")``.
     """
     if not shutil.which("wget"):
@@ -1470,7 +1611,6 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
 
     Path(target_dir).mkdir(parents=True, exist_ok=True)
 
-    head_url = ""
     # Before download: best-effort Content-Length check
     try:
         head = requests.head(
@@ -1480,7 +1620,6 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
             headers={"User-Agent": _HTTP_BROWSER_USER_AGENT, "Accept": "*/*"},
         )
         if head.status_code < 400:
-            head_url = head.url or ""
             _raise_if_content_length_over_limit(
                 head.headers, size_limit_gb, "before download"
             )
@@ -1569,7 +1708,7 @@ def _download_with_system_wget(url, target_dir, size_limit_gb=None):
         )
     except SizeLimitExceeded:
         raise
-    saved_url = _final_url_from_wget_stderr(stderr) or head_url or url
+    saved_url = _final_url_from_wget_stderr(stderr) or url
     return local_path, saved_url
 
 
