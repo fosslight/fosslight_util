@@ -29,15 +29,23 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
     excluded_paths = set()
 
     # Normalize patterns: e.g., 'sample/', 'sample/*' -> 'sample'
-    # Replace backslash with slash
-    normalized_patterns = []
+    # Track directory-only vs general patterns so trailing slashes don't match bare files
+    dir_patterns = []
+    general_patterns = []
     for pattern in patterns:
         pattern = pattern.replace('\\', '/')
-        # Strip a trailing '/*', then any trailing '/', so wildcards in the name survive
+        is_dir_only = pattern.endswith('/') or pattern.endswith('/*')
         if pattern.endswith('/*'):
             pattern = pattern[:-2]
         pattern = pattern.rstrip('/')
-        normalized_patterns.append(pattern)
+        if not pattern:
+            continue
+        if is_dir_only:
+            dir_patterns.append(pattern)
+        else:
+            general_patterns.append(pattern)
+
+    all_dir_patterns = dir_patterns + general_patterns
 
     # Traverse directories
     for root, dirs, files in os.walk(path_to_scan):
@@ -49,7 +57,7 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
             dir_path = os.path.relpath(os.path.join(root, d), path_to_scan).replace('\\', '/')
             matched = False
 
-            for pat in normalized_patterns:
+            for pat in all_dir_patterns:
                 # Match directory name
                 if fnmatch.fnmatch(dir_name, pat):
                     matched = True
@@ -76,8 +84,12 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
         # (2) File matching
         for f in files:
             file_path = os.path.relpath(os.path.join(root, f), path_to_scan).replace('\\', '/')
-            for pat in normalized_patterns:
-                if fnmatch.fnmatch(file_path, pat) or fnmatch.fnmatch(file_path, pat + "/*"):
+            for pat in general_patterns:
+                if fnmatch.fnmatch(file_path, pat) or fnmatch.fnmatch(f, pat):
+                    excluded_paths.add(file_path)
+                    break
+            for pat in dir_patterns:
+                if fnmatch.fnmatch(file_path, pat + "/*"):
                     excluded_paths.add(file_path)
                     break
 
@@ -135,13 +147,22 @@ def get_excluded_paths(
     abs_path_to_scan = os.path.abspath(path_to_scan)
     exclude_filename_set = frozenset(name.lower() for name in (exclude_filenames or ()))
     # Normalize: backslash to slash; strip trailing /* and / so wildcard and plain directory matching works
-    custom_excluded_normalized = []
+    # Track directory-only vs general patterns so trailing slashes don't match bare files
+    custom_excluded_dir_patterns = []
+    custom_excluded_general_patterns = []
     for p in custom_excluded_paths:
         p = p.replace('\\', '/')
+        is_dir_only = p.endswith('/') or p.endswith('/*')
         if p.endswith('/*'):
             p = p[:-2]
         p = p.rstrip('/')
-        custom_excluded_normalized.append(p)
+        if not p:
+            continue
+        if is_dir_only:
+            custom_excluded_dir_patterns.append(p)
+        else:
+            custom_excluded_general_patterns.append(p)
+    all_dir_patterns = custom_excluded_dir_patterns + custom_excluded_general_patterns
     cnt_file_except_skipped = 0
 
     def mark_excluded(rel_path: str) -> None:
@@ -159,14 +180,14 @@ def get_excluded_paths(
                     if has_dot:
                         path_to_exclude_with_dot.append(rel_path)
                 elif (
-                    rel_path in custom_excluded_normalized
-                    or dir_name in custom_excluded_normalized
+                    rel_path in all_dir_patterns
+                    or dir_name in all_dir_patterns
                 ):
                     mark_excluded(rel_path)
                 elif any(
                     fnmatch.fnmatch(rel_path, pattern)
                     or fnmatch.fnmatch(dir_name, pattern)
-                    for pattern in custom_excluded_normalized
+                    for pattern in all_dir_patterns
                 ):
                     mark_excluded(rel_path)
 
@@ -180,8 +201,10 @@ def get_excluded_paths(
                 if any(
                     fnmatch.fnmatch(rel_path, pattern)
                     or fnmatch.fnmatch(file_name, pattern)
-                    or fnmatch.fnmatch(rel_path, pattern + '/*')
-                    for pattern in custom_excluded_normalized
+                    for pattern in custom_excluded_general_patterns
+                ) or any(
+                    fnmatch.fnmatch(rel_path, pattern + '/*')
+                    for pattern in custom_excluded_dir_patterns
                 ):
                     should_exclude = True
                 elif file_name.startswith('.'):

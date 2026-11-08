@@ -42,3 +42,19 @@ def test_get_excluded_paths_plain_directory(tmp_path):
     for pat in ["sample/", "sample//", "sample/*", "sample"]:
         _, _, excluded_files, _ = get_excluded_paths(str(tmp_path), custom_excluded_paths=[pat])
         assert sorted(excluded_files) == ["sample/b.c"], f"failed for {pat}"
+
+
+def test_directory_only_pattern_does_not_exclude_similarly_named_files(tmp_path):
+    _make_tree(tmp_path)
+    (tmp_path / "build_report.c").write_text("")
+    (tmp_path / "sample.c").write_text("")
+
+    assert excluding_files(["build*/"], str(tmp_path)) == ["build_out/a.c"]
+    assert excluding_files(["sample/"], str(tmp_path)) == ["sample/b.c"]
+    assert excluding_files(["build*"], str(tmp_path)) == ["build_out/a.c", "build_report.c"]
+
+    _, _, files_dir_only, _ = get_excluded_paths(str(tmp_path), custom_excluded_paths=["build*/"])
+    assert sorted(files_dir_only) == ["build_out/a.c"]
+
+    _, _, files_general, _ = get_excluded_paths(str(tmp_path), custom_excluded_paths=["build*"])
+    assert sorted(files_general) == ["build_out/a.c", "build_report.c"]
