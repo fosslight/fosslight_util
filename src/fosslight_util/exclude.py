@@ -134,12 +134,13 @@ def get_excluded_paths(
     excluded_files = set()  # Use set for O(1) operations
     abs_path_to_scan = os.path.abspath(path_to_scan)
     exclude_filename_set = frozenset(name.lower() for name in (exclude_filenames or ()))
-    # Normalize: backslash to slash; trailing /* -> / so directory matching works without special case
+    # Normalize: backslash to slash; strip trailing /* and / so wildcard and plain directory matching works
     custom_excluded_normalized = []
     for p in custom_excluded_paths:
         p = p.replace('\\', '/')
         if p.endswith('/*'):
-            p = p[:-2] + '/'
+            p = p[:-2]
+        p = p.rstrip('/')
         custom_excluded_normalized.append(p)
     cnt_file_except_skipped = 0
 
@@ -157,10 +158,14 @@ def get_excluded_paths(
                     mark_excluded(rel_path)
                     if has_dot:
                         path_to_exclude_with_dot.append(rel_path)
-                elif rel_path in custom_excluded_normalized or rel_path + '/' in custom_excluded_normalized:
+                elif (
+                    rel_path in custom_excluded_normalized
+                    or dir_name in custom_excluded_normalized
+                ):
                     mark_excluded(rel_path)
                 elif any(
                     fnmatch.fnmatch(rel_path, pattern)
+                    or fnmatch.fnmatch(dir_name, pattern)
                     for pattern in custom_excluded_normalized
                 ):
                     mark_excluded(rel_path)
@@ -175,6 +180,7 @@ def get_excluded_paths(
                 if any(
                     fnmatch.fnmatch(rel_path, pattern)
                     or fnmatch.fnmatch(file_name, pattern)
+                    or fnmatch.fnmatch(rel_path, pattern + '/*')
                     for pattern in custom_excluded_normalized
                 ):
                     should_exclude = True
