@@ -29,23 +29,13 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
     excluded_paths = set()
 
     # Normalize patterns: e.g., 'sample/', 'sample/*' -> 'sample'
-    # Track directory-only vs general patterns so trailing slashes don't match bare files
-    dir_patterns = []
-    general_patterns = []
+    # Replace backslash with slash
+    normalized_patterns = []
     for pattern in patterns:
         pattern = pattern.replace('\\', '/')
-        is_dir_only = pattern.endswith('/') or pattern.endswith('/*')
-        if pattern.endswith('/*'):
-            pattern = pattern[:-2]
-        pattern = pattern.rstrip('/')
-        if not pattern:
-            continue
-        if is_dir_only:
-            dir_patterns.append(pattern)
-        else:
-            general_patterns.append(pattern)
-
-    all_dir_patterns = dir_patterns + general_patterns
+        if pattern.endswith('/') or pattern.endswith('/*'):
+            pattern = pattern.rstrip('/*')
+        normalized_patterns.append(pattern)
 
     # Traverse directories
     for root, dirs, files in os.walk(path_to_scan):
@@ -57,7 +47,7 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
             dir_path = os.path.relpath(os.path.join(root, d), path_to_scan).replace('\\', '/')
             matched = False
 
-            for pat in all_dir_patterns:
+            for pat in normalized_patterns:
                 # Match directory name
                 if fnmatch.fnmatch(dir_name, pat):
                     matched = True
@@ -84,12 +74,8 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
         # (2) File matching
         for f in files:
             file_path = os.path.relpath(os.path.join(root, f), path_to_scan).replace('\\', '/')
-            for pat in general_patterns:
-                if fnmatch.fnmatch(file_path, pat) or fnmatch.fnmatch(f, pat):
-                    excluded_paths.add(file_path)
-                    break
-            for pat in dir_patterns:
-                if fnmatch.fnmatch(file_path, pat + "/*"):
+            for pat in normalized_patterns:
+                if fnmatch.fnmatch(file_path, pat) or fnmatch.fnmatch(file_path, pat + "/*"):
                     excluded_paths.add(file_path)
                     break
 
