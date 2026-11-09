@@ -3,58 +3,62 @@
 # Copyright (c) 2026 LG Electronics Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-from fosslight_util.exclude import excluding_files, get_excluded_paths
+import pytest
+
+from fosslight_util.exclude import get_excluded_paths
 
 
-def _make_tree(tmp_path):
-    (tmp_path / "build_out").mkdir()
-    (tmp_path / "build_out" / "a.c").write_text("")
-    (tmp_path / "sample").mkdir()
-    (tmp_path / "sample" / "b.c").write_text("")
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "c.c").write_text("")
+@pytest.fixture
+def project(tmp_path):
+    for name in (
+        "build_out/a.c", "pkg/build_out/nested.c", "pkg/build_out/deeper/deep.c",
+        "sample/b.c", "pkg/sample/nested.c", "src/c.c",
+        "build_report.c", "pkg/build_report.c", "sample.c",
+    ):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("int example;\n", encoding="utf-8")
+    return str(tmp_path)
 
 
-def test_trailing_slash_keeps_wildcard_in_directory_name(tmp_path):
-    _make_tree(tmp_path)
-    assert excluding_files(["build*/"], str(tmp_path)) == ["build_out/a.c"]
-    assert excluding_files(["build*//"], str(tmp_path)) == ["build_out/a.c"]
-    assert excluding_files(["build*/*"], str(tmp_path)) == ["build_out/a.c"]
+@pytest.mark.parametrize("pattern", ["build*/", "build*//", "build*/*", "build*\\"])
+def test_directory_wildcard_excludes_top_level_and_nested_directories(project, pattern):
+    paths, visible_paths, files, count = get_excluded_paths(project, custom_excluded_paths=[pattern])
+
+    assert set(paths) == {"build_out", "pkg/build_out"}
+    assert set(visible_paths) == {"build_out", "pkg/build_out"}
+    assert set(files) == {"build_out/a.c", "pkg/build_out/nested.c", "pkg/build_out/deeper/deep.c"}
+    # Directory-only patterns leave both build_report.c files available to scan.
+    assert count == 6
 
 
-def test_trailing_slash_and_star_on_plain_directory(tmp_path):
-    _make_tree(tmp_path)
-    assert excluding_files(["sample/"], str(tmp_path)) == ["sample/b.c"]
-    assert excluding_files(["sample//"], str(tmp_path)) == ["sample/b.c"]
-    assert excluding_files(["sample/*"], str(tmp_path)) == ["sample/b.c"]
-    assert excluding_files(["sample"], str(tmp_path)) == ["sample/b.c"]
+@pytest.mark.parametrize("pattern", ["sample/", "sample//", "sample/*", "sample"])
+def test_plain_directory_excludes_top_level_and_nested_directories(project, pattern):
+    paths, visible_paths, files, count = get_excluded_paths(project, custom_excluded_paths=[pattern])
+
+    assert set(paths) == {"sample", "pkg/sample"}
+    assert set(visible_paths) == {"sample", "pkg/sample"}
+    assert set(files) == {"sample/b.c", "pkg/sample/nested.c"}
+    assert count == 7
 
 
-def test_get_excluded_paths_trailing_slash_wildcard(tmp_path):
-    _make_tree(tmp_path)
-    for pat in ["build*/", "build*//", "build*/*", "build*"]:
-        _, _, excluded_files, _ = get_excluded_paths(str(tmp_path), custom_excluded_paths=[pat])
-        assert sorted(excluded_files) == ["build_out/a.c"], f"failed for {pat}"
+def test_general_wildcard_also_excludes_matching_files(project):
+    paths, visible_paths, files, count = get_excluded_paths(project, custom_excluded_paths=["build*"])
+
+    assert set(paths) == {"build_out", "pkg/build_out", "build_report.c", "pkg/build_report.c"}
+    assert set(visible_paths) == set(paths)
+    assert set(files) == {
+        "build_out/a.c", "pkg/build_out/nested.c", "pkg/build_out/deeper/deep.c",
+        "build_report.c", "pkg/build_report.c",
+    }
+    assert count == 4
 
 
-def test_get_excluded_paths_plain_directory(tmp_path):
-    _make_tree(tmp_path)
-    for pat in ["sample/", "sample//", "sample/*", "sample"]:
-        _, _, excluded_files, _ = get_excluded_paths(str(tmp_path), custom_excluded_paths=[pat])
-        assert sorted(excluded_files) == ["sample/b.c"], f"failed for {pat}"
+@pytest.mark.parametrize("pattern", ["pkg/build*/", "pkg/build*//", "pkg/build*/*"])
+def test_relative_directory_pattern_does_not_exclude_top_level_match(project, pattern):
+    paths, visible_paths, files, count = get_excluded_paths(project, custom_excluded_paths=[pattern])
 
-
-def test_directory_only_pattern_does_not_exclude_similarly_named_files(tmp_path):
-    _make_tree(tmp_path)
-    (tmp_path / "build_report.c").write_text("")
-    (tmp_path / "sample.c").write_text("")
-
-    assert excluding_files(["build*/"], str(tmp_path)) == ["build_out/a.c"]
-    assert excluding_files(["sample/"], str(tmp_path)) == ["sample/b.c"]
-    assert excluding_files(["build*"], str(tmp_path)) == ["build_out/a.c", "build_report.c"]
-
-    _, _, files_dir_only, _ = get_excluded_paths(str(tmp_path), custom_excluded_paths=["build*/"])
-    assert sorted(files_dir_only) == ["build_out/a.c"]
-
-    _, _, files_general, _ = get_excluded_paths(str(tmp_path), custom_excluded_paths=["build*"])
-    assert sorted(files_general) == ["build_out/a.c", "build_report.c"]
+    assert paths == ["pkg/build_out"]
+    assert visible_paths == ["pkg/build_out"]
+    assert set(files) == {"pkg/build_out/nested.c", "pkg/build_out/deeper/deep.c"}
+    assert count == 7
