@@ -165,14 +165,10 @@ def get_excluded_paths(
                     mark_excluded(rel_path)
                     if has_dot:
                         path_to_exclude_with_dot.append(rel_path)
-                elif (
-                    rel_path in all_dir_patterns
-                    or dir_name in all_dir_patterns
-                ):
-                    mark_excluded(rel_path)
                 elif any(
-                    fnmatch.fnmatch(rel_path, pattern)
-                    or fnmatch.fnmatch(dir_name, pattern)
+                    # Equality keeps literal names such as "a[1]" that fnmatch reads as a character class.
+                    name == pattern or fnmatch.fnmatch(name, pattern)
+                    for name in (rel_path, dir_name)
                     for pattern in all_dir_patterns
                 ):
                     mark_excluded(rel_path)

@@ -62,3 +62,14 @@ def test_relative_directory_pattern_does_not_exclude_top_level_match(project, pa
     assert visible_paths == ["pkg/build_out"]
     assert set(files) == {"pkg/build_out/nested.c", "pkg/build_out/deeper/deep.c"}
     assert count == 7
+
+
+def test_literal_directory_name_with_glob_characters(tmp_path):
+    path = tmp_path / "a[1]" / "x.c"
+    path.parent.mkdir()
+    path.write_text("int example;\n", encoding="utf-8")
+
+    paths, _, files, _ = get_excluded_paths(str(tmp_path), custom_excluded_paths=["a[1]/"])
+
+    assert paths == ["a[1]"]
+    assert files == ["a[1]/x.c"]
