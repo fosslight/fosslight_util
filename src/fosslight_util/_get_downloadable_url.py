@@ -564,9 +564,17 @@ def extract_name_version_from_link(link, checkout_version, allow_latest=True):
             if oss_version:
                 try:
                     if not version_exists(pkg_type, origin_name, oss_version):
+                        release_version = ""
+                        if pkg_type == "maven" and not oss_version.upper().endswith(".RELEASE"):
+                            release_version = f"{oss_version}.RELEASE"
                         if oss_version.startswith('v') and version_exists(pkg_type, origin_name, oss_version[1:]):
                             logger.info(f'Version {oss_version} not found; using without leading v: {oss_version[1:]}')
                             oss_version = oss_version[1:]
+                        elif release_version and version_exists(pkg_type, origin_name, release_version):
+                            logger.info(
+                                f'Version {oss_version} not found for {oss_name}; using {release_version}'
+                            )
+                            oss_version = release_version
                         elif allow_latest:
                             logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
                             need_latest = True

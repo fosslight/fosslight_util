@@ -69,6 +69,32 @@ def test_extract_keeps_exact_version_when_found_on_candidate_repo(monkeypatch):
     assert link.endswith("/spring-core/6.2.0-M1")
 
 
+def test_extract_tries_release_suffix_before_latest(monkeypatch):
+    seen = []
+
+    def fake_exists(_pkg_type, _origin_name, version):
+        seen.append(version)
+        return version == "2.3.2.RELEASE"
+
+    monkeypatch.setattr(downloadable_url, "version_exists", fake_exists)
+    monkeypatch.setattr(
+        downloadable_url,
+        "get_latest_package_version",
+        lambda *_args, **_kwargs: pytest.fail("latest fallback must not run"),
+    )
+
+    name, version, link, pkg_type = downloadable_url.extract_name_version_from_link(
+        "https://mvnrepository.com/artifact/org.springframework.boot/"
+        "spring-boot-configuration-processor",
+        "2.3.2",
+    )
+    assert pkg_type == "maven"
+    assert name == "org.springframework.boot:spring-boot-configuration-processor"
+    assert version == "2.3.2.RELEASE"
+    assert link.endswith("/spring-boot-configuration-processor/2.3.2.RELEASE")
+    assert seen == ["2.3.2", "2.3.2.RELEASE"]
+
+
 def test_extract_falls_back_to_latest_only_when_no_repo_has_version(monkeypatch):
     monkeypatch.setattr(
         downloadable_url,
