@@ -50,8 +50,8 @@ def test_version_exists_keeps_non_central_maven_version(monkeypatch):
 def test_extract_keeps_exact_version_when_found_on_candidate_repo(monkeypatch):
     monkeypatch.setattr(
         downloadable_url,
-        "version_exists",
-        lambda pkg_type, origin_name, version: version == "6.2.0-M1",
+        "_resolve_maven_published_version",
+        lambda origin_name, version: version if version == "6.2.0-M1" else "",
     )
     monkeypatch.setattr(
         downloadable_url,
@@ -69,14 +69,35 @@ def test_extract_keeps_exact_version_when_found_on_candidate_repo(monkeypatch):
     assert link.endswith("/spring-core/6.2.0-M1")
 
 
-def test_extract_tries_release_suffix_before_latest(monkeypatch):
+def test_extract_tries_release_on_same_repo_before_next(monkeypatch):
+    milestone = "https://repo.spring.io/milestone"
+    central = "https://repo1.maven.org/maven2"
     seen = []
+    downloadable_url._MAVEN_SOURCES_PROBE_CACHE.clear()
+    monkeypatch.setattr(
+        downloadable_url,
+        "_maven_repo_bases_for",
+        lambda _group_path: (milestone, central),
+    )
+    monkeypatch.setattr(
+        downloadable_url,
+        "_maven_central_index_has",
+        lambda *_args, **_kwargs: False,
+    )
 
-    def fake_exists(_pkg_type, _origin_name, version):
-        seen.append(version)
-        return version == "2.3.2.RELEASE"
+    def fake_http_ok(url, timeout=None):
+        seen.append(url)
+        return url == (
+            f"{milestone}/org/springframework/boot/spring-boot-configuration-processor/"
+            "2.3.2.RELEASE/spring-boot-configuration-processor-2.3.2.RELEASE-sources.jar"
+        )
 
-    monkeypatch.setattr(downloadable_url, "version_exists", fake_exists)
+    monkeypatch.setattr(downloadable_url, "_maven_http_ok", fake_http_ok)
+    monkeypatch.setattr(
+        downloadable_url,
+        "_maven_sources_from_directory",
+        lambda *_args, **_kwargs: "",
+    )
     monkeypatch.setattr(
         downloadable_url,
         "get_latest_package_version",
@@ -92,14 +113,17 @@ def test_extract_tries_release_suffix_before_latest(monkeypatch):
     assert name == "org.springframework.boot:spring-boot-configuration-processor"
     assert version == "2.3.2.RELEASE"
     assert link.endswith("/spring-boot-configuration-processor/2.3.2.RELEASE")
-    assert seen == ["2.3.2", "2.3.2.RELEASE"]
+    release_at = next(i for i, url in enumerate(seen) if "2.3.2.RELEASE" in url)
+    assert any("/2.3.2/" in url for url in seen[:release_at])
+    assert all("2.3.2.RELEASE" not in url for url in seen[:release_at])
+    assert all(not url.startswith(central) for url in seen)
 
 
 def test_extract_falls_back_to_latest_only_when_no_repo_has_version(monkeypatch):
     monkeypatch.setattr(
         downloadable_url,
-        "version_exists",
-        lambda *_args, **_kwargs: False,
+        "_resolve_maven_published_version",
+        lambda *_args, **_kwargs: "",
     )
     monkeypatch.setattr(
         downloadable_url,

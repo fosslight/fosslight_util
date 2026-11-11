@@ -343,19 +343,8 @@ def version_exists(pkg_type, origin_name, version):
         elif pkg_type == 'maven':
             # Prefer Central index when available, then probe known Maven hosts for the
             # exact version so non-Central releases (e.g. Spring milestones) are kept.
-            try:
-                r = requests.get(
-                    f'https://api.deps.dev/v3alpha/systems/maven/packages/{origin_name}',
-                    timeout=5,
-                )
-                if r.status_code == 200:
-                    versions = r.json().get('versions', [])
-                    for vobj in versions:
-                        vkey = vobj.get('versionKey') or {}
-                        if vkey.get('version') == version:
-                            return True
-            except Exception as e:
-                logger.debug(f'Maven Central version index check failed: {e}')
+            if _maven_central_index_has(origin_name, version):
+                return True
             group_path, artifact_id = _maven_group_artifact(origin_name)
             if group_path and artifact_id and version:
                 return _maven_version_available(group_path, artifact_id, version)
@@ -563,26 +552,42 @@ def extract_name_version_from_link(link, checkout_version, allow_latest=True):
         if pkg_type in ["pypi", "maven", "npm", "npm2", "pub", "go", "packagist"]:
             if oss_version:
                 try:
-                    if not version_exists(pkg_type, origin_name, oss_version):
-                        release_version = ""
-                        if pkg_type == "maven" and not oss_version.upper().endswith(".RELEASE"):
-                            release_version = f"{oss_version}.RELEASE"
-                        if oss_version.startswith('v') and version_exists(pkg_type, origin_name, oss_version[1:]):
-                            logger.info(f'Version {oss_version} not found; using without leading v: {oss_version[1:]}')
-                            oss_version = oss_version[1:]
-                        elif release_version and version_exists(pkg_type, origin_name, release_version):
-                            logger.info(
-                                f'Version {oss_version} not found for {oss_name}; using {release_version}'
-                            )
-                            oss_version = release_version
-                        elif allow_latest:
-                            logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
-                            need_latest = True
-                        else:
-                            logger.info(
-                                f'Version {oss_version} not found for {oss_name}; '
-                                'not replacing it with latest on this attempt'
-                            )
+                    chosen = ""
+                    if pkg_type == "maven":
+                        # One host at a time: version, then version.RELEASE on that host.
+                        chosen = _resolve_maven_published_version(origin_name, oss_version)
+                        if (
+                            not chosen
+                            and oss_version.startswith('v')
+                            and version_exists(pkg_type, origin_name, oss_version[1:])
+                        ):
+                            chosen = oss_version[1:]
+                    elif version_exists(pkg_type, origin_name, oss_version):
+                        chosen = oss_version
+                    elif oss_version.startswith('v') and version_exists(
+                        pkg_type, origin_name, oss_version[1:]
+                    ):
+                        chosen = oss_version[1:]
+                    if chosen:
+                        if chosen != oss_version:
+                            if chosen == oss_version[1:]:
+                                logger.info(
+                                    f'Version {oss_version} not found; '
+                                    f'using without leading v: {chosen}'
+                                )
+                            else:
+                                logger.info(
+                                    f'Version {oss_version} not found for {oss_name}; using {chosen}'
+                                )
+                            oss_version = chosen
+                    elif allow_latest:
+                        logger.info(f'Version {oss_version} not found for {oss_name}; will attempt latest fallback')
+                        need_latest = True
+                    else:
+                        logger.info(
+                            f'Version {oss_version} not found for {oss_name}; '
+                            'not replacing it with latest on this attempt'
+                        )
                 except Exception as e:
                     if allow_latest:
                         logger.info(f'Version validation failed ({oss_name}:{oss_version}) {e}; will attempt latest fallback')
@@ -1082,16 +1087,91 @@ def _maven_repo_bases_for(group_path: str) -> tuple[str, ...]:
     return tuple(ordered)
 
 
+def _maven_central_index_has(origin_name: str, version: str) -> bool:
+    """True when deps.dev lists this exact Maven version."""
+    try:
+        response = requests.get(
+            f'https://api.deps.dev/v3alpha/systems/maven/packages/{origin_name}',
+            timeout=5,
+        )
+        if response.status_code == 200:
+            for vobj in response.json().get('versions', []):
+                vkey = vobj.get('versionKey') or {}
+                if vkey.get('version') == version:
+                    return True
+    except Exception as ex:
+        logger.debug(f'Maven Central version index check failed: {ex}')
+    return False
+
+
+def _maven_release_version(version: str) -> str:
+    if version and not version.upper().endswith(".RELEASE"):
+        return f"{version}.RELEASE"
+    return ""
+
+
+def _maven_pom_on_repo(repo_base: str, group_path: str, artifact_id: str, version: str) -> bool:
+    pom_url = (
+        f"{repo_base}/{group_path}/{artifact_id}/{version}/"
+        f"{artifact_id}-{version}.pom"
+    )
+    return _maven_http_ok(pom_url)
+
+
+def _maven_sources_on_repo(repo_base: str, group_path: str, artifact_id: str, version: str) -> str:
+    """Sources jar on one host, or empty. Does not cache a miss."""
+    cached = _MAVEN_SOURCES_PROBE_CACHE.get((group_path, artifact_id, version))
+    if cached and cached.startswith(f"{repo_base}/"):
+        return cached
+    version_dir = f"{repo_base}/{group_path}/{artifact_id}/{version}"
+    for classifier in MAVEN_SOURCE_CLASSIFIERS:
+        sources_url = f"{version_dir}/{artifact_id}-{version}-{classifier}.jar"
+        if _maven_http_ok(sources_url):
+            logger.info(f"Maven sources found: {sources_url}")
+            return sources_url
+    listed = _maven_sources_from_directory(version_dir, artifact_id, version)
+    if listed:
+        logger.info(f"Maven sources found via listing: {listed}")
+        return listed
+    return ""
+
+
+def _maven_gav_on_repo(repo_base: str, group_path: str, artifact_id: str, version: str) -> bool:
+    """True if this host has the GAV as a sources jar or pom."""
+    found = _maven_sources_on_repo(repo_base, group_path, artifact_id, version)
+    if found:
+        _MAVEN_SOURCES_PROBE_CACHE[(group_path, artifact_id, version)] = found
+        return True
+    return _maven_pom_on_repo(repo_base, group_path, artifact_id, version)
+
+
+def _resolve_maven_published_version(origin_name: str, version: str) -> str:
+    """Return ``version`` or ``version.RELEASE`` from the first host that has either.
+
+    The plain version is checked on a host before ``.RELEASE`` on that same host.
+    """
+    if not version:
+        return ""
+    if _maven_central_index_has(origin_name, version):
+        return version
+    group_path, artifact_id = _maven_group_artifact(origin_name)
+    if not group_path or not artifact_id:
+        return ""
+    release = _maven_release_version(version)
+    for repo_base in _maven_repo_bases_for(group_path):
+        if _maven_gav_on_repo(repo_base, group_path, artifact_id, version):
+            return version
+        if release and _maven_gav_on_repo(repo_base, group_path, artifact_id, release):
+            return release
+    return ""
+
+
 def _maven_version_available(group_path: str, artifact_id: str, version: str) -> bool:
     """True if a known host has this GAV as sources jar or pom (reuse sources probe cache)."""
     if _probe_maven_sources_jar(group_path, artifact_id, version):
         return True
     for repo_base in _maven_repo_bases_for(group_path):
-        pom_url = (
-            f"{repo_base}/{group_path}/{artifact_id}/{version}/"
-            f"{artifact_id}-{version}.pom"
-        )
-        if _maven_http_ok(pom_url):
+        if _maven_pom_on_repo(repo_base, group_path, artifact_id, version):
             return True
     return False
 
@@ -1151,20 +1231,8 @@ def _probe_maven_sources_jar(group_path: str, artifact_id: str, version: str) ->
 
     found = ""
     for repo_base in _maven_repo_bases_for(group_path):
-        version_dir = f"{repo_base}/{group_path}/{artifact_id}/{version}"
-        for classifier in MAVEN_SOURCE_CLASSIFIERS:
-            sources_url = f"{version_dir}/{artifact_id}-{version}-{classifier}.jar"
-            if _maven_http_ok(sources_url):
-                logger.info(f"Maven sources found: {sources_url}")
-                found = sources_url
-                break
+        found = _maven_sources_on_repo(repo_base, group_path, artifact_id, version)
         if found:
-            break
-        # Directory listing only when classifier URLs miss; bounded by MAVEN_HTTP_TIMEOUT.
-        listed = _maven_sources_from_directory(version_dir, artifact_id, version)
-        if listed:
-            logger.info(f"Maven sources found via listing: {listed}")
-            found = listed
             break
 
     _MAVEN_SOURCES_PROBE_CACHE[cache_key] = found
