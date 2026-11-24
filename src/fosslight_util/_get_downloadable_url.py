@@ -8,6 +8,7 @@ import requests
 import xml.etree.ElementTree as ET
 from lastversion import latest
 from bs4 import BeautifulSoup
+from urllib.parse import quote, unquote
 from urllib.request import urlopen
 import fosslight_util.constant as constant
 
@@ -952,87 +953,91 @@ def get_download_location_for_go(link):
     return ret, new_link
 
 
+def _pypi_api_path(value):
+    """Encode one PyPI JSON path segment without changing '.' or '-'."""
+    return quote(value or "", safe=".-_")
+
+
+def _pypi_release_files(name, version):
+    """Return the ``urls`` list from the PyPI JSON API for one release."""
+    api_url = (
+        f"https://pypi.org/pypi/{_pypi_api_path(name)}/{_pypi_api_path(version)}/json"
+    )
+    response = requests.get(api_url, timeout=_HTTP_TIMEOUT)
+    if response.status_code != 200:
+        logger.warning(f'Cannot get PyPI API data for {name}({version})')
+        return []
+    files = response.json().get('urls') or []
+    return [item for item in files if isinstance(item, dict)]
+
+
+def _pypi_file_rank(file_info, suffixes):
+    filename = (file_info.get('filename') or file_info.get('url') or '').lower()
+    for index, suffix in enumerate(suffixes):
+        if filename.endswith(suffix):
+            return index
+    return len(suffixes)
+
+
+def _select_pypi_download_url(files):
+    """Prefer an sdist URL from the JSON file list, then a wheel."""
+    sdists = [
+        item for item in files
+        if item.get('packagetype') == 'sdist' and item.get('url')
+    ]
+    if sdists:
+        chosen = sorted(sdists, key=lambda item: _pypi_file_rank(item, ('.tar.gz', '.tgz', '.zip')))[0]
+        return chosen.get('url'), False
+
+    wheels = [
+        item for item in files
+        if item.get('packagetype') == 'bdist_wheel' and item.get('url')
+    ]
+    for wheel in wheels:
+        url = wheel.get('url') or ''
+        if 'py3-none-any' in url or 'py2.py3-none-any' in url:
+            return url, True
+    if wheels:
+        return wheels[0].get('url'), True
+    return '', False
+
+
 def get_available_wheel_urls(name, version):
     try:
-        api_url = f'https://pypi.org/pypi/{name}/{version}/json'
-        response = requests.get(api_url, timeout=_HTTP_TIMEOUT)
-        if response.status_code == 200:
-            data = response.json()
-            wheel_urls = []
-
-            for file_info in data.get('urls', []):
-                if file_info.get('packagetype') == 'bdist_wheel':
-                    wheel_urls.append(file_info.get('url'))
-
-            return wheel_urls
-        else:
-            logger.warning(f'Cannot get PyPI API data for {name}({version})')
-            return []
-
+        files = _pypi_release_files(name, version)
+        return [
+            item.get('url') for item in files
+            if item.get('packagetype') == 'bdist_wheel' and item.get('url')
+        ]
     except Exception as error:
         logger.warning(f'Failed to get wheel URLs from PyPI API: {error}')
         return []
 
 
 def get_download_location_for_pypi(link):
-    # get the url for downloading source file: https://docs.pypi.org/api/ Predictable URLs
+    """Resolve a PyPI project URL to the file URL published in the JSON API."""
     ret = False
     new_link = ''
-    host = 'https://files.pythonhosted.org'
 
     try:
         dn_loc_re = re.findall(r'pypi.org\/project\/?([^\/]*)\/?([^\/]*)', link)
-        oss_name = dn_loc_re[0][0]
-        oss_name = re.sub(r"[-_.]+", "-", oss_name)
-        oss_version = dn_loc_re[0][1]
+        if not dn_loc_re:
+            return ret, new_link
+        oss_name = unquote(dn_loc_re[0][0])
+        oss_version = unquote(dn_loc_re[0][1])
+        if not oss_name or not oss_version:
+            return ret, new_link
 
-        # 1. Source distribution 시도
-        new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
-        try:
-            res = urlopen(new_link, timeout=_HTTP_TIMEOUT)
-            if res.getcode() == 200:
-                ret = True
-                return ret, new_link
-        except Exception:
-            oss_name = re.sub(r"[-]+", "_", oss_name)
-            new_link = f'{host}/packages/source/{oss_name[0]}/{oss_name}/{oss_name}-{oss_version}.tar.gz'
-            try:
-                res = urlopen(new_link, timeout=_HTTP_TIMEOUT)
-                if res.getcode() == 200:
-                    ret = True
-                    return ret, new_link
-            except Exception:
-                pass
-
-        # 2. Source distribution이 없으면 wheel 파일들을 시도
-        wheel_urls = get_available_wheel_urls(oss_name, oss_version)
-
-        if wheel_urls:
-            # Pure Python wheel을 우선적으로 찾기
-            for wheel_url in wheel_urls:
-                if 'py3-none-any' in wheel_url or 'py2.py3-none-any' in wheel_url:
-                    try:
-                        res = urlopen(wheel_url, timeout=_HTTP_TIMEOUT)
-                        if res.getcode() == 200:
-                            ret = True
-                            new_link = wheel_url
-                            logger.info(f'Using wheel file : {wheel_url}')
-                            return ret, new_link
-                    except Exception:
-                        continue
-
-            # Pure Python wheel이 없으면 첫 번째 wheel 시도
-            if wheel_urls:
-                try:
-                    res = urlopen(wheel_urls[0], timeout=_HTTP_TIMEOUT)
-                    if res.getcode() == 200:
-                        ret = True
-                        new_link = wheel_urls[0]
-                        logger.info(f'Using wheel file : {wheel_urls[0]}')
-                        return ret, new_link
-                except Exception:
-                    pass
-
+        chosen_url, is_wheel = _select_pypi_download_url(
+            _pypi_release_files(oss_name, oss_version)
+        )
+        if chosen_url:
+            ret = True
+            new_link = chosen_url
+            if is_wheel:
+                logger.info(f'Using wheel file : {chosen_url}')
+            return ret, new_link
+        logger.warning(f'Cannot find the link for pypi (url:{link})')
     except Exception as error:
         ret = False
         logger.warning(f'Cannot find the link for pypi (url:{link}({new_link})) e:{str(error)}')
