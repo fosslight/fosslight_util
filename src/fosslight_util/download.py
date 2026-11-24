@@ -861,6 +861,8 @@ _SEMVER_DOT_QUALIFIER_IN_STR = re.compile(
     re.IGNORECASE,
 )
 _CLARIFIED_MAJOR_ONLY_FULL = re.compile(r'^(?:v\.? ?)?(\d+)$', re.IGNORECASE)
+# PEP 440 epoch (N!version). The release after '!' is not a reliable clarified version.
+_PEP440_EPOCH_VERSION = re.compile(r'^\d+!')
 # Maven / OSGi style: 1.1.7.7 (more than three numeric segments; not strict semver)
 _PURE_DOT_NUMERIC_VERSION = re.compile(r'^\d+(\.\d+)+$')
 # Three-part x.y.z anywhere (e.g. R0.3.6, pkg0.3.6) — tried before two-part fallback
@@ -902,6 +904,8 @@ def clarified_version_from_oss_version(oss_version: str) -> str:
     """Extract major, major.minor, or major.minor.patch from oss_version/ref string."""
     s = (oss_version or "").strip()
     if not s:
+        return ""
+    if _PEP440_EPOCH_VERSION.match(s):
         return ""
     core = _strip_leading_v_prefix(_strip_debian_epoch_prefix(s))
     if _PURE_DOT_NUMERIC_VERSION.match(core):
