@@ -70,6 +70,29 @@ def test_pypi_json_keeps_yanked_release_file(mock_get):
 
 
 @patch("fosslight_util._get_downloadable_url.requests.get")
+def test_pypi_json_decodes_percent_encoded_version(mock_get):
+    mock_get.return_value = _response(200, [
+        {"packagetype": "sdist", "filename": "pkg.tar.gz", "url": _SDIST},
+    ])
+    encoded = "https://pypi.org/project/winrt-Windows.Storage.Streams/4%2110.0.28000.2957"
+
+    found, link = get_download_location_for_pypi(encoded)
+
+    assert found is True
+    assert link == _SDIST
+    encoded_request = mock_get.call_args.args[0]
+    assert "4%2110.0.28000.2957" in encoded_request
+    assert "%2521" not in encoded_request
+
+    mock_get.reset_mock()
+    mock_get.return_value = _response(200, [
+        {"packagetype": "sdist", "filename": "pkg.tar.gz", "url": _SDIST},
+    ])
+    get_download_location_for_pypi(_PROJECT)
+    assert mock_get.call_args.args[0] == encoded_request
+
+
+@patch("fosslight_util._get_downloadable_url.requests.get")
 def test_pypi_json_failure_does_not_invent_a_file_url(mock_get):
     mock_get.return_value = _response(404, [])
 

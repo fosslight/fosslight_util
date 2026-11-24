@@ -8,7 +8,7 @@ import requests
 import xml.etree.ElementTree as ET
 from lastversion import latest
 from bs4 import BeautifulSoup
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from urllib.request import urlopen
 import fosslight_util.constant as constant
 
@@ -1023,8 +1023,8 @@ def get_download_location_for_pypi(link):
         dn_loc_re = re.findall(r'pypi.org\/project\/?([^\/]*)\/?([^\/]*)', link)
         if not dn_loc_re:
             return ret, new_link
-        oss_name = dn_loc_re[0][0]
-        oss_version = dn_loc_re[0][1]
+        oss_name = unquote(dn_loc_re[0][0])
+        oss_version = unquote(dn_loc_re[0][1])
         if not oss_name or not oss_version:
             return ret, new_link
 
