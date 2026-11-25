@@ -28,14 +28,27 @@ def is_excluded_filename(file_path: str, filenames=()) -> bool:
 def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
     excluded_paths = set()
 
-    # Normalize patterns: e.g., 'sample/', 'sample/*' -> 'sample'
-    # Replace backslash with slash
+    # Normalize patterns: e.g., 'sample/', 'sample/*' -> 'sample'.
+    # A trailing slash or /* marks a directory-only pattern so 'build*/'
+    # does not also match a file named build_report.c.
+    # Replace backslash with slash. Do not use str.rstrip('/*'): that is a
+    # character set and turns 'build*/' into 'build'.
     normalized_patterns = []
+    directory_patterns = []
     for pattern in patterns:
         pattern = pattern.replace('\\', '/')
-        if pattern.endswith('/') or pattern.endswith('/*'):
-            pattern = pattern.rstrip('/*')
-        normalized_patterns.append(pattern)
+        is_directory_only = pattern.endswith('/') or pattern.endswith('/*')
+        if pattern.endswith('/*'):
+            pattern = pattern[:-2]
+        elif pattern.endswith('/'):
+            pattern = pattern[:-1]
+        if not pattern:
+            continue
+        if is_directory_only:
+            directory_patterns.append(pattern)
+        else:
+            normalized_patterns.append(pattern)
+    directory_and_general_patterns = directory_patterns + normalized_patterns
 
     # Traverse directories
     for root, dirs, files in os.walk(path_to_scan):
@@ -47,7 +60,7 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
             dir_path = os.path.relpath(os.path.join(root, d), path_to_scan).replace('\\', '/')
             matched = False
 
-            for pat in normalized_patterns:
+            for pat in directory_and_general_patterns:
                 # Match directory name
                 if fnmatch.fnmatch(dir_name, pat):
                     matched = True
