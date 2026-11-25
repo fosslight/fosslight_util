@@ -112,6 +112,8 @@ def test_oss_version_hint_from_wget_link(link, downloaded_file, expected_hint):
         ("android-15.0.0_r1", "15.0.0"),
         ("4:10.2.1-1", "10.2.1"),
         ("1:3.118+deb11u1", "3.118"),
+        # PEP 440 epoch is not simplified into a clarified version
+        ("4!10.0.28000.2957", ""),
         # Embedded three-part versions must not collapse to trailing x.y
         ("R0.3.6", "0.3.6"),
         ("rel0.3.6", "0.3.6"),
