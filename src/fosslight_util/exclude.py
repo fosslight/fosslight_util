@@ -40,8 +40,7 @@ def excluding_files(patterns: List[str], path_to_scan: str) -> List[str]:
         is_directory_only = pattern.endswith('/') or pattern.endswith('/*')
         if pattern.endswith('/*'):
             pattern = pattern[:-2]
-        elif pattern.endswith('/'):
-            pattern = pattern[:-1]
+        pattern = pattern.rstrip('/')
         if not pattern:
             continue
         if is_directory_only:

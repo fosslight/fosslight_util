@@ -35,3 +35,9 @@ def test_unslashed_wildcard_also_matches_files(tmp_path):
 def test_exact_directory_slash_still_excludes_contents(tmp_path):
     root = _tree(tmp_path)
     assert excluding_files(["build_out/"], str(root)) == ["build_out/a.c"]
+
+
+def test_repeated_trailing_separators_preserve_directory_patterns(tmp_path):
+    root = _tree(tmp_path)
+    for pattern in ["build_out//", "build*//", "build*//*"]:
+        assert excluding_files([pattern], str(root)) == ["build_out/a.c"]
